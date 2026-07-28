@@ -61,6 +61,9 @@ npm run deploy       # 빌드 후 gh-pages 브랜치로 배포
 
 Node는 PATH에 없을 수 있다 (`C:\Program Files\nodejs`). 없으면 해당 경로를 PATH에 추가한다.
 
+디버그: URL에 `?a=umbrella|window_light|lamp_flicker|sign_tilt|none`을 붙이면 해당 이상현상이
+매 구간 강제된다 (플레이테스트·스크린샷 검증용 — 2026-07-29 전 요소 가시성 검증에 사용).
+
 ## 배포 (GitHub Pages — 로컬 빌드 + gh-pages 브랜치)
 
 - **라이브 URL**: https://ff-1204.github.io/fries-get-cold/

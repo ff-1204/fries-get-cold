@@ -93,15 +93,21 @@ function anomalyChance(): number {
   return Math.min(0.8, CONFIG.baseAnomalyChance + (elapsed / 60) * CONFIG.chancePerMinute);
 }
 
+// 디버그: ?a=umbrella|window_light|lamp_flicker|sign_tilt|none 으로 이상 고정
+// (플레이테스트·스크린샷 검증용 — docs/workflow.md 플레이테스트)
+const DEBUG_ANOMALY = new URLSearchParams(location.search).get('a');
+
 function rollSegment() {
   // 온보딩 보장 (game-design-theory §6): 밤 1 첫 구간은 반드시 정상 —
   // "정상 상태의 학습"이 먼저 (fear-cognition §1: 이상현상 = 학습된 정상의 위반)
-  const forceNormal = night === 1 && !returning && segment === 1;
+  const forceNormal = !DEBUG_ANOMALY && night === 1 && !returning && segment === 1;
   // 밤 1 편도 막바지까지 이상이 한 번도 없었다면 강제 등장 (문법 학습 보장)
   const forceAnomaly =
     night === 1 && !returning && segment >= CONFIG.segments - 1 && tripAnomalies === 0;
 
-  if (!forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
+  if (DEBUG_ANOMALY) {
+    anomaly = ANOMALIES.find((x) => x.effect === DEBUG_ANOMALY) ?? null;
+  } else if (!forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
     // 같은 이상현상 연속 등장 방지 (docs/anomalies.md 밸런싱)
     const pool = ANOMALIES.filter((a) => a.id !== lastAnomalyId);
     anomaly = pool[Math.floor(Math.random() * pool.length)];
