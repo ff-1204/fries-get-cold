@@ -130,7 +130,8 @@ npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
 - 이상현상 확충 (anomalies.md 시드 14종 → data/*.json 분리, "정상 3회 노출 후 변형" 원칙)
 - main.ts 분해: systems/(anomaly·rules·temperature·night) + data/*.json — 이 문서 구조 절 참조
 - 밸런싱 대기 항목: 정적 덕킹이 힌트로 너무 노골적인지, 걷기 속도·구간 길이 체감,
-  온도 압박(전 구간 보통 걸음 = 미지근 도착 검증) — 플레이테스트 후 data.ts CONFIG 조정
+  온도 압박 — 2026-07-29 감쇠 0.55→0.9로 계산상 목표(걷기=미지근·질주=바삭·걷기+우회 2회=눅눅)에
+  맞춤. 체감 검증은 플레이테스트로 — data.ts CONFIG 조정
 
 ### 작업 규칙 요약 (상세는 각 문서)
 

@@ -72,9 +72,13 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   box(endWallW, WALL_H, 1, 0x232838, MAIN_GAP_HALF + endWallW / 2, WALL_H / 2, -L - 0.5, group);
 
   // 샛길 통로 (왼쪽으로 짧게 — 그레이박스)
-  box(8, 0.2, SIDE_GAP.zNear - SIDE_GAP.zFar + 2, 0x151926, -HW - 4.5, -0.1, (SIDE_GAP.zNear + SIDE_GAP.zFar) / 2, group);
+  // 어포던스: "들어갈 수 있어 보이게" — 틈의 빛 + 본길보다 밝은 바닥 (design-principles §0 시그니파이어)
+  box(8, 0.2, SIDE_GAP.zNear - SIDE_GAP.zFar + 2, 0x232838, -HW - 4.5, -0.1, (SIDE_GAP.zNear + SIDE_GAP.zFar) / 2, group);
   box(8, WALL_H, 0.6, 0x1b2032, -HW - 4.5, WALL_H / 2, SIDE_GAP.zNear + 0.8, group);
   box(8, WALL_H, 0.6, 0x1b2032, -HW - 4.5, WALL_H / 2, SIDE_GAP.zFar - 0.8, group);
+  const sideLight = new THREE.PointLight(0x9fb4d8, 5, 9, 1.6); // 한색 — 웜은 목표(버거집) 전용
+  sideLight.position.set(-HW - 2.2, 2.6, (SIDE_GAP.zNear + SIDE_GAP.zFar) / 2);
+  group.add(sideLight);
 
   // 가로등 (구간 중반)
   const lampZ = -L * 0.45;
@@ -92,7 +96,12 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   windowMesh.rotation.y = -Math.PI / 2;
   group.add(windowMesh);
 
-  // 우산 (재활용 배출장 — 이상현상 A-001, 기본 숨김)
+  // 재활용 배출장 (구간 초입 왼쪽) — 우산 이상(A-001)의 '정상 상태' 학습 대상.
+  // 항상 보이는 배출장이 있어야 "거기 우산이 생겼다"가 어긋남으로 성립한다 (fear-cognition §1)
+  box(1.6, 0.5, 1.0, 0x2a3142, -HW + 1.0, 0.25, -L * 0.2, group);
+  box(0.7, 0.35, 0.6, 0x252c3d, -HW + 0.8, 0.85, -L * 0.19, group);
+
+  // 우산 (배출장 옆 — 이상현상 A-001, 기본 숨김)
   const umbrella = new THREE.Group();
   const stick = box(0.06, 1.3, 0.06, 0x555b70, 0, 0.65, 0, umbrella);
   stick.rotation.z = 0.5;
@@ -103,7 +112,7 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   cap.position.set(-0.35, 1.35, 0);
   cap.rotation.z = 0.5;
   umbrella.add(cap);
-  umbrella.position.set(-HW + 0.9, 0, -L * 0.2);
+  umbrella.position.set(-HW + 1.8, 0, -L * 0.24); // 배출장 더미 바로 옆, 실루엣이 겹치지 않게
   umbrella.visible = false;
   group.add(umbrella);
 

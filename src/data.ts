@@ -25,7 +25,9 @@ export const CONFIG = {
   baseAnomalyChance: 0.4,  // 구간당 이상 발생 기본 확률 (docs/anomalies.md)
   chancePerMinute: 0.06,   // 새벽이 깊을수록 상승
   tempMax: 100,
-  tempDecayPerSec: 0.55,   // 귀갓길 자연 하락
+  // 귀갓길 자연 하락 — 목표: 전 구간 보통 걸음(~50초) = 미지근 도착 (design-principles §4).
+  // 걷기 ≈ 55%(미지근), 전력 질주 ≈ 73%(바삭), 걷기+우회 2회 ≈ 23%(눅눅) — 플레이테스트로 재조정
+  tempDecayPerSec: 0.9,
   sidePathTempCost: 9,     // 샛길 우회 1회당 온도 비용
   sidePathTimeCost: 12,    // (가는 길) 샛길 1회당 경과 시간 가산 초 → 위험 증가
   crispyThreshold: 62,     // 이상: 바삭

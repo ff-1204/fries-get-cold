@@ -179,7 +179,8 @@ async function reachHome() {
   save.results[night - 1] = taste; // 밤별 시식 기록 — 기기 내 저장
   save.night = night + 1;
   persist();
-  await hud.blackScreen(`🍟 온도 ${Math.round(temp)}%\n\n${result}`, `밤 ${night + 1}로`);
+  // "온도"가 아니라 "바삭함" — 손실 프레이밍, 게이지 라벨과 일관 (affective §1-4)
+  await hud.blackScreen(`🍟 바삭함 ${Math.round(temp)}%\n\n${result}`, `밤 ${night + 1}로`);
   input.activate();
   night += 1;
   await startNight();
@@ -302,8 +303,8 @@ function refreshContinueUi() {
   continueEl.style.display = show ? 'block' : 'none';
   resetBtn.style.display = show ? 'inline-block' : 'none';
   if (show) {
-    const misses = save.misses > 0 ? ` — 그동안 ${save.misses}번 침대에서 눈을 떴다.` : '';
-    continueEl.textContent = `이어하기: 밤 ${save.night}부터.${misses}`;
+    const misses = save.misses > 0 ? ` 그동안 ${save.misses}번, 침대에서 눈을 떴다.` : '';
+    continueEl.textContent = `이어하기 — 밤 ${save.night}.${misses}`;
   }
 }
 
