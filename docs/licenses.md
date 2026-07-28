@@ -13,6 +13,8 @@
 | vite | 6.4.3 | MIT | 빌드 (devDependency) | 배포물 미포함 |
 | vite-plugin-singlefile | 2.3.3 | MIT | 로컬 단일 파일 빌드 (devDependency) | 배포물 미포함 |
 | typescript | 5.9.3 | Apache-2.0 | 언어 (devDependency) | 배포물 미포함 |
+| gh-pages | 6.3.0 | MIT | gh-pages 브랜치 배포 (devDependency) | 배포물 미포함 |
+| @rollup/wasm-node | 4.62.3 | MIT | rollup 네이티브 대체 (overrides, 빌드 전용) | 배포물 미포함 |
 | three-mesh-bvh | (미도입) | MIT | 충돌/레이캐스팅 — M1 도입 예정 | 도입 시 갱신 |
 
 ## 에셋 (추가 시 기록)

@@ -7,6 +7,7 @@ import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
 import { createWorld, applyAnomaly, setShopNear, updateLamp, SIDE_GAP, MAIN_GAP_HALF } from './world';
+import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
 
 type Phase = 'gate' | 'walk' | 'transition';
 
@@ -17,11 +18,32 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; // 밝기 슬라이더용 노출 제어
 app.appendChild(renderer.domElement);
 
-// 밝기 슬라이더 (visual-polish §4 — "골목이 겨우 보일 정도" 패턴)
+// 밝기 슬라이더 (visual-polish §4 — "골목이 겨우 보일 정도" 패턴). 설정은 기기 내 저장.
+// 조절하는 동안 시작 화면을 걷어(peek) 실제 골목을 보면서 맞춘다 — 결과가 보여야 조절할 수 있다.
 const brightEl = document.getElementById('bright') as HTMLInputElement | null;
-brightEl?.addEventListener('input', () => {
-  renderer.toneMappingExposure = parseFloat(brightEl.value);
-});
+const startOverlay = document.getElementById('start')!;
+let peekTimer = 0;
+function peekOn() {
+  window.clearTimeout(peekTimer);
+  startOverlay.classList.add('peek');
+}
+function peekOff() {
+  startOverlay.classList.remove('peek');
+}
+if (brightEl) {
+  brightEl.value = String(save.brightness);
+  renderer.toneMappingExposure = save.brightness;
+  brightEl.addEventListener('pointerdown', peekOn);
+  window.addEventListener('pointerup', peekOff);
+  window.addEventListener('pointercancel', peekOff);
+  brightEl.addEventListener('input', () => {
+    renderer.toneMappingExposure = parseFloat(brightEl.value);
+    save.brightness = parseFloat(brightEl.value);
+    persist();
+    peekOn(); // 키보드(방향키) 조절도 미리보기 — 잠시 후 자동 복귀
+    peekTimer = window.setTimeout(peekOff, 1000);
+  });
+}
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 120);
@@ -32,11 +54,31 @@ const hud = new Hud();
 const audio = new AudioEngine();
 const clock = new THREE.Clock();
 
+// ---------- 사운드 토글 (우상단 버튼 · M 키) — 설정은 기기 내 저장 ----------
+const soundBtn = document.getElementById('sound-btn') as HTMLButtonElement | null;
+function applyMute() {
+  audio.setMuted(save.muted);
+  if (soundBtn) {
+    soundBtn.textContent = save.muted ? '🔇' : '🔊';
+    soundBtn.setAttribute('aria-label', save.muted ? '소리 켜기' : '소리 끄기');
+  }
+}
+function toggleMute() {
+  save.muted = !save.muted;
+  persist();
+  applyMute();
+}
+soundBtn?.addEventListener('click', toggleMute);
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyM') toggleMute(); // PC 포인터락 중에는 버튼 클릭 불가 — 키로 대체
+});
+applyMute();
+
 // ---------- 게임 상태 ----------
 let phase: Phase = 'gate';
 let started = false;
 let pausing = false;
-let night = 1;
+let night = save.night; // 이어하기 — 기기 내 저장에서 복원 (docs/privacy.md)
 let segment = 1;            // 1..CONFIG.segments
 let returning = false;
 let temp = CONFIG.tempMax;
@@ -96,6 +138,8 @@ async function startNight() {
 
 async function failNight() {
   phase = 'transition';
+  save.misses += 1; // 노미스 히든 엔딩 판정용 (game.md 엔딩)
+  persist();
   const reveal = anomaly ? anomaly.reveal : '';
   await hud.fadeOut(900);
   await hud.blackScreen(`${reveal}\n\n${TEXT.fail}`, '…다시 나간다');
@@ -124,10 +168,17 @@ async function reachHome() {
   phase = 'transition';
   await hud.fadeOut(1000);
   audio.crunch(temp / CONFIG.tempMax); // 시식 — Peak-End의 End (affective §1-4)
+  const taste: TasteResult =
+    temp >= CONFIG.crispyThreshold ? 'crispy' :
+    temp >= CONFIG.lukewarmThreshold ? 'lukewarm' :
+    'soggy';
   const result =
-    temp >= CONFIG.crispyThreshold ? TEXT.resultCrispy :
-    temp >= CONFIG.lukewarmThreshold ? TEXT.resultLukewarm :
+    taste === 'crispy' ? TEXT.resultCrispy :
+    taste === 'lukewarm' ? TEXT.resultLukewarm :
     TEXT.resultSoggy;
+  save.results[night - 1] = taste; // 밤별 시식 기록 — 기기 내 저장
+  save.night = night + 1;
+  persist();
   await hud.blackScreen(`🍟 온도 ${Math.round(temp)}%\n\n${result}`, `밤 ${night + 1}로`);
   input.activate();
   night += 1;
@@ -239,6 +290,43 @@ async function pauseGame() {
   phase = 'walk';
   pausing = false;
 }
+
+// ---------- 이어하기 안내 · 기록 삭제 (시작 화면) ----------
+const continueEl = document.getElementById('continue-info');
+const resetBtn = document.getElementById('reset-btn') as HTMLButtonElement | null;
+const RESET_LABEL = '기록 삭제 · 처음부터';
+
+function refreshContinueUi() {
+  if (!continueEl || !resetBtn) return;
+  const show = hasProgress();
+  continueEl.style.display = show ? 'block' : 'none';
+  resetBtn.style.display = show ? 'inline-block' : 'none';
+  if (show) {
+    const misses = save.misses > 0 ? ` — 그동안 ${save.misses}번 침대에서 눈을 떴다.` : '';
+    continueEl.textContent = `이어하기: 밤 ${save.night}부터.${misses}`;
+  }
+}
+
+let resetArmed = false;
+resetBtn?.addEventListener('click', () => {
+  if (!resetArmed) {
+    // 실수 방지 이중 확인 — confirm() 대신 버튼 자체가 되묻는다
+    resetArmed = true;
+    resetBtn.textContent = '정말 삭제할까요? (한 번 더 누르면 삭제)';
+    return;
+  }
+  resetSave();
+  resetArmed = false;
+  resetBtn.textContent = RESET_LABEL;
+  night = save.night;
+  if (brightEl) {
+    brightEl.value = String(save.brightness);
+    renderer.toneMappingExposure = save.brightness;
+  }
+  applyMute(); // 음소거 설정도 기본값으로 되돌아감
+  refreshContinueUi();
+});
+refreshContinueUi();
 
 // ---------- 시작 게이트 (오디오/포인터락용 사용자 제스처) ----------
 document.getElementById('start-btn')!.addEventListener('click', async () => {

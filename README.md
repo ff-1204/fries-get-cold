@@ -7,7 +7,7 @@
 
 - 장르: 심리 호러 / 이상현상 관찰
 - 플랫폼: 브라우저 (Three.js + TypeScript + Vite), 싱글플레이
-- 배포: GitHub Pages — `https://<username>.github.io/fries-get-cold/`
+- **플레이**: https://ff-1204.github.io/fries-get-cold/ (GitHub Pages)
 
 ## 핵심 차별점
 
@@ -17,9 +17,10 @@
 
 ## 실행
 
-- **바로 플레이 (설치 불요)**: `play-local.html` 더블클릭 — 게임 전체가 든 단일 파일 빌드
+- **웹에서 바로 플레이**: https://ff-1204.github.io/fries-get-cold/
+- **오프라인 플레이 (설치 불요)**: `play-local.html` 더블클릭 — 게임 전체가 든 단일 파일 빌드
 - **개발 모드** (Node.js 18+): `npm install` 후 `npm run dev`
-- **배포 빌드**: `npm run build` (GitHub Pages용) / `npm run build:local` (단일 파일 재생성)
+- **배포**: `npm run deploy` (빌드 → `gh-pages` 브랜치) / `npm run build:local` (단일 파일 재생성)
 - 조작 — PC: 클릭 후 WASD 이동, 마우스 시점, Shift 달리기 / 모바일: 좌측 드래그 이동, 우측 드래그 시점
 
 ## 문서
@@ -55,6 +56,7 @@
 | 문서 | 내용 |
 |---|---|
 | [docs/commercial.md](./docs/commercial.md) | 상업화 — 라이선스 정책, 지식재산 준수, 가격·플랫폼 로드맵 |
+| [docs/privacy.md](./docs/privacy.md) | 개인정보처리방침 — 수집 없음, 기기 내 저장(localStorage) 안내 |
 | [docs/trend-research.md](./docs/trend-research.md) | 조사 기록 — 장르·시장·기술 분석 (출처 포함) |
 | [docs/licenses.md](./docs/licenses.md) | 서드파티 라이선스 대장 |
 

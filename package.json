@@ -7,13 +7,19 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:local": "vite build --config vite.config.local.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
     "three": "^0.178.0"
   },
+  "//overrides": "이 PC의 Windows Application Control 정책이 rollup 네이티브 모듈(.node) 로드를 차단해 공식 WASM 빌드로 대체 (docs/development.md '배포')",
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@^4.62.3"
+  },
   "devDependencies": {
     "@types/three": "^0.178.0",
+    "gh-pages": "^6.3.0",
     "typescript": "^5.5.0",
     "vite": "^6.0.0",
     "vite-plugin-singlefile": "^2.3.3"

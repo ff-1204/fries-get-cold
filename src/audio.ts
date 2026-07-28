@@ -2,11 +2,14 @@
 // 근거: affective-design §2-3 (환경음 상시 → 정적 성립), fear-cognition §8 (정적 = 청각 예측 오류)
 // 시작 게이트의 사용자 제스처에서 start() 호출 (모바일 자동재생 정책 — responsive-design §4)
 
+const MASTER_VOLUME = 0.9;
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private ambGain: GainNode | null = null;
   private stepTimer = 0;
+  private muted = false;
 
   start() {
     if (this.ctx) {
@@ -17,7 +20,7 @@ export class AudioEngine {
     this.ctx = ctx;
 
     this.master = ctx.createGain();
-    this.master.gain.value = 0.9;
+    this.master.gain.value = this.muted ? 0 : MASTER_VOLUME;
     this.master.connect(ctx.destination);
 
     // --- 환경음: 바람 (루프 노이즈 + 로우패스 + 느린 흔들림) ---
@@ -44,6 +47,16 @@ export class AudioEngine {
   }
   resume() {
     void this.ctx?.resume();
+  }
+
+  /** 마스터 음소거 — 클릭 노이즈 방지를 위해 짧은 램프로 전환. start() 전에 불러도 안전 */
+  setMuted(muted: boolean) {
+    this.muted = muted;
+    if (!this.ctx || !this.master) return;
+    const t = this.ctx.currentTime;
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(this.master.gain.value, t);
+    this.master.gain.linearRampToValueAtTime(muted ? 0 : MASTER_VOLUME, t + 0.15);
   }
 
   /** 이상 구간에서 환경음이 잦아든다 — '정적'이 곧 청각 단서 (시각 단서 병행 원칙) */

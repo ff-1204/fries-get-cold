@@ -12,7 +12,7 @@
 | 로컬 단일 파일 빌드 | vite-plugin-singlefile → `play-local.html` | 사용 중 |
 | 충돌/레이캐스팅 | three-mesh-bvh | M1 도입 예정 (M0는 경계 클램프) |
 | 모델링 | Blender → glTF + Draco / KTX2 압축 | M1~ (M0는 그레이박스) |
-| 호스팅 | GitHub Pages (Actions 자동 배포) | 설정 완료 |
+| 호스팅 | GitHub Pages (로컬 빌드 → gh-pages 브랜치) | 사용 중 |
 
 멀티플레이어 없음 → 서버 없음. 전부 정적 파일.
 
@@ -25,7 +25,6 @@ fries-get-cold/
 ├── vite.config.local.ts      # 단일 파일 빌드 (play-local.html)
 ├── play-local.html           # 더블클릭 실행용 빌드 산출물 (git 미포함)
 ├── docs/                     # 개발 문서
-├── .github/workflows/deploy.yml
 └── src/
     ├── main.ts               # 게임 루프, 밤 상태 머신, 이동/판정
     ├── world.ts              # 그레이박스 구간 프리팹, 이상현상 적용(applyAnomaly)
@@ -57,15 +56,34 @@ npm install          # 최초 1회
 npm run dev          # 개발 서버 (핫 리로드)
 npm run build        # 타입 검사 + Pages용 빌드 (dist/)
 npm run build:local  # 단일 파일 빌드 → dist-local/index.html (play-local.html로 복사)
+npm run deploy       # 빌드 후 gh-pages 브랜치로 배포
 ```
 
-## 배포 (GitHub Pages)
+Node는 PATH에 없을 수 있다 (`C:\Program Files\nodejs`). 없으면 해당 경로를 PATH에 추가한다.
 
-1. 레포 이름은 반드시 `fries-get-cold` (base 경로와 일치), Public.
-2. `.github/workflows/deploy.yml`이 main 푸시마다 빌드·배포.
-   ⚠ 이 파일은 원격 도구로 쓸 수 없어 수동 관리 — 삭제·이동 주의.
-3. 리포지토리 Settings → Pages → Source: **GitHub Actions** (최초 1회).
-4. 배포 후 라이브 URL을 직접 플레이해 확인 ([workflow.md](./workflow.md) 릴리즈 절차).
+## 배포 (GitHub Pages — 로컬 빌드 + gh-pages 브랜치)
+
+- **라이브 URL**: https://ff-1204.github.io/fries-get-cold/
+- **방식**: GitHub Actions 미사용. 로컬에서 빌드해 산출물만 `gh-pages` 브랜치로 푸시한다.
+  (`main` = 소스, `gh-pages` = 빌드 산출물)
+
+```bash
+npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
+```
+
+1. 레포 이름은 반드시 `fries-get-cold` (base 경로 `/fries-get-cold/`와 일치), Public.
+2. 리포지토리 Settings → Pages → Source: **Deploy from a branch → `gh-pages` / `(root)`** (최초 1회).
+   ⚠ `main` 브랜치를 서빙하면 빌드 없이 원본 `index.html`이 그대로 나가고 스크립트
+   (`/src/main.ts`)를 못 찾아 **시작 화면만 뜨고 게임이 실행되지 않는다.**
+3. 배포 후 라이브 URL을 직접 플레이해 확인 ([workflow.md](./workflow.md) 릴리즈 절차).
+
+### 빌드 환경 주의 — rollup 네이티브 모듈 차단
+
+이 개발 PC는 Windows Application Control 정책이 서명 없는 네이티브 모듈(`.node`) 로드를
+차단해, rollup 기본 바이너리로는 `vite build`가 `ERR_DLOPEN_FAILED`로 실패한다.
+`package.json`의 `overrides`로 rollup을 **공식 WASM 빌드(`@rollup/wasm-node`)** 로 대체해
+해결했다. 빌드 속도만 조금 느릴 뿐 산출물은 동일하다. 이 항목을 지우면 빌드가 다시 깨진다.
+(esbuild·tsc는 정책에 걸리지 않아 그대로 사용)
 
 ## 성능 예산
 
@@ -94,17 +112,17 @@ npm run build:local  # 단일 파일 빌드 → dist-local/index.html (play-loca
 - 알려진 수정 이력: PC 오버레이 중 포인터락으로 버튼 클릭 불가 → blackScreen에서
   exitPointerLock, 버튼 후 input.activate() 재획득 (이 순서 유지 필수).
 
-### 미완료 액션 (PC에서 바로 할 일)
+### 미완료 액션 (PC에서 바로 할 일) — 2026-07-29 갱신
 
-1. **git 첫 커밋 아직 없음.** 컨벤션: Conventional Commits + 한국어
-   (feat/fix/docs/refactor/chore/balance). 첫 커밋 권장:
-   `feat: M0 프로토타입과 문서 체계 초기 구축 (v0.2.1)`
-2. **`.github/workflows/deploy.yml` 존재 확인** — 원격 도구로 쓸 수 없어 수동 배치 필요했던
-   파일. 없으면 배포 불가 (내용은 이 문서 '배포' 절 + Actions 표준 구성).
-3. GitHub에 Public 레포 `fries-get-cold` 생성(정확히 이 이름 — base 경로 일치) → push →
-   Settings → Pages → Source: GitHub Actions.
+1. ~~git 첫 커밋~~ **완료** — 컨벤션 확정: Conventional Commits + 한국어 제목
+   (feat/fix/docs/refactor/chore/polish). 커밋 메시지에 Co-Authored-By 트레일러 넣지 않음.
+2. ~~배포 파이프라인~~ **완료** — Actions 대신 로컬 빌드 + `gh-pages` 브랜치 (`npm run deploy`).
+   Actions는 필수가 아니라 사용하지 않기로 결정 (2026-07-29).
+3. ~~레포 생성·push~~ **완료** — https://github.com/ff-1204/fries-get-cold
+   ⚠ **남은 일**: Settings → Pages → Source를 **`gh-pages` / `(root)`** 로 전환 (배포 절 2번).
+   현재 `main` 서빙 상태라 라이브에서 게임이 실행되지 않음.
 4. 배포 후 모바일 실기기 테스트 (responsive-design.md §7 매트릭스).
-5. `node_modules` 없으면 `npm install` 먼저 (Node 18+).
+5. ~~로컬 빌드 환경~~ **완료** — rollup WASM 대체로 해결 (위 '빌드 환경 주의' 참조).
 
 ### 다음 개발 단계: M1 (game.md 로드맵)
 

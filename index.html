@@ -56,6 +56,28 @@
       padding: 12px 28px; font-size: clamp(14px, 2vw, 16px); font-weight: 700;
       min-width: 44px; min-height: 44px;
     }
+    .overlay button.ghost {
+      background: none; color: #8b90a8; font-weight: 400;
+      font-size: clamp(11px, 1.6vw, 13px); padding: 8px 12px; margin-top: 0;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .overlay .fineprint { font-size: clamp(10px, 1.4vw, 12px); opacity: 0.35; }
+    .overlay .fineprint a { color: inherit; pointer-events: auto; }
+
+    /* 밝기 미리보기 — 슬라이더를 잡는 동안 시작 화면이 걷혀 실제 골목이 보인다 */
+    #start { transition: opacity 0.8s, background-color 0.35s; }
+    #start > * { transition: opacity 0.3s; }
+    #start.peek { background-color: transparent; }
+    #start.peek > :not(.bright-row) { opacity: 0; pointer-events: none; }
+    #start.peek .bright-row { text-shadow: 0 1px 4px #000; }
+
+    /* 사운드 토글 — 시작 화면 설정 줄 (게임 화면에는 아무것도 띄우지 않는다) */
+    #sound-btn {
+      pointer-events: auto; cursor: pointer; min-width: 44px; min-height: 40px;
+      margin-top: 0; background: rgba(12, 16, 30, 0.55); color: #d8d8e0;
+      border: 1px solid #2a3148; border-radius: 10px;
+      font-size: 18px; line-height: 1; padding: 6px 10px; font-weight: 400;
+    }
     #fade {
       position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none;
       transition: opacity 1.2s; z-index: 5;
@@ -92,13 +114,21 @@
       골목이 이상하면 <b>왼쪽 샛길</b>로 우회하세요. 이상한 본길로 들어서면 그 밤은 끝납니다.<br/>
       괜한 우회는 실패는 아니지만… 감자튀김이 식습니다. 🎧 이어폰 권장
     </div>
-    <div class="sub" style="display:flex;align-items:center;gap:10px;">
+    <div class="sub bright-row" style="display:flex;align-items:center;gap:10px;">
       밝기 <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
         style="pointer-events:auto;width:150px;accent-color:#ffb23e;" />
-      <span style="opacity:0.7">골목이 겨우 보일 정도가 적당해요</span>
+      <span style="opacity:0.7">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</span>
     </div>
+    <div class="sub" style="display:flex;align-items:center;gap:10px;">
+      소리 <button id="sound-btn" aria-label="소리 끄기">🔊</button>
+      <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
+    </div>
+    <div class="sub" id="continue-info" style="display:none"></div>
     <button id="start-btn">현관문을 연다</button>
-    <div class="sub">PC: 클릭 후 WASD 이동 · 마우스 시점 · Shift 달리기</div>
+    <button id="reset-btn" class="ghost" style="display:none">기록 삭제 · 처음부터</button>
+    <div class="sub">PC: 클릭 후 WASD 이동 · 마우스 시점 · Shift 달리기 · M 소리 켬/끔</div>
+    <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다 ·
+      <a href="https://github.com/ff-1204/fries-get-cold/blob/main/docs/privacy.md" target="_blank" rel="noopener">개인정보처리방침</a></div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.2 — 2026-07-29 (기기 내 저장)
+
+- 진행 저장(src/save.ts): 밤 진행·실패 횟수·밤별 시식 결과·밝기 설정을 localStorage에 저장
+  — 서버 전송 없음, 손상 데이터 방어(sanitize), 프라이빗 모드에서도 플레이 가능
+- 시작 화면 이어하기 안내("이어하기: 밤 N부터") + "기록 삭제 · 처음부터" 버튼(이중 확인)
+- 개인정보처리방침 문서(docs/privacy.md) + 시작 화면 하단 안내 문구·링크
+- GitHub Pages 실배포: 라이브 URL(https://ff-1204.github.io/fries-get-cold/) 문서 반영
+- 배포 방식 확정: GitHub Actions 미사용, 로컬 빌드 → gh-pages 브랜치(`npm run deploy`)
+- 빌드 환경: Application Control 정책이 rollup 네이티브 모듈을 차단해
+  공식 WASM 빌드(@rollup/wasm-node)로 대체 (overrides)
+- 밝기 조절 미리보기: 슬라이더를 잡는 동안 시작 화면이 걷혀 실제 골목을 보면서 조절
+- 사운드 🔊/🔇 토글: 시작 화면 설정 줄 + M 키(게임 중, PC), 설정 기기 내 저장
+  — 게임 화면에는 UI를 띄우지 않음 (몰입 우선)
+
 ## v0.2.1 — 2026-07-28 (PC·모바일웹 방어 처리)
 
 - Android 뒤로가기/브라우저 백버튼 → 게임 이탈 대신 일시정지 오버레이 (히스토리 트랩)
