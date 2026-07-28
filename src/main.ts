@@ -298,6 +298,12 @@ async function pauseGame() {
   pausing = false;
 }
 
+// ---------- 설정 패널 접기/펼치기 (시작 화면) ----------
+const settingsPanel = document.getElementById('settings-panel');
+document.getElementById('settings-btn')?.addEventListener('click', () => {
+  settingsPanel?.classList.toggle('open');
+});
+
 // ---------- 이어하기 안내 · 기록 삭제 (시작 화면) ----------
 const continueEl = document.getElementById('continue-info');
 const resetBtn = document.getElementById('reset-btn') as HTMLButtonElement | null;
