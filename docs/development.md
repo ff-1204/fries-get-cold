@@ -121,9 +121,8 @@ npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
    (feat/fix/docs/refactor/chore/polish). 커밋 메시지에 Co-Authored-By 트레일러 넣지 않음.
 2. ~~배포 파이프라인~~ **완료** — Actions 대신 로컬 빌드 + `gh-pages` 브랜치 (`npm run deploy`).
    Actions는 필수가 아니라 사용하지 않기로 결정 (2026-07-29).
-3. ~~레포 생성·push~~ **완료** — https://github.com/ff-1204/fries-get-cold
-   ⚠ **남은 일**: Settings → Pages → Source를 **`gh-pages` / `(root)`** 로 전환 (배포 절 2번).
-   현재 `main` 서빙 상태라 라이브에서 게임이 실행되지 않음.
+3. ~~레포 생성·push·Pages 설정~~ **완료** — https://github.com/ff-1204/fries-get-cold
+   Pages Source를 `gh-pages` / `(root)`로 전환 완료(2026-07-29), 라이브 동작 검증됨.
 4. 배포 후 모바일 실기기 테스트 (responsive-design.md §7 매트릭스).
 5. ~~로컬 빌드 환경~~ **완료** — rollup WASM 대체로 해결 (위 '빌드 환경 주의' 참조).
 
@@ -143,3 +142,48 @@ npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
 - 코드 수정 시 `npm run build`(타입 검사 포함) + `npm run build:local`로 play-local.html 재생성
 - 서드파티 추가 즉시 licenses.md 기록. GPL 금지. LICENSE 파일 추가 금지(All Rights Reserved)
 - 15세 수위·특정 작품 언급 금지 원칙은 공개 레포 전제 — 커밋 전 상기
+
+---
+
+## 개발 로그 — 2026-07-29 세션 (PC 첫 세션)
+
+클라우드 인수인계를 받아 PC에서 진행. v0.2.1 → v0.2.4 + a. 기능 변경 상세는 CHANGELOG 참조 —
+여기에는 다음 세션에 필요한 **환경 지식과 결정**을 기록한다.
+
+### 릴리즈·인프라 결정
+
+- **git**: 첫 커밋~푸시 완료. 컨벤션 Conventional Commits + 한국어 제목,
+  Co-Authored-By 트레일러 금지. git 사용자 정보는 저장소 로컬로 `Moon <myesung12@gmail.com>`.
+- **배포**: GitHub Actions 미사용 결정 → `npm run deploy` (로컬 빌드 → `gh-pages` 브랜치,
+  `--dotfiles`로 `.nojekyll` 포함). Pages Source 전환 완료, 라이브 번들 해시를 로컬 빌드와
+  대조해 검증. 첫 orphan 배포 때 `.gitignore`가 브랜치에 딸려가는 문제는 정리함.
+- **빌드 환경 (이 PC 특이사항)**:
+  - Node가 PATH에 없음 — `C:\Program Files\nodejs`를 세션마다 PATH에 추가해야 함
+  - Application Control 정책이 서명 없는 `.node` 로드 차단 → rollup을 `@rollup/wasm-node`로
+    overrides (위 '빌드 환경 주의' 절). esbuild(exe)·tsc(순수 JS)는 무관
+  - npm 래퍼가 install script를 막음(allow-scripts) — esbuild 경고는 무해
+
+### 이번 세션 기능·수정 (요약)
+
+- 기기 내 저장 `src/save.ts` (밤·실패·시식 기록·밝기·음소거) + 이어하기/기록 삭제 UI,
+  개인정보처리방침 `docs/privacy.md`
+- 시작 화면: 접이식 "⚙ 설정" 패널(밝기·소리), 밝기 미리보기(peek), 규칙 설명 문구 제거
+- A-013 입간판 가시성 수정 → anomalies.md '배치 규칙' 3원칙 신설
+- 문서 정합: 샛길 어포던스 조명, 재활용 배출장 프롭, 온도 감쇠 0.9, "바삭함" 프레이밍 통일
+
+### 검증 방법 (재사용 가능)
+
+- **헤드리스 시각 검증**: 브라우저 확장 없이 스크래치패드에 `puppeteer-core`를 설치하고
+  설치된 Edge(`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`)를
+  `--enable-unsafe-swiftshader`로 띄워 스크린샷 촬영. WASD 이동은 포인터락 없이
+  `page.keyboard`로 가능 (키 리스너는 락과 무관).
+- **이상현상 강제**: `?a=<effect>` 디버그 파라미터 (위 '개발 명령' 절).
+- **시간성 연출(깜빡임 등)**: 90ms 간격 연사 후 PNG 파일 크기 편차로 소등 프레임 탐지 —
+  화면이 어두워지면 압축 크기가 급감한다.
+- 이 방법으로 전 요소(이상현상 4종·샛길 조명·배출장·HUD·저장/설정 UI) 가시성·동작 검증 완료.
+
+### 다음 세션에 남기는 일
+
+- 모바일 실기기 테스트 (위 미완료 액션 4번 — 유일하게 남은 항목)
+- 온도 감쇠 0.9 체감 검증, 밝기 기본값 적정성 (헤드리스 기준 상당히 어두움 — 실기기로 확인)
+- M1 착수 (위 '다음 개발 단계' 절)
