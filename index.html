@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>튀김이 식기 전에 — Before the Fries Get Cold</title>
+  <meta name="description" content="새벽 한 시, 감자튀김을 사러 나선 자취생의 15분. 별일 없으면." />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100dvh; overflow: hidden;
+      background: #0a0e1a; color: #d8d8e0;
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+      overscroll-behavior: none;        /* 당겨서 새로고침 방지 (Android Chrome) */
+      -webkit-touch-callout: none;      /* 길게 눌러 메뉴 방지 (iOS) */
+    }
+    #app { position: fixed; inset: 0; }
+    canvas { display: block; }
+
+    /* ---------- HUD ---------- */
+    #hud { position: fixed; inset: 0; pointer-events: none; }
+    #status {
+      position: absolute; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left));
+      font-size: clamp(12px, 1.6vw, 15px); letter-spacing: 0.06em; opacity: 0.85;
+      text-shadow: 0 1px 4px #000;
+    }
+    #temp-wrap {
+      position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right));
+      width: clamp(110px, 22vw, 180px); display: none;
+    }
+    #temp-label { font-size: clamp(11px, 1.4vw, 13px); text-align: right; margin-bottom: 4px; opacity: 0.9; text-shadow: 0 1px 4px #000; }
+    #temp-bar { height: 8px; background: #1c2233; border-radius: 4px; overflow: hidden; }
+    #temp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #7a5cff, #ffb23e); transition: width 0.3s linear; }
+    #msg {
+      position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%);
+      max-width: min(86vw, 640px); text-align: center;
+      font-size: clamp(14px, 2vw, 18px); line-height: 1.6;
+      opacity: 0; transition: opacity 0.6s; text-shadow: 0 1px 6px #000;
+    }
+
+    /* ---------- 오버레이 공통 ---------- */
+    .overlay {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: #06080f; text-align: center; padding: 24px; z-index: 10;
+      transition: opacity 0.8s;
+    }
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+    .overlay h1 { font-size: clamp(22px, 4.5vw, 34px); font-weight: 700; letter-spacing: 0.02em; }
+    .overlay .sub { font-size: clamp(12px, 2vw, 15px); opacity: 0.55; line-height: 1.8; }
+    .overlay .quote { font-size: clamp(13px, 2vw, 16px); opacity: 0.8; font-style: italic; }
+    .overlay button {
+      pointer-events: auto; cursor: pointer; margin-top: 10px;
+      background: #ffb23e; color: #201404; border: none; border-radius: 8px;
+      padding: 12px 28px; font-size: clamp(14px, 2vw, 16px); font-weight: 700;
+      min-width: 44px; min-height: 44px;
+    }
+    #fade {
+      position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none;
+      transition: opacity 1.2s; z-index: 5;
+    }
+
+    /* 모바일 조작 힌트 */
+    #touch-hint {
+      position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%;
+      transform: translateX(-50%); font-size: 12px; opacity: 0.4; display: none;
+      text-shadow: 0 1px 4px #000; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="hud">
+    <div id="status"></div>
+    <div id="temp-wrap">
+      <div id="temp-label">🍟 바삭함</div>
+      <div id="temp-bar"><div id="temp-fill"></div></div>
+    </div>
+    <div id="msg"></div>
+    <div id="touch-hint">왼쪽 드래그: 이동 · 오른쪽 드래그: 시점</div>
+  </div>
+
+  <div id="fade"></div>
+
+  <div id="start" class="overlay">
+    <h1>튀김이 식기 전에</h1>
+    <div class="sub">Before the Fries Get Cold — M0 그레이박스 프로토타입</div>
+    <div class="quote">"골목이 아무리 이상해도, 감자튀김은 먹어야 하니까."</div>
+    <div class="sub">
+      골목이 이상하면 <b>왼쪽 샛길</b>로 우회하세요. 이상한 본길로 들어서면 그 밤은 끝납니다.<br/>
+      괜한 우회는 실패는 아니지만… 감자튀김이 식습니다. 🎧 이어폰 권장
+    </div>
+    <div class="sub" style="display:flex;align-items:center;gap:10px;">
+      밝기 <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
+        style="pointer-events:auto;width:150px;accent-color:#ffb23e;" />
+      <span style="opacity:0.7">골목이 겨우 보일 정도가 적당해요</span>
+    </div>
+    <button id="start-btn">현관문을 연다</button>
+    <div class="sub">PC: 클릭 후 WASD 이동 · 마우스 시점 · Shift 달리기</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
