@@ -6,7 +6,7 @@ import { ANOMALIES, CONFIG, TEXT, type AnomalyDef } from './data';
 import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
-import { createWorld, applyAnomaly, setShopNear, updateLamp, SIDE_GAP, MAIN_GAP_HALF } from './world';
+import { createWorld, applyAnomaly, setShopNear, setSegmentTheme, updateWorld, SIDE_GAP, MAIN_GAP_HALF } from './world';
 import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
 
 type Phase = 'gate' | 'walk' | 'transition';
@@ -93,11 +93,19 @@ function anomalyChance(): number {
   return Math.min(0.8, CONFIG.baseAnomalyChance + (elapsed / 60) * CONFIG.chancePerMinute);
 }
 
-// 디버그: ?a=umbrella|window_light|lamp_flicker|sign_tilt|none 으로 이상 고정
-// (플레이테스트·스크린샷 검증용 — docs/workflow.md 플레이테스트)
+// 디버그: ?a=<effect>로 이상 고정 — 해당 이상현상의 배치 구간에 도달했을 때 등장
+// (effect 목록은 src/data/anomalies.json — 플레이테스트·스크린샷 검증용)
 const DEBUG_ANOMALY = new URLSearchParams(location.search).get('a');
 
 function rollSegment() {
+  setSegmentTheme(refs, segment); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
+
+  // 이 구간·이 밤에 가능한 풀 — 이상은 그 구간 테마의 사물에만 걸 수 있다 (anomalies.md)
+  // 같은 이상현상 연속 등장 방지 포함 (밸런싱)
+  const pool = ANOMALIES.filter(
+    (a) => a.segment === segment && a.night <= night && a.id !== lastAnomalyId,
+  );
+
   // 온보딩 보장 (game-design-theory §6): 밤 1 첫 구간은 반드시 정상 —
   // "정상 상태의 학습"이 먼저 (fear-cognition §1: 이상현상 = 학습된 정상의 위반)
   const forceNormal = !DEBUG_ANOMALY && night === 1 && !returning && segment === 1;
@@ -106,10 +114,8 @@ function rollSegment() {
     night === 1 && !returning && segment >= CONFIG.segments - 1 && tripAnomalies === 0;
 
   if (DEBUG_ANOMALY) {
-    anomaly = ANOMALIES.find((x) => x.effect === DEBUG_ANOMALY) ?? null;
-  } else if (!forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
-    // 같은 이상현상 연속 등장 방지 (docs/anomalies.md 밸런싱)
-    const pool = ANOMALIES.filter((a) => a.id !== lastAnomalyId);
+    anomaly = ANOMALIES.find((x) => x.effect === DEBUG_ANOMALY && x.segment === segment) ?? null;
+  } else if (pool.length > 0 && !forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
     anomaly = pool[Math.floor(Math.random() * pool.length)];
     lastAnomalyId = anomaly.id;
     tripAnomalies += 1;
@@ -280,7 +286,7 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.1); // 백그라운드 복귀 시 델타 클램프 (responsive-design §4)
   time += dt;
   if (phase === 'walk') updateWalk(dt);
-  updateLamp(refs, time);
+  updateWorld(refs, time);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }

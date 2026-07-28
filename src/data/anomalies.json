@@ -1,0 +1,82 @@
+[
+  {
+    "id": "A-001",
+    "night": 1,
+    "segment": 1,
+    "category": "OBJ",
+    "effect": "umbrella",
+    "reveal": "…아무도 안 버린 우산이 놓여 있었다."
+  },
+  {
+    "id": "A-002",
+    "night": 1,
+    "segment": 1,
+    "category": "LGT",
+    "effect": "sensor_on",
+    "reveal": "…센서등이, 아무도 없는데 계속 켜져 있었다."
+  },
+  {
+    "id": "A-015",
+    "night": 1,
+    "segment": 1,
+    "category": "LGT",
+    "effect": "window_red",
+    "reveal": "…그 창문, 원래 불이 꺼져 있었는데."
+  },
+  {
+    "id": "A-004",
+    "night": 1,
+    "segment": 2,
+    "category": "OBJ",
+    "effect": "laundry_open",
+    "reveal": "…세탁소 셔터가 반쯤 열려 있었다. 안이 밝았다."
+  },
+  {
+    "id": "A-006",
+    "night": 1,
+    "segment": 2,
+    "category": "LGT",
+    "effect": "sign_lit",
+    "reveal": "…꺼져 있어야 할 간판 하나가, 켜져 있었다."
+  },
+  {
+    "id": "A-007",
+    "night": 1,
+    "segment": 3,
+    "category": "OBJ",
+    "effect": "swing",
+    "reveal": "…바람도 없는데, 그네가 흔들리고 있었다."
+  },
+  {
+    "id": "A-008",
+    "night": 1,
+    "segment": 3,
+    "category": "LGT",
+    "effect": "lamp_flicker",
+    "reveal": "…가로등이 두 번씩 깜빡이고 있었다."
+  },
+  {
+    "id": "A-009",
+    "night": 1,
+    "segment": 3,
+    "category": "OBJ",
+    "effect": "ball_out",
+    "reveal": "…공이 혼자 길 한가운데까지 나와 있었다."
+  },
+  {
+    "id": "A-011",
+    "night": 1,
+    "segment": 4,
+    "category": "LGT",
+    "effect": "traffic_red",
+    "reveal": "…양쪽 다, 빨간불이었다. 계속."
+  },
+  {
+    "id": "A-013",
+    "night": 1,
+    "segment": 5,
+    "category": "OBJ",
+    "effect": "sign_turn",
+    "reveal": "…입간판이 나를 향해 돌아가 있었다."
+  }
+]

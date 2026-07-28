@@ -27,10 +27,13 @@ fries-get-cold/
 ├── docs/                     # 개발 문서
 └── src/
     ├── main.ts               # 게임 루프, 밤 상태 머신, 이동/판정
-    ├── world.ts              # 그레이박스 구간 프리팹, 이상현상 적용(applyAnomaly)
+    ├── world.ts              # 공용 복도 + 구간 테마 5종, 이상현상 effect 핸들러
     ├── input.ts              # 입력 추상화 (포인터락+WASD / 반분할 터치)
     ├── hud.ts                # DOM HUD (상태·온도·자막·암전·오버레이)
-    └── data.ts               # 이상현상·수치·텍스트 (M1에서 data/*.json으로 분리)
+    ├── audio.ts              # 프로시저럴 사운드 (환경음·정적·발소리·크런치)
+    ├── save.ts               # 기기 내 저장 (localStorage)
+    ├── data.ts               # 수치(CONFIG)·텍스트(TEXT)·타입, 콘텐츠 파사드
+    └── data/anomalies.json   # 이상현상 콘텐츠 (스키마: docs/anomalies.md)
 ```
 
 M1 분리 계획: main.ts가 커지면 systems/(anomaly·rules·temperature·night)와 data/*.json으로

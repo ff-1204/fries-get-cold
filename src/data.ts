@@ -1,20 +1,27 @@
-// 콘텐츠 데이터 — M1에서 src/data/*.json으로 이전 예정 (docs/anomalies.md 스키마)
+// 콘텐츠 데이터 파사드 — 이상현상 콘텐츠는 data/anomalies.json (docs/anomalies.md 스키마).
+// 원칙: 콘텐츠는 데이터, 로직은 시스템 — 이상현상 추가에 코드 수정이 필요하면 설계 실패
+// (단, 새 '시각 효과'가 필요한 경우만 world.ts에 effect 핸들러 추가)
 
-export type AnomalyEffect = 'window_light' | 'lamp_flicker' | 'umbrella' | 'sign_tilt';
+import anomaliesJson from './data/anomalies.json';
+
+export type AnomalyEffect =
+  | 'umbrella' | 'sensor_on' | 'window_red'          // 구간 1 원룸 골목
+  | 'laundry_open' | 'sign_lit'                      // 구간 2 상가 골목
+  | 'swing' | 'lamp_flicker' | 'ball_out'            // 구간 3 놀이터 옆길
+  | 'traffic_red'                                    // 구간 4 정류장 앞
+  | 'sign_turn';                                     // 구간 5 먹자골목 입구
 
 export interface AnomalyDef {
   id: string;
+  night: number;      // 등장 시작 밤
+  segment: number;    // 배치 구간 (1~5) — 구간 테마의 사물에만 걸 수 있다
+  category: 'OBJ' | 'LGT' | 'TXT' | 'HUM' | 'SPC' | 'SND' | 'MTA';
   effect: AnomalyEffect;
   /** 실패 직후 암시 문구 (design-principles §3 — 공정성) */
   reveal: string;
 }
 
-export const ANOMALIES: AnomalyDef[] = [
-  { id: 'A-002', effect: 'window_light',  reveal: '…그 창문, 원래 불이 꺼져 있었는데.' },
-  { id: 'A-008', effect: 'lamp_flicker',  reveal: '…가로등이 두 번씩 깜빡이고 있었다.' },
-  { id: 'A-001', effect: 'umbrella',      reveal: '…아무도 안 버린 우산이 놓여 있었다.' },
-  { id: 'A-013', effect: 'sign_tilt',     reveal: '…입간판이 나를 향해 돌아가 있었다.' },
-];
+export const ANOMALIES = anomaliesJson as AnomalyDef[];
 
 export const CONFIG = {
   segments: 5,             // 편도 구간 수
@@ -36,8 +43,12 @@ export const CONFIG = {
 
 export const TEXT = {
   nightLabel: (n: number) => `밤 ${n}`,
+  /** 구간 이름 (story.md §4 무대) — HUD에 표기해 "어디를 걷는지"를 학습시킨다 */
+  segNames: ['원룸 골목', '상가 골목', '놀이터 옆길', '정류장 앞', '먹자골목 입구'],
   segLabel: (s: number, total: number, returning: boolean) =>
-    returning ? `귀갓길 ${total - s + 1}/${total}` : `${s}/${total} 구간`,
+    returning
+      ? `귀갓길 ${total - s + 1}/${total} — ${TEXT.segNames[s - 1]}`
+      : `${s}/${total} — ${TEXT.segNames[s - 1]}`,
   /** 밤별 인트로 모놀로그 — 담담한 톤 유지 (story.md 톤 가이드) */
   intros: [
     '새벽 한 시. 감자튀김이 먹고 싶다.',
