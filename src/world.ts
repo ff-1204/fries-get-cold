@@ -9,7 +9,7 @@ export interface SegmentRefs {
   lampLight: THREE.PointLight;
   windowMesh: THREE.Mesh;
   umbrella: THREE.Group;
-  sign: THREE.Mesh;
+  sign: THREE.Group;
   shopGlow: THREE.PointLight;
   shopSignMat: THREE.MeshStandardMaterial;
 }
@@ -22,6 +22,11 @@ const WALL_H = 7;
 export const SIDE_GAP = { zNear: -(L - 9), zFar: -(L - 4) };
 // 본길 개구부 (끝 벽 중앙)
 export const MAIN_GAP_HALF = 1.4;
+
+// 입간판 방향 — 정상은 벽과 평행(옆면), 이상은 플레이어 정면.
+// 실루엣 차이가 커야 3초 안에 식별된다 (anomalies.md 명확성 원칙)
+const SIGN_REST_Y = Math.PI / 2;
+const SIGN_TURNED_Y = 0;
 
 function box(
   w: number, h: number, d: number,
@@ -102,8 +107,22 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   umbrella.visible = false;
   group.add(umbrella);
 
-  // 입간판 (이상현상 A-013 — 평소엔 벽과 평행, 이상 시 플레이어 쪽으로 회전)
-  const sign = box(0.8, 1.4, 0.1, 0x2e3550, -HW + 0.7, 0.7, -L * 0.82, group);
+  // 입간판 (이상현상 A-013) — 먹자골목 A자형 입간판.
+  // 평소: 벽과 평행이라 옆면(A자 실루엣)만 보임 / 이상: 판면이 플레이어를 정면으로 향한다.
+  // 배치 원칙 — 가로등 불빛이 닿고 판정 전 관찰 시간이 남는 위치에만 둔다
+  // (visual-polish §4 실루엣 가독성: 분위기를 위해 판정을 어둡게 만들지 않는다)
+  const sign = new THREE.Group();
+  const panelMat = new THREE.MeshStandardMaterial({ color: 0x8b90a8, roughness: 0.9 });
+  const panelGeo = new THREE.BoxGeometry(0.8, 1.15, 0.06);
+  for (const dir of [1, -1]) {
+    const panel = new THREE.Mesh(panelGeo, panelMat);
+    panel.position.set(0, 0.56, dir * 0.16);
+    panel.rotation.x = -dir * 0.26; // 두 판이 위에서 만나 A자를 이룬다
+    sign.add(panel);
+  }
+  sign.position.set(-HW + 0.75, 0, -L * 0.55); // 가로등(z=-L*0.45) 광원 안쪽
+  sign.rotation.y = SIGN_REST_Y;
+  group.add(sign);
 
   // 구간 끝 개구부 너머의 "다음 골목" 어렴풋한 빛
   const shopGlow = new THREE.PointLight(0xffb23e, 0, 26, 2);
@@ -127,7 +146,7 @@ export function applyAnomaly(refs: SegmentRefs, effect: AnomalyEffect | null) {
   // reset
   (refs.windowMesh.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000);
   refs.umbrella.visible = false;
-  refs.sign.rotation.y = 0;
+  refs.sign.rotation.y = SIGN_REST_Y;
   refs.lampLight.userData.flicker = false;
   refs.lampLight.intensity = 22;
 
@@ -139,7 +158,7 @@ export function applyAnomaly(refs: SegmentRefs, effect: AnomalyEffect | null) {
       refs.umbrella.visible = true;
       break;
     case 'sign_tilt':
-      refs.sign.rotation.y = 0.9;
+      refs.sign.rotation.y = SIGN_TURNED_Y;
       break;
     case 'lamp_flicker':
       refs.lampLight.userData.flicker = true;
