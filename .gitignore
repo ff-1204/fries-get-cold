@@ -1,6 +1,0 @@
-node_modules/
-dist/
-dist-local/
-play-local.html
-.DS_Store
-*.local
