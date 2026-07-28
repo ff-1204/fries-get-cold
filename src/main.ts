@@ -304,6 +304,58 @@ async function pauseGame() {
   pausing = false;
 }
 
+// ---------- 프롤로그 (story.md §2 — 이불 속 배달 앱. 첫 시작에만) ----------
+// 감정 좌표: 나른한 욕구, 긍정·저각성 (affective §1-2) — 느린 페이드만, 팝 금지
+const wakeEl = document.getElementById('wake')!;
+const prologueEl = document.getElementById('prologue')!;
+const phoneEl = document.getElementById('phone')!;
+const prologueMsg = document.getElementById('prologue-msg')!;
+const prologueBtn = document.getElementById('prologue-btn') as HTMLButtonElement;
+
+function showTitleGate() {
+  startOverlay.classList.remove('hidden'); // 문이 열리면 — 타이틀 (story.md)
+}
+
+if (hasProgress()) {
+  showTitleGate(); // 이어하기 — 프롤로그 생략
+} else {
+  wakeEl.classList.remove('hidden');
+}
+
+document.getElementById('wake-btn')!.addEventListener('click', () => {
+  wakeEl.classList.add('hidden');
+  prologueEl.classList.remove('hidden');
+  setTimeout(() => phoneEl.classList.add('on'), 500);
+});
+
+let prologueStage = 0;
+prologueBtn.addEventListener('click', () => {
+  if (prologueStage === 0) {
+    // 화면을 끈다 → 정적 → (참지 못하고) 다시 켠다
+    prologueStage = 1;
+    phoneEl.classList.remove('on');
+    prologueBtn.style.visibility = 'hidden';
+    setTimeout(() => {
+      phoneEl.classList.add('on');
+      prologueBtn.textContent = '…다시 끈다';
+      prologueBtn.style.visibility = 'visible';
+    }, 2600);
+  } else if (prologueStage === 1) {
+    prologueStage = 2;
+    phoneEl.classList.remove('on');
+    prologueBtn.style.visibility = 'hidden';
+    setTimeout(() => {
+      prologueMsg.textContent = '"감자튀김 하나에 만육천칠백 원은 좀 아니지."';
+      prologueMsg.style.opacity = '1';
+      prologueBtn.textContent = '이불을 걷는다';
+      prologueBtn.style.visibility = 'visible';
+    }, 1100);
+  } else {
+    prologueEl.classList.add('hidden');
+    showTitleGate();
+  }
+});
+
 // ---------- 설정 패널 접기/펼치기 (시작 화면) ----------
 const settingsPanel = document.getElementById('settings-panel');
 document.getElementById('settings-btn')?.addEventListener('click', () => {
