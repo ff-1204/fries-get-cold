@@ -64,11 +64,16 @@
     .overlay .fineprint { font-size: clamp(10px, 1.4vw, 12px); opacity: 0.35; }
     .overlay .fineprint a { color: inherit; pointer-events: auto; }
 
+    /* 접이식 설정 (밝기·소리) — 타이틀 첫인상을 해치지 않게 기본 접힘 (visual-polish §1) */
+    #settings-panel { display: none; flex-direction: column; align-items: center; gap: 12px; }
+    #settings-panel.open { display: flex; }
+
     /* 밝기 미리보기 — 슬라이더를 잡는 동안 시작 화면이 걷혀 실제 골목이 보인다 */
     #start { transition: opacity 0.8s, background-color 0.35s; }
-    #start > * { transition: opacity 0.3s; }
+    #start > *, #settings-panel > * { transition: opacity 0.3s; }
     #start.peek { background-color: transparent; }
-    #start.peek > :not(.bright-row) { opacity: 0; pointer-events: none; }
+    #start.peek > :not(#settings-panel),
+    #start.peek #settings-panel > :not(.bright-row) { opacity: 0; pointer-events: none; }
     #start.peek .bright-row { text-shadow: 0 1px 4px #000; }
 
     /* 사운드 토글 — 시작 화면 설정 줄 (게임 화면에는 아무것도 띄우지 않는다) */
@@ -90,7 +95,7 @@
       text-shadow: 0 1px 4px #000; white-space: nowrap;
     }
   </style>
-  <script type="module" crossorigin src="/fries-get-cold/assets/index-qliafsmy.js"></script>
+  <script type="module" crossorigin src="/fries-get-cold/assets/index-C7KvuMRY.js"></script>
 </head>
 <body>
   <div id="app"></div>
@@ -112,18 +117,23 @@
     <div class="sub">Before the Fries Get Cold — M0 그레이박스 프로토타입</div>
     <div class="quote">"골목이 아무리 이상해도, 감자튀김은 먹어야 하니까."</div>
     <div class="sub">🎧 이어폰을 권장합니다</div>
-    <div class="sub bright-row" style="display:flex;align-items:center;gap:10px;">
-      밝기 <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
-        style="pointer-events:auto;width:150px;accent-color:#ffb23e;" />
-      <span style="opacity:0.7">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</span>
-    </div>
-    <div class="sub" style="display:flex;align-items:center;gap:10px;">
-      소리 <button id="sound-btn" aria-label="소리 끄기">🔊</button>
-      <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
-    </div>
     <div class="sub" id="continue-info" style="display:none"></div>
     <button id="start-btn">현관문을 연다</button>
-    <button id="reset-btn" class="ghost" style="display:none">기록 삭제 · 처음부터</button>
+    <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
+      <button id="settings-btn" class="ghost">⚙ 설정</button>
+      <button id="reset-btn" class="ghost" style="display:none">기록 삭제 · 처음부터</button>
+    </div>
+    <div id="settings-panel">
+      <div class="sub bright-row" style="display:flex;align-items:center;gap:10px;">
+        밝기 <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
+          style="pointer-events:auto;width:150px;accent-color:#ffb23e;" />
+        <span style="opacity:0.7">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</span>
+      </div>
+      <div class="sub" style="display:flex;align-items:center;gap:10px;">
+        소리 <button id="sound-btn" aria-label="소리 끄기">🔊</button>
+        <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
+      </div>
+    </div>
     <div class="sub">PC: 클릭 후 WASD 이동 · 마우스 시점 · Shift 달리기 · M 소리 켬/끔</div>
     <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다 ·
       <a href="https://github.com/ff-1204/fries-get-cold/blob/main/docs/privacy.md" target="_blank" rel="noopener">개인정보처리방침</a></div>
