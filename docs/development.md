@@ -213,6 +213,9 @@ v0.3.1 → v0.3.2. 기능 상세는 CHANGELOG — 여기에는 환경 지식·�
   시식 연출(귀가 비트→한 입씩→밤별 에필로그), 밸런싱 실측·조정 (샛길 온도 비용 9→12)
 - 배포 자동화: `.githooks/pre-push` — main 푸시 시 `npm run deploy` 자동 실행
   (위 '배포' 절. Actions 미사용 결정 유지, gh-pages 브랜치는 훅이 관리하므로 건드릴 일 없음)
+- 개발문화 정비: **CLAUDE.md 신설**(세션 자동 로드 가이드), workflow.md **'배운 것' 표** 도입
+  — 자매 프로젝트 dori 관례 수용. **/ship 스킬**(.claude/skills/ship — 마무리 절차 체크리스트).
+  역방향으로 dori에 /ship 이식·검증 환경 사실 교정(Node 있음)·verify 스크립트 패턴 전파
 
 ### 검증 도구 정착 — `scripts/verify.mjs` (재사용)
 
