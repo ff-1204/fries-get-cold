@@ -2,5 +2,6 @@ node_modules/
 dist/
 dist-local/
 play-local.html
+verify-shots/
 .DS_Store
 *.local
