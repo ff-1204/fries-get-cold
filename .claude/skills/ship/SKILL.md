@@ -17,6 +17,12 @@ workflow.md의 「설계 판정 → 구현 → 검증 → 문서화 → 커밋�
 
 ## 절차
 
+### 0. 검산 (커밋될 코드를 눈으로 다시)
+
+- **`grep -rn "\[임시\]" src/` = 0건** — 검증용 임시 값(디버그 기본값·강제 플래그)이 남지
+  않았는지. 임시 값을 넣을 때는 주석에 `[임시]` 마커를 반드시 붙인다 (dori 사례에서 수용)
+- 밸런스·수치를 문서에 적었다면: 가정이 아니라 실측(verify:balance) 근거인지
+
 ### 1. 빌드
 
 ```bash
@@ -39,7 +45,10 @@ npm run verify:balance   # 온도 목표 3종 (걷기=미지근/질주=바삭/�
 - 끝나면 dev 서버 종료. TaskStop 후에도 node 자식이 5199를 물고 살아남을 수 있다 —
   `Get-NetTCPConnection -LocalPort 5199`로 확인 후 Stop-Process
 
-### 3. 문서화 (코드와 같은 커밋에 — workflow.md §4)
+### 3. 문서화 (코드와 같은 커밋에 — workflow.md 참조)
+
+- **이번 작업에서 실수를 겪었다면**: workflow.md '배운 것 (실수 → 규칙)' 표에 규칙으로 승격.
+  절차 규칙이면 이 스킬에도 반영하고, **자매 프로젝트(dori) 반영도 검토**한다
 
 | 바뀐 것 | 갱신할 문서 |
 |---|---|
@@ -57,6 +66,8 @@ npm run verify:balance   # 온도 목표 3종 (걷기=미지근/질주=바삭/�
 
 ### 5. 푸시 = 배포
 
+- 먼저 훅 활성 확인: `git config core.hooksPath` → `.githooks`가 아니면
+  `git config core.hooksPath .githooks` (새 클론은 미설정 — 모르고 푸시하면 **배포가 조용히 누락**된다)
 - `git push` — pre-push 훅이 `npm run deploy`(빌드 → gh-pages 발행)까지 자동 실행
 - 게임에 영향 없는 커밋(문서·도구만)은 `SKIP_DEPLOY=1 git push`
 - 배포했다면 라이브 확인: 번들 해시 대조
