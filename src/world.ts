@@ -284,10 +284,12 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   // ---------- 테마 2: 상가 골목 ----------
   const t2 = new THREE.Group();
 
-  // 24시 세탁소 (오른쪽 벽 — A-004: 셔터 반열림 + 내부 불)
-  const laundryInterior = box(2.6, 2.0, 0.08, 0x141824, HW - 0.06, 1.25, -L * 0.39, t2);
+  // 24시 세탁소 (오른쪽 벽면 파사드 — A-004: 셔터 반열림 + 내부 불)
+  // 벽과 평행 — 왼쪽 셔터 가게들과 같은 문법. 통로에 수직으로 꽂힌 M0 슬랩은
+  // 골목을 반쯤 막은 벽처럼 보였고 눈높이라 카메라가 관통했다 (2026-07-30 맵 구조 수정)
+  const laundryInterior = box(0.08, 2.0, 2.6, 0x141824, HW - 0.06, 1.25, -L * 0.39, t2);
   const laundryMat = laundryInterior.material as THREE.MeshStandardMaterial;
-  const laundryShutter = box(2.7, 2.2, 0.1, 0x2b3244, HW - 0.16, 1.25, -L * 0.39, t2);
+  const laundryShutter = box(0.12, 2.2, 2.7, 0x2b3244, HW - 0.18, 1.25, -L * 0.39, t2);
   const laundryLight = new THREE.PointLight(0xcfe0e8, 0, 8, 1.8);
   laundryLight.position.set(HW - 0.9, 1.3, -L * 0.39);
   t2.add(laundryLight);
@@ -330,11 +332,12 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   }
 
   // 그네 (펜스 너머 — A-007: 혼자 흔들림)
-  box(0.1, 2.3, 0.1, 0x3a4157, -HW + 0.5, 1.15, -L * 0.365, t3);
-  box(0.1, 2.3, 0.1, 0x3a4157, -HW + 0.5, 1.15, -L * 0.42, t3);
-  box(0.08, 0.08, 2.2, 0x3a4157, -HW + 0.5, 2.3, -L * 0.393, t3);
+  // 프레임 x=-2.78 — 통행 한계(-2.6) 밖. -2.5일 때는 기둥을 몸으로 통과할 수 있었다
+  box(0.1, 2.3, 0.1, 0x3a4157, -HW + 0.22, 1.15, -L * 0.365, t3);
+  box(0.1, 2.3, 0.1, 0x3a4157, -HW + 0.22, 1.15, -L * 0.42, t3);
+  box(0.08, 0.08, 2.2, 0x3a4157, -HW + 0.22, 2.3, -L * 0.393, t3);
   const swingPivot = new THREE.Group();
-  swingPivot.position.set(-HW + 0.5, 2.26, -L * 0.393);
+  swingPivot.position.set(-HW + 0.22, 2.26, -L * 0.393);
   box(0.03, 1.5, 0.03, 0x555b70, 0, -0.75, -0.22, swingPivot);
   box(0.03, 1.5, 0.03, 0x555b70, 0, -0.75, 0.22, swingPivot);
   box(0.14, 0.06, 0.55, 0x555b70, 0, -1.5, 0, swingPivot);
@@ -367,12 +370,13 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   // ---------- 테마 4: 정류장 앞 ----------
   const t4 = new THREE.Group();
 
-  // 정류장 부스 (오른쪽)
-  box(2.2, 2.2, 0.08, 0x252c3d, HW - 0.1, 1.35, -L * 0.32, t4);
-  box(2.4, 0.08, 0.9, 0x2a3142, HW - 0.55, 2.5, -L * 0.32, t4);
-  box(0.08, 2.5, 0.08, 0x2a3142, HW - 1.0, 1.25, -L * 0.285, t4);
-  box(0.08, 2.5, 0.08, 0x2a3142, HW - 1.0, 1.25, -L * 0.355, t4);
-  box(1.8, 0.08, 0.35, 0x2a3142, HW - 0.5, 0.55, -L * 0.32, t4);
+  // 정류장 부스 (오른쪽 벽을 등짐 — 등판은 벽과 평행, 기둥은 통행 한계 밖)
+  // 도로를 가로막는 방향으로 90° 돌아가 있던 M0 형태 교정 (2026-07-30 맵 구조 수정)
+  box(0.08, 2.2, 2.2, 0x252c3d, HW - 0.06, 1.35, -L * 0.32, t4);   // 등판 (벽면)
+  box(0.9, 0.08, 2.4, 0x2a3142, HW - 0.5, 2.5, -L * 0.32, t4);     // 지붕 (머리 위)
+  box(0.08, 2.5, 0.08, 0x2a3142, HW - 0.34, 1.25, -L * 0.29, t4);  // 기둥 (x≥2.62 — 통행 한계 밖)
+  box(0.08, 2.5, 0.08, 0x2a3142, HW - 0.34, 1.25, -L * 0.35, t4);
+  box(0.35, 0.08, 1.8, 0x2a3142, HW - 0.32, 0.55, -L * 0.32, t4);  // 벤치 (무릎 아래)
 
   // 신호등 2기 (길 양쪽 — A-011: 양쪽 다 빨간불 고정 / 정상: 교대 점등)
   const trafficRed: THREE.MeshStandardMaterial[] = [];
