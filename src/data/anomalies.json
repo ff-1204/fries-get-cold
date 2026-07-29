@@ -24,6 +24,14 @@
     "reveal": "…그 창문, 원래 불이 꺼져 있었는데."
   },
   {
+    "id": "A-003",
+    "night": 2,
+    "segment": 1,
+    "category": "TXT",
+    "effect": "flyer_digits",
+    "reveal": "…전단지 전화번호가, 한 자리 모자랐다."
+  },
+  {
     "id": "A-004",
     "night": 1,
     "segment": 2,
@@ -38,6 +46,14 @@
     "category": "LGT",
     "effect": "sign_lit",
     "reveal": "…꺼져 있어야 할 간판 하나가, 켜져 있었다."
+  },
+  {
+    "id": "A-005",
+    "night": 2,
+    "segment": 2,
+    "category": "TXT",
+    "effect": "realty_urgent",
+    "reveal": "…시세표에, 방값 대신 '급구' 두 글자만 적혀 있었다."
   },
   {
     "id": "A-007",
@@ -78,5 +94,14 @@
     "category": "OBJ",
     "effect": "sign_turn",
     "reveal": "…입간판이 나를 향해 돌아가 있었다."
+  },
+  {
+    "id": "A-012",
+    "night": 2,
+    "segment": 5,
+    "category": "TXT",
+    "effect": "shop_typo",
+    "outboundOnly": true,
+    "reveal": "…간판이 '24시간요'라고, 대답하고 있었다."
   }
 ]

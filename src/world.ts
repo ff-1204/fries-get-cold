@@ -11,21 +11,27 @@ export interface SegmentRefs {
   themes: THREE.Group[]; // index = 구간 - 1
   lampLight: THREE.PointLight;
   shopGlow: THREE.PointLight;
+  shopSign: THREE.Mesh;
   shopSignMat: THREE.MeshStandardMaterial;
   // --- 이상현상 타깃 (테마별) ---
   umbrella: THREE.Group;                    // 1: A-001
   sensorMat: THREE.MeshStandardMaterial;    // 1: A-002
   sensorLight: THREE.PointLight;
   windowMat: THREE.MeshStandardMaterial;    // 1: A-015
+  flyerMat: THREE.MeshStandardMaterial;     // 1: A-003 (전단지 — TXT)
+  flyerTex: [THREE.CanvasTexture, THREE.CanvasTexture];   // [정상, 이상]
   laundryShutter: THREE.Mesh;               // 2: A-004
   laundryMat: THREE.MeshStandardMaterial;
   laundryLight: THREE.PointLight;
   storeSignMat: THREE.MeshStandardMaterial; // 2: A-006
+  realtyMat: THREE.MeshStandardMaterial;    // 2: A-005 (부동산 시세표 — TXT)
+  realtyTex: [THREE.CanvasTexture, THREE.CanvasTexture];
   swingPivot: THREE.Group;                  // 3: A-007
   ball: THREE.Mesh;                         // 3: A-009
   trafficRed: THREE.MeshStandardMaterial[]; // 4: A-011 (양쪽 빨간등)
   trafficGreen: THREE.MeshStandardMaterial[];
   sign: THREE.Group;                        // 5: A-013
+  shopTex: [THREE.CanvasTexture, THREE.CanvasTexture];    // 5: A-012 (간판 오탈자 — TXT)
 }
 
 const L = CONFIG.segLength;
@@ -44,6 +50,92 @@ const SIGN_TURNED_Y = 0;
 // 공 위치 — 정상은 펜스 안쪽, 이상은 길 한가운데
 const BALL_HOME = new THREE.Vector3(-2.35, 0.28, -L * 0.46);
 const BALL_OUT = new THREE.Vector3(0.5, 0.28, -L * 0.42);
+
+// ---------- TXT 계열 — 캔버스 텍스트 렌더 (A-003·A-005·A-012) ----------
+// 시스템 폰트만 사용 (오프라인 단일 파일 빌드 유지 — 웹폰트 로드 금지)
+const KR_FONT = '"Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+
+function canvasTex(w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const c = cv.getContext('2d')!;
+  draw(c);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/** 과외 전단지 — 정상 11자리 / 이상 10자리 (가운데 자리군이 한 자리 짧다) */
+function flyerTexture(phone: string): THREE.CanvasTexture {
+  return canvasTex(256, 352, (c) => {
+    c.fillStyle = '#b3ad9c'; // 살짝 바랜 종이 — 벽(#232838)과 실루엣 대비 (배치 3원칙)
+    c.fillRect(0, 0, 256, 352);
+    c.fillStyle = '#2a2620';
+    c.textAlign = 'center';
+    c.font = `bold 46px ${KR_FONT}`;
+    c.fillText('과외', 128, 84);
+    c.fillText('구합니다', 128, 140);
+    c.font = `24px ${KR_FONT}`;
+    c.fillText('수학 · 영어 — 초·중등', 128, 196);
+    c.font = `bold 31px ${KR_FONT}`;
+    c.fillText(phone, 128, 268);
+    // 절취선 (아래 탭 — 전단지의 실루엣 문법)
+    c.strokeStyle = '#6d675a';
+    c.setLineDash([5, 5]);
+    for (let x = 32; x < 256; x += 32) {
+      c.beginPath();
+      c.moveTo(x, 300);
+      c.lineTo(x, 352);
+      c.stroke();
+    }
+  });
+}
+
+/** 부동산 유리창 시세표 — 정상 "월세 35" / 이상 첫 카드가 "급구" */
+function realtyTexture(urgent: boolean): THREE.CanvasTexture {
+  return canvasTex(512, 384, (c) => {
+    c.fillStyle = '#0d1220'; // 꺼진 유리창
+    c.fillRect(0, 0, 512, 384);
+    c.strokeStyle = '#2a3148';
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, 502, 374);
+    const cards: Array<[string, string]> = [
+      ['희망빌라 302', urgent ? '급구' : '월세 35'],
+      ['동아주택 B01', '월세 30'],
+      ['한빛빌라 201', '전세 8,500'],
+      ['성원빌라 402', '월세 28'],
+    ];
+    cards.forEach(([name, price], i) => {
+      const x = 28 + (i % 2) * 240;
+      const y = 32 + Math.floor(i / 2) * 168;
+      c.fillStyle = '#c6c1b1';
+      c.fillRect(x, y, 216, 140);
+      c.textAlign = 'center';
+      c.fillStyle = '#33302a';
+      c.font = `22px ${KR_FONT}`;
+      c.fillText(name, x + 108, y + 44);
+      // '급구'도 같은 잉크색 — 색으로 소리치지 않는다 (담담한 톤, visual-polish §6)
+      c.font = `bold 40px ${KR_FONT}`;
+      c.fillText(price, x + 108, y + 102);
+    });
+  });
+}
+
+/** 버거집 간판 — 정상 "버거버거 24시" / 이상 "버거버거 24시간요" (story.md §7) */
+function shopSignTexture(text: string): THREE.CanvasTexture {
+  return canvasTex(512, 144, (c) => {
+    c.fillStyle = '#140d05';
+    c.fillRect(0, 0, 512, 144);
+    c.textAlign = 'center';
+    c.fillStyle = '#ffd9a0'; // 점등 시 emissiveMap으로 발광 — 웜은 목표(버거집) 전용색
+    c.font = `bold 60px ${KR_FONT}`;
+    const w = c.measureText(text).width;
+    if (w > 470) c.font = `bold ${Math.floor((60 * 470) / w)}px ${KR_FONT}`;
+    c.fillText(text, 256, 96);
+  });
+}
 
 function box(
   w: number, h: number, d: number,
@@ -110,10 +202,16 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   shopGlow.position.set(0, 3, -L - 6);
   group.add(shopGlow);
 
-  // 버거집 간판(개구부 위) — 마지막 구간에서만 점등
-  const shopSignMat = new THREE.MeshStandardMaterial({ color: 0x241a10, emissive: 0x000000 });
+  // 버거집 간판(개구부 위) — 마지막 구간에서만 점등. 글자는 캔버스 텍스처 (A-012 오탈자 타깃)
+  const shopTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
+    shopSignTexture('버거버거 24시'),
+    shopSignTexture('버거버거 24시간요'),
+  ];
+  const shopSignMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: shopTex[0], emissiveMap: shopTex[0], emissive: 0x000000,
+  });
   const shopSign = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.9, 0.3), shopSignMat);
-  shopSign.position.set(0, 4.6, -L - 0.4);
+  shopSign.position.set(0, 4.6, -L + 0.2); // 끝벽(z=-L~-L-1)보다 앞 — 벽 기둥에 좌우가 가리지 않게
   group.add(shopSign);
 
   // ---------- 테마 1: 원룸 골목 ----------
@@ -155,6 +253,34 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   t1.add(windowMesh);
   const windowMat = windowMesh.material as THREE.MeshStandardMaterial;
 
+  // 과외 전단지 (오른쪽 벽, 가로등 사거리 안 — A-003: 전화번호 11→10자리)
+  // 정상 상태가 상시 노출되어야 위반이 성립 (fear-cognition §1) — 밤 1부터 걸려 있다
+  const flyerTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
+    flyerTexture('010-4172-8956'),
+    flyerTexture('010-417-8956'),
+  ];
+  const flyerMat = new THREE.MeshStandardMaterial({ map: flyerTex[0], roughness: 0.9 });
+  const flyer = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.75), flyerMat);
+  flyer.position.set(HW - 0.01, 1.55, -L * 0.4);
+  flyer.rotation.y = -Math.PI / 2;
+  t1.add(flyer);
+
+  // 구조 차별화 — 전봇대·전선·실외기·빌라 철문 (원룸 골목의 하늘 실루엣은 전선이 만든다)
+  box(0.24, 6.8, 0.24, 0x2c3244, HW - 0.35, 3.4, -L * 0.15, t1);
+  box(0.24, 6.8, 0.24, 0x2c3244, -HW + 0.35, 3.4, -L * 0.72, t1);
+  box(0.035, 0.035, L * 0.85, 0x11141d, HW - 0.35, 6.3, -L * 0.5, t1); // 골목을 따라가는 전선
+  const wireDx = (HW - 0.35) - (-HW + 0.35);
+  const wireDz = -L * 0.15 - -L * 0.72;
+  const wire = box( // 전봇대 사이를 비스듬히 가로지르는 전선
+    0.035, 0.035, Math.hypot(wireDx, wireDz), 0x11141d,
+    0, 6.0, (-L * 0.15 + -L * 0.72) / 2, t1,
+  );
+  wire.rotation.y = Math.atan2(wireDx, wireDz);
+  box(0.85, 0.6, 0.38, 0x2a3040, HW - 0.35, 2.5, -L * 0.58, t1);  // 실외기 (카메라 1.65 위)
+  box(0.85, 0.6, 0.38, 0x262c3c, -HW + 0.35, 2.2, -L * 0.33, t1);
+  box(0.12, 2.4, 1.5, 0x11151f, -HW + 0.05, 1.2, -L * 0.22, t1);  // 빌라 철문 (파인 어둠)
+  box(0.2, 0.16, 1.9, 0x2c3244, -HW + 0.1, 2.5, -L * 0.22, t1);   // 문틀 상단
+
   // ---------- 테마 2: 상가 골목 ----------
   const t2 = new THREE.Group();
 
@@ -172,6 +298,28 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   const storeSignMat = storeSign.material as THREE.MeshStandardMaterial;
   box(1.5, 0.6, 0.14, 0x1c2130, HW - 0.1, 3.4, -L * 0.29, t2);
   box(1.9, 0.7, 0.14, 0x20263a, HW - 0.1, 3.1, -L * 0.62, t2);
+
+  // 부동산 유리창 시세표 (왼쪽 벽, 가로등 사거리 안 — A-005: "월세 35" → "급구")
+  const realtyTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
+    realtyTexture(false),
+    realtyTexture(true),
+  ];
+  const realtyMat = new THREE.MeshStandardMaterial({ map: realtyTex[0], roughness: 0.85 });
+  const realty = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), realtyMat);
+  realty.position.set(-HW + 0.01, 1.5, -L * 0.5);
+  realty.rotation.y = Math.PI / 2;
+  t2.add(realty);
+
+  // 구조 차별화 — 닫힌 셔터 가게(슬랫 실루엣)·어닝·보도 단차 (상가의 문법: 셔터는 닫혀 있다)
+  // 닫힌 셔터가 '학습된 정상'을 강화할수록 세탁소 반열림(A-004)의 위반이 도드라진다
+  for (const sz of [-L * 0.3, -L * 0.68]) {
+    box(0.12, 2.1, 2.3, 0x2a3143, -HW + 0.1, 1.15, sz, t2);
+    for (let i = 0; i < 4; i++) box(0.13, 0.05, 2.3, 0x1f2534, -HW + 0.1, 0.45 + i * 0.5, sz, t2);
+    const awning = box(0.85, 0.07, 2.5, 0x232134, -HW + 0.5, 2.65, sz, t2);
+    awning.rotation.z = -0.3; // 벽에서 내려오는 처마 기울기
+  }
+  box(0.55, 0.14, L * 0.92, 0x222736, -HW + 0.28, 0.07, -L / 2, t2); // 보도 단차
+  box(0.55, 0.14, L * 0.92, 0x222736, HW - 0.28, 0.07, -L / 2, t2);
 
   // ---------- 테마 3: 놀이터 옆길 ----------
   const t3 = new THREE.Group();
@@ -200,6 +348,22 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   ball.position.copy(BALL_HOME);
   t3.add(ball);
 
+  // 구조 차별화 — 담 너머 수목 실루엣·펜스 연장·주택 철문 (이 구간만 하늘 쪽이 술렁인다)
+  for (const [tz, s] of [[-L * 0.25, 1.6], [-L * 0.42, 2.0], [-L * 0.58, 1.5]] as Array<[number, number]>) {
+    const tree = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 7, 5),
+      new THREE.MeshStandardMaterial({ color: 0x131a28, roughness: 1 }),
+    );
+    tree.scale.set(s, s * 0.75, s);
+    tree.position.set(-HW - 1.4, WALL_H + 0.6, tz);
+    t3.add(tree);
+  }
+  for (const fz of [-L * 0.21, -L * 0.265, -L * 0.54, -L * 0.595]) {
+    box(0.07, 0.85, 1.7, 0x323a52, -HW + 0.85, 0.45, fz, t3); // 펜스 연장
+  }
+  box(0.05, 0.06, L * 0.42, 0x3a4460, -HW + 0.85, 0.88, -L * 0.4, t3); // 펜스 상부 레일
+  box(0.1, 2.2, 1.3, 0x171c2a, HW - 0.05, 1.1, -L * 0.7, t3); // 주택 철문
+
   // ---------- 테마 4: 정류장 앞 ----------
   const t4 = new THREE.Group();
 
@@ -221,6 +385,15 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
     trafficRed.push(red.material as THREE.MeshStandardMaterial);
     trafficGreen.push(green.material as THREE.MeshStandardMaterial);
   }
+
+  // 구조 차별화 — 횡단보도·정지선·볼라드·연석 (다섯 구간 중 여기만 '차도'다)
+  for (let i = 0; i < 4; i++) {
+    box(HW * 2 - 1.2, 0.03, 0.6, 0x8890a2, 0, 0.02, -L * 0.62 - i * 1.15, t4);
+  }
+  box(HW * 2 - 1.2, 0.03, 0.35, 0x8890a2, 0, 0.02, -L * 0.585, t4); // 정지선
+  box(0.16, 0.7, 0.16, 0x39415a, HW - 0.7, 0.35, -L * 0.24, t4);    // 볼라드
+  box(0.16, 0.7, 0.16, 0x39415a, HW - 0.7, 0.35, -L * 0.4, t4);
+  box(0.5, 0.14, L * 0.9, 0x232838, HW - 0.25, 0.07, -L / 2, t4);   // 정류장 쪽 연석
 
   // ---------- 테마 5: 먹자골목 입구 ----------
   const t5 = new THREE.Group();
@@ -245,6 +418,18 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   sign.rotation.y = SIGN_REST_Y;
   t5.add(sign);
 
+  // 구조 차별화 — 현수막·어닝·돌출 간판·쌓인 상자 (먹자골목의 밀도, 단 전부 소등)
+  box(HW * 2 + 0.6, 0.55, 0.05, 0x1f2030, 0, 4.4, -L * 0.12, t5); // 입구 현수막
+  const aw1 = box(0.8, 0.07, 2.2, 0x2b2334, HW - 0.5, 2.6, -L * 0.36, t5);
+  aw1.rotation.z = 0.3;
+  const aw2 = box(0.8, 0.07, 2.0, 0x252134, -HW + 0.5, 2.55, -L * 0.68, t5);
+  aw2.rotation.z = -0.3;
+  box(0.5, 1.7, 0.16, 0x232a3e, HW - 0.45, 3.6, -L * 0.5, t5);  // 돌출 간판
+  box(0.5, 1.7, 0.16, 0x1f2536, -HW + 0.45, 3.4, -L * 0.3, t5);
+  box(0.55, 0.4, 0.55, 0x262c3e, HW - 0.6, 0.2, -L * 0.42, t5); // 쌓인 맥주 상자
+  box(0.5, 0.38, 0.5, 0x232838, HW - 0.62, 0.59, -L * 0.43, t5);
+  box(0.45, 0.45, 0.45, 0x2a3044, -HW + 0.7, 0.22, -L * 0.7, t5);
+
   const themes = [t1, t2, t3, t4, t5];
   for (const t of themes) {
     t.visible = false;
@@ -252,10 +437,10 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   }
 
   return {
-    group, themes, lampLight, shopGlow, shopSignMat,
-    umbrella, sensorMat, sensorLight, windowMat,
-    laundryShutter, laundryMat, laundryLight, storeSignMat,
-    swingPivot, ball, trafficRed, trafficGreen, sign,
+    group, themes, lampLight, shopGlow, shopSign, shopSignMat,
+    umbrella, sensorMat, sensorLight, windowMat, flyerMat, flyerTex,
+    laundryShutter, laundryMat, laundryLight, storeSignMat, realtyMat, realtyTex,
+    swingPivot, ball, trafficRed, trafficGreen, sign, shopTex,
   };
 }
 
@@ -280,6 +465,10 @@ export function applyAnomaly(refs: SegmentRefs, effect: AnomalyEffect | null) {
   refs.ball.position.copy(BALL_HOME);
   refs.sign.rotation.y = SIGN_REST_Y;
   refs.lampLight.intensity = 22;
+  refs.flyerMat.map = refs.flyerTex[0];
+  refs.realtyMat.map = refs.realtyTex[0];
+  refs.shopSignMat.map = refs.shopTex[0];
+  refs.shopSignMat.emissiveMap = refs.shopTex[0];
   refs.group.userData.effect = effect;
 
   switch (effect) {
@@ -312,6 +501,16 @@ export function applyAnomaly(refs: SegmentRefs, effect: AnomalyEffect | null) {
     case 'sign_turn':
       refs.sign.rotation.y = SIGN_TURNED_Y;
       break;
+    case 'flyer_digits':
+      refs.flyerMat.map = refs.flyerTex[1];
+      break;
+    case 'realty_urgent':
+      refs.realtyMat.map = refs.realtyTex[1];
+      break;
+    case 'shop_typo':
+      refs.shopSignMat.map = refs.shopTex[1];
+      refs.shopSignMat.emissiveMap = refs.shopTex[1];
+      break;
     case null:
       break;
   }
@@ -320,7 +519,10 @@ export function applyAnomaly(refs: SegmentRefs, effect: AnomalyEffect | null) {
 /** 마지막 구간 여부에 따라 버거집 간판/불빛 연출 */
 export function setShopNear(refs: SegmentRefs, near: boolean) {
   refs.shopGlow.intensity = near ? 30 : 4;
-  refs.shopSignMat.emissive.setHex(near ? 0xff8c1a : 0x000000);
+  // 간판은 마지막 구간에만 존재 — 다른 구간 끝에서 글자가 어렴풋이 보이면 혼란 (명확성)
+  refs.shopSign.visible = near;
+  // emissiveMap(글자 텍스처) × emissive 색 — 점등 시 글자만 발광한다
+  refs.shopSignMat.emissive.setHex(near ? 0xffffff : 0x000000);
 }
 
 const TRAFFIC_RED_ON = 0x8a1616;

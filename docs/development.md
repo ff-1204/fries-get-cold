@@ -184,6 +184,11 @@ npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
 - **시간성 연출(깜빡임 등)**: 90ms 간격 연사 후 PNG 파일 크기 편차로 소등 프레임 탐지 —
   화면이 어두워지면 압축 크기가 급감한다.
 - 이 방법으로 전 요소(이상현상 4종·샛길 조명·배출장·HUD·저장/설정 UI) 가시성·동작 검증 완료.
+- **자동 플레이스루 (2026-07-30 추가)**: `window.__fries.state()` 훅(상태 읽기 전용 —
+  phase/night/segment/returning/temp/x/z)으로 위치를 읽으며 `page.keyboard`로 왕복 주파.
+  `?a=none`(항상 정상)과 조합하면 밸런싱 실측이 된다 (v0.3.2에서 온도 목표 3종 검증).
+  주의: vite dev 서버가 파일 변경 시 page reload를 브로드캐스트하므로, 소스를 고친 직후의
+  실행은 "frame got detached"로 죽을 수 있다 — 재실행하면 된다.
 
 ### 다음 세션에 남기는 일
 

@@ -101,9 +101,11 @@ function rollSegment() {
   setSegmentTheme(refs, segment); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
 
   // 이 구간·이 밤에 가능한 풀 — 이상은 그 구간 테마의 사물에만 걸 수 있다 (anomalies.md)
-  // 같은 이상현상 연속 등장 방지 포함 (밸런싱)
+  // 같은 이상현상 연속 등장 방지 + 귀갓길에 보이지 않는 사물 제외 (공정성)
   const pool = ANOMALIES.filter(
-    (a) => a.segment === segment && a.night <= night && a.id !== lastAnomalyId,
+    (a) =>
+      a.segment === segment && a.night <= night && a.id !== lastAnomalyId &&
+      !(returning && a.outboundOnly),
   );
 
   // 온보딩 보장 (game-design-theory §6): 밤 1 첫 구간은 반드시 정상 —
@@ -179,7 +181,6 @@ async function reachShop() {
 async function reachHome() {
   phase = 'transition';
   await hud.fadeOut(1000);
-  audio.crunch(temp / CONFIG.tempMax); // 시식 — Peak-End의 End (affective §1-4)
   const taste: TasteResult =
     temp >= CONFIG.crispyThreshold ? 'crispy' :
     temp >= CONFIG.lukewarmThreshold ? 'lukewarm' :
@@ -188,11 +189,23 @@ async function reachHome() {
     taste === 'crispy' ? TEXT.resultCrispy :
     taste === 'lukewarm' ? TEXT.resultLukewarm :
     TEXT.resultSoggy;
-  save.results[night - 1] = taste; // 밤별 시식 기록 — 기기 내 저장
+  save.results[night - 1] = taste; // 밤별 시식 기록 — 기기 내 저장 (연출 도중 이탈 대비, 먼저 저장)
   save.night = night + 1;
   persist();
-  // "온도"가 아니라 "바삭함" — 손실 프레이밍, 게이지 라벨과 일관 (affective §1-4)
-  await hud.blackScreen(`🍟 바삭함 ${Math.round(temp)}%\n\n${result}`, `밤 ${night + 1}로`);
+  // 시식 — 매 밤의 End이므로 가장 정성스러운 순간이어야 한다 (affective §1-4 Peak-End)
+  // 귀가 비트 → 결과별 틴트에서 한 입씩(입마다 크런치, 먹는 동안에도 식는다) → 마무리 모놀로그
+  await hud.blackScreen(TEXT.homeArrive, TEXT.homeOpen);
+  const q = temp / CONFIG.tempMax;
+  await hud.tasteScene({
+    // "온도"가 아니라 "바삭함" — 손실 프레이밍, 게이지 라벨과 일관 (affective §1-4)
+    gauge: `🍟 바삭함 ${Math.round(temp)}%`,
+    result,
+    epilogue: TEXT.epilogues[Math.min(night - 1, TEXT.epilogues.length - 1)],
+    endLabel: TEXT.tasteEnd,
+    // 시식(성공)의 감정 좌표 = 긍정·저각성 → 웜 틴트, 눅눅하면 한랭 (affective §1-2)
+    bg: taste === 'crispy' ? '#181008' : taste === 'lukewarm' ? '#100e12' : '#0a0d16',
+    onBite: (bite) => audio.crunch(Math.max(0.05, q * (1 - bite * 0.18))),
+  });
   input.activate();
   night += 1;
   await startNight();
@@ -461,6 +474,15 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// 헤드리스 플레이테스트 훅 — 상태 읽기 전용 (development.md '검증 방법', 밸런싱 실측용)
+(window as unknown as Record<string, unknown>).__fries = {
+  state: () => ({
+    phase, night, segment, returning,
+    temp: Math.round(temp * 10) / 10, elapsed: Math.round(elapsed * 10) / 10,
+    x: Math.round(player.x * 100) / 100, z: Math.round(player.z * 100) / 100,
+  }),
+};
 
 camera.position.set(0, 1.65, 0);
 tick();
