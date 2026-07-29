@@ -38,8 +38,10 @@
 ## 릴리즈 절차
 
 1. 버전 태그 (v0.x) + CHANGELOG 갱신
-2. main 푸시 (소스) → `npm run deploy` (빌드 → gh-pages 브랜치) →
+2. main 푸시 — **pre-push 훅이 `npm run deploy`(빌드 → gh-pages 브랜치)를 자동 실행** →
    라이브 URL 직접 플레이 (캐시 무시 새로고침)
+   - 훅 설정(클론마다 1회): `git config core.hooksPath .githooks`
+   - 배포 없이 푸시만: `SKIP_DEPLOY=1 git push`
 3. 모바일 실기기 1회 확인
 
 ## 하지 않는 것

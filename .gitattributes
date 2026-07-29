@@ -1,0 +1,2 @@
+# 훅은 sh 스크립트 — autocrlf 환경에서도 LF 유지 (CRLF면 sh가 실행 못 한다)
+.githooks/* text eol=lf

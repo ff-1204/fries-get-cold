@@ -85,3 +85,6 @@
 - 2026-07-29: 시작 화면의 규칙 설명 문구 제거 — 무설명 학습 원칙 준수
   (design-principles §0, game-design-theory §6). 규칙 학습은 밤 1 온보딩 보장 +
   실패 reveal이 담당하고, 시작 화면에는 조작·이어폰 안내만 남긴다
+- 2026-07-30: 배포 자동화는 Actions 대신 **git pre-push 훅**으로 — main 푸시 시
+  `npm run deploy` 자동 실행. "로컬 빌드 + gh-pages 브랜치" 결정은 유지하면서
+  푸시/배포 이원화로 인한 배포 누락만 제거 (development.md '배포')

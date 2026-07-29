@@ -77,6 +77,11 @@ Node는 PATH에 없을 수 있다 (`C:\Program Files\nodejs`). 없으면 해당 
 npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
 ```
 
+- **푸시 = 배포 (2026-07-30)**: `.githooks/pre-push` 훅이 main 푸시 시 `npm run deploy`를
+  자동 실행한다 — Actions 없이 "푸시만 하면 사이트까지 갱신". 클론마다 1회 설정 필요:
+  `git config core.hooksPath .githooks`. 배포 없이 푸시만 하려면 `SKIP_DEPLOY=1 git push`.
+  (훅은 LF 필수 — `.gitattributes`가 보장)
+
 1. 레포 이름은 반드시 `fries-get-cold` (base 경로 `/fries-get-cold/`와 일치), Public.
 2. 리포지토리 Settings → Pages → Source: **Deploy from a branch → `gh-pages` / `(root)`** (최초 1회).
    ⚠ `main` 브랜치를 서빙하면 빌드 없이 원본 `index.html`이 그대로 나가고 스크립트

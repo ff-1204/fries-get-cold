@@ -1,0 +1,25 @@
+#!/bin/sh
+# main 푸시 = 배포 — "푸시만 하면 사이트까지 갱신"을 Actions 없이 구현 (git 훅)
+# 배포 방식 자체는 기존 결정 그대로: 로컬 빌드 → gh-pages 브랜치 (docs/development.md '배포')
+# 설정: git config core.hooksPath .githooks  (클론마다 1회 — README/development.md 참조)
+# 건너뛰기: SKIP_DEPLOY=1 git push
+
+[ -n "$SKIP_DEPLOY" ] && exit 0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "[pre-push] main 푸시 → npm run deploy 실행 (건너뛰려면 SKIP_DEPLOY=1 git push)"
+    # 이 PC는 Node가 PATH에 없음 (development.md '빌드 환경 주의')
+    case ":$PATH:" in
+      *"/c/Program Files/nodejs:"*) ;;
+      *) PATH="/c/Program Files/nodejs:$PATH" ;;
+    esac
+    npm run deploy || {
+      echo "[pre-push] 배포 실패 — 푸시 중단 (소스만 올라가고 사이트는 그대로인 상태 방지)"
+      exit 1
+    }
+    echo "[pre-push] 배포 완료 — 이어서 main 푸시"
+  fi
+done
+
+exit 0
