@@ -26,6 +26,10 @@
       text-shadow: 0 1px 4px #000;
       transition: opacity 0.32s; /* 접힘 카운터 교체 페이드 (hud.setStatusFold) */
     }
+    #reticle { /* 지적 크로스헤어 — 어포던스: 짚을 수 있다는 신호 (걷는 동안만, hud.setReticle) */
+      position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px;
+      border-radius: 50%; background: #d8d8e0; opacity: 0; transition: opacity 0.4s;
+    }
     #msg {
       position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%);
       max-width: min(86vw, 640px); text-align: center; white-space: pre-line;
@@ -120,15 +124,16 @@
       text-shadow: 0 1px 4px #000; white-space: nowrap;
     }
   </style>
-  <script type="module" crossorigin src="/fries-get-cold/assets/index-CpjF4rcJ.js"></script>
+  <script type="module" crossorigin src="/fries-get-cold/assets/index-Bh8FAGod.js"></script>
 </head>
 <body>
   <div id="app"></div>
 
   <div id="hud">
     <div id="status"></div>
+    <div id="reticle"></div>
     <div id="msg"></div>
-    <div id="touch-hint">왼쪽 드래그: 이동 · 오른쪽 드래그: 시점</div>
+    <div id="touch-hint">왼쪽 드래그: 이동 · 오른쪽 드래그: 시점 · 이상한 것: 탭으로 짚기</div>
   </div>
 
   <div id="fade"></div>
@@ -179,7 +184,7 @@
         <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
       </div>
     </div>
-    <div class="sub">PC: 클릭 후 WASD 이동 · 마우스 시점 · Shift 달리기 · M 소리 켬/끔</div>
+    <div class="sub">PC: 클릭 후 WASD 이동 · 마우스 시점 · Shift 달리기 · 이상한 것은 클릭으로 짚기 · M 소리 켬/끔</div>
     <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다 ·
       <a href="https://github.com/ff-1204/fries-get-cold/blob/main/docs/privacy.md" target="_blank" rel="noopener">개인정보처리방침</a></div>
   </div>
