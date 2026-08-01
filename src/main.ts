@@ -1,15 +1,15 @@
-// 튀김이 식기 전에 — 접히는 골목 (M2 컨셉 전환, docs/game.md 판정)
-// 구간 프리팹 재활용 + 본길/샛길 판정 + 접힘(오답=연장) + 깊이(가로등 소등·soft fail)
+// 튀김이 식기 전에 — 접히는 골목 (docs/game.md 판정)
+// 직진 + 지적(이상한 것을 직접 짚는다) + 접힘(놓침=연장) + 깊이(가로등 소등·soft fail)
 
 import * as THREE from 'three';
 import { ANOMALIES, CONFIG, TEXT, type AnomalyDef } from './data';
-import { tasteFromFolds, sideDepthCost } from './balance';
+import { tasteFromFolds } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
 import {
   createWorld, applyAnomaly, applyDepth, setFoldMark, setShopNear, setSegmentTheme,
-  updateWorld, SIDE_GAP, MAIN_GAP_HALF,
+  updateWorld, MAIN_GAP_HALF,
 } from './world';
 import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
 
@@ -89,6 +89,8 @@ let theme = 1;              // 현재 걷는 구간 테마 1..5 — 접힘은 �
 let depth = 0;              // 골목이 나를 붙잡은 정도 — 가로등이 게이지 (config.depthLimit)
 let folds = 0;              // 이 밤의 접힘 횟수 — 시식 서사·노미스 추적
 let foldRepeat = false;     // 지금 구간이 접힘 반복인가 (분필 자국 표시)
+let spotted = false;        // 이번 구간의 이상을 지적했는가 — 지적 = 안전 통과
+let spotCooldown = 0;       // 지적 연타 방지 (config.spotCooldownSec)
 let elapsed = 0;            // 이 밤의 경과 시간(초) — 새벽이 깊을수록 위험
 let anomaly: AnomalyDef | null = null;
 let lastAnomalyId: string | null = null;
@@ -128,6 +130,7 @@ function rollSegment(foldStatus = false) {
   } else {
     anomaly = null;
   }
+  spotted = false;
   applyDepth(refs, depth);            // 꺼져가는 빛 — 이상 리셋보다 먼저 (lampBase 기준 제공)
   applyAnomaly(refs, anomaly ? anomaly.effect : null);
   setFoldMark(refs, foldRepeat);      // 접힘 반복 구간 — 바닥 분필 자국 (인지 4요소 ④)
@@ -202,19 +205,12 @@ async function reachShop() {
   await hud.fadeIn(900);
 }
 
-/** 구간 통과 처리. side=샛길 경유 여부 */
-async function passSegment(side: boolean) {
+/** 구간 통과 처리 — 출구는 하나뿐. 판정은 이미 걷는 동안 끝났다(지적 여부) */
+async function passSegment() {
   let repeat = false;
 
-  if (side) {
-    if (anomaly) {
-      hud.say(TEXT.sideSafe); // 정당 우회 — 무비용 (관찰이 정확하면 벌하지 않는다)
-    } else {
-      depth += sideDepthCost(false); // 과잉 경계 — 다음 구간의 가로등이 즉시 어두워진다 (인과)
-      hud.say(TEXT.sideWaste);
-    }
-  } else if (anomaly) {
-    // 접힘 — 오답은 죽음이 아니라 연장 (game.md 판정, 인지 보장 4요소)
+  if (anomaly && !spotted) {
+    // 접힘 — 놓침은 죽음이 아니라 연장 (game.md 판정, 인지 보장 4요소)
     folds += 1;
     total += 1;
     depth += CONFIG.foldDepthCost;
@@ -239,6 +235,45 @@ async function passSegment(side: boolean) {
   rollSegment(repeat);
 }
 
+// ---------- 지적 — 이상한 것을 직접 짚는다 (판정의 동사, game.md 2026-08-02) ----------
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const projPos = new THREE.Vector3();
+
+function hitAnomaly(targets: THREE.Object3D[]): boolean {
+  raycaster.setFromCamera(ndc, camera);
+  if (raycaster.intersectObjects(targets, true).length > 0) return true;
+  // 관용 판정 — 가는 사물(그네 줄·전단지)도 근처를 짚으면 인정 (모바일 손가락 오차 포함)
+  for (const t of targets) {
+    t.getWorldPosition(projPos);
+    if (projPos.distanceTo(camera.position) > 45) continue;
+    projPos.project(camera);
+    if (projPos.z < 1 && Math.hypot(projPos.x - ndc.x, projPos.y - ndc.y) < 0.12) return true;
+  }
+  return false;
+}
+
+/** 지적 시도. force는 검증 훅 전용(?a= 디버그 한정) — 히트 테스트를 생략한다 */
+function tryPoint(px: number, py: number, force = false) {
+  if (phase !== 'walk' || spotCooldown > 0) return;
+  spotCooldown = CONFIG.spotCooldownSec;
+  ndc.set((px / window.innerWidth) * 2 - 1, -(py / window.innerHeight) * 2 + 1);
+
+  if (anomaly && spotted) return; // 이미 짚었다 — 재지적은 무반응 (비용 없음)
+  if (anomaly && (force || hitAnomaly(refs.hit[anomaly.effect]))) {
+    spotted = true; // 이상은 사라지지 않는다 — 알아챘다는 사실만 남는다 (트윈 금지)
+    hud.say(TEXT.spotOk, 3000);
+    return;
+  }
+  // 빈 지적 — 과잉 의심의 비용. 가로등이 그 자리에서 어두워진다 (즉각 인과, theory §9)
+  depth += CONFIG.wasteDepthCost;
+  applyDepth(refs, depth);
+  hud.say(TEXT.spotWaste, 3000);
+  if (depth >= CONFIG.depthLimit) void softFail();
+}
+
+input.onPoint = (x, y) => tryPoint(x, y);
+
 // ---------- 이동/판정 ----------
 const HW = CONFIG.corridorHalfWidth;
 const L = CONFIG.segLength;
@@ -260,19 +295,16 @@ function updateWalk(dt: number) {
   player.x += (sin * -move.forward + cos * move.strafe) * speed * dt;
   player.z += (-cos * move.forward - sin * move.strafe) * speed * dt;
 
-  // 골목 경계 (샛길 개구부 구간에서는 왼쪽 초과 허용)
-  const inSideGap = player.z < SIDE_GAP.zNear && player.z > SIDE_GAP.zFar;
-  const minX = inSideGap ? -HW - 8 : -HW + 0.4;
-  player.x = Math.max(minX, Math.min(HW - 0.4, player.x));
+  // 골목 경계 — 양쪽 벽 사이 (샛길 없음)
+  player.x = Math.max(-HW + 0.4, Math.min(HW - 0.4, player.x));
   player.z = Math.min(0.5, player.z);
 
-  // 판정 트리거 (docs/development.md)
-  if (player.x < -HW - 5) {
-    void passSegment(true); // 샛길 통과
-    return;
-  }
+  // 지적 쿨다운
+  spotCooldown = Math.max(0, spotCooldown - dt);
+
+  // 구간 통과 트리거 — 끝 벽 개구부
   if (player.z < -L - 0.5 && Math.abs(player.x) < MAIN_GAP_HALF + 0.4) {
-    void passSegment(false); // 본길 통과
+    void passSegment();
     return;
   }
   // 끝벽 통과 방지 (개구부 밖)
@@ -290,6 +322,7 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.1); // 백그라운드 복귀 시 델타 클램프 (responsive-design §4)
   time += dt;
   if (phase === 'walk') updateWalk(dt);
+  hud.setReticle(phase === 'walk'); // 지적 크로스헤어 — 걷는 동안만
   updateWorld(refs, time);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
@@ -467,14 +500,18 @@ window.addEventListener('resize', () => {
 });
 
 // 헤드리스 플레이테스트 훅 — 상태 읽기 전용 (development.md '검증 방법', 밸런싱 실측용)
+// 예외: debugSpot은 ?a= 디버그 모드 한정의 검증용 조작 훅 (지적을 결정적으로 재현)
 (window as unknown as Record<string, unknown>).__fries = {
   state: () => ({
-    phase, night, done, total, theme, depth, folds,
+    phase, night, done, total, theme, depth, folds, spotted,
     elapsed: Math.round(elapsed * 10) / 10,
     x: Math.round(player.x * 100) / 100, z: Math.round(player.z * 100) / 100,
   }),
   // verify.mjs가 좌표·목표치를 여기서 파생시킨다 — 게임 상수를 스크립트에 손으로 복사하지 않기 위함
-  config: () => ({ ...CONFIG, sideGap: SIDE_GAP }),
+  config: () => ({ ...CONFIG }),
+  ...(DEBUG_ANOMALY !== null
+    ? { debugSpot: () => tryPoint(window.innerWidth / 2, window.innerHeight / 2, true) }
+    : {}),
 };
 
 camera.position.set(0, 1.65, 0);

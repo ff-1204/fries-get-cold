@@ -5,9 +5,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from './config.ts';
-import { tasteFromFolds, sideDepthCost, simulateNight } from './balance.ts';
+import { tasteFromFolds, simulateNight } from './balance.ts';
 
-// 판정 비대칭 (game.md): 접힘 리스크 vs 깊이 비용
+// 판정 비대칭 (game.md): 접힘(놓침) 리스크 vs 빈 지적 비용
 test('무결점 밤 — 깊이 0, 아직 따뜻하다(바삭)', () => {
   const r = simulateNight({});
   assert.equal(r.depth, 0);
@@ -16,11 +16,11 @@ test('무결점 밤 — 깊이 0, 아직 따뜻하다(바삭)', () => {
   assert.equal(r.total, CONFIG.segments);
 });
 
-test('정당 우회는 무비용 — 관찰이 정확하면 벌하지 않는다 (공정성)', () => {
-  assert.equal(sideDepthCost(true), 0);
-  const r = simulateNight({ detours: 3 });
-  assert.equal(r.depth, 0);
-  assert.equal(r.taste, 'crispy');
+test('정확한 지적은 무비용 — 깊이도 거리도 지불하지 않는다 (공정성)', () => {
+  const spotless = simulateNight({});
+  // 지적은 NightPlan에 항이 없다 = 모델상 비용 0. 빈 지적만 깊이를 지불한다
+  assert.equal(spotless.depth, 0);
+  assert.equal(simulateNight({ wastes: 1 }).depth, CONFIG.wasteDepthCost);
 });
 
 test('접힘 1회 = 남은 거리 +1, 미지근', () => {
@@ -30,7 +30,7 @@ test('접힘 1회 = 남은 거리 +1, 미지근', () => {
   assert.equal(r.softFail, false);
 });
 
-test('접힘 2회 + 과잉 1회 = 깊이 5 — 아직 걸을 수 있다', () => {
+test('접힘 2회 + 빈 지적 1회 = 깊이 5 — 아직 걸을 수 있다', () => {
   const r = simulateNight({ folds: 2, wastes: 1 });
   assert.equal(r.depth, 5);
   assert.equal(r.softFail, false);
@@ -42,7 +42,7 @@ test('접힘 3회 = 깊이 한계 — 골목 입구 리셋', () => {
   assert.equal(r.softFail, true);
 });
 
-test('과잉 경계만 6회 = 리셋 — 전부 겁먹으면 밤이 끝나지 않는다', () => {
+test('빈 지적만 6회 = 리셋 — 전부 의심하면 밤이 끝나지 않는다', () => {
   const r = simulateNight({ wastes: 6 });
   assert.equal(r.softFail, true);
 });
@@ -55,7 +55,7 @@ test('시식 서사 등급 경계값', () => {
   assert.equal(tasteFromFolds(3), 'soggy');
 });
 
-// 템포 (design-principles §4): 접힘 없는 완주 편도 7~8분 이내 — 실제로는 1분 미만/구간
+// 템포 (design-principles §4): 접힘 없는 완주 편도 7~8분 이내
 test('무결점 완주 시간이 템포 예산 안에 있다', () => {
   const r = simulateNight({});
   assert.ok(r.seconds < 8 * 60, `완주 ${r.seconds.toFixed(0)}s ≥ 8분`);

@@ -6,6 +6,9 @@ export class Input {
   yaw = 0;
   pitch = 0;
 
+  /** 지적 콜백 — 화면 좌표(px). PC(포인터락)는 화면 중앙, 모바일은 탭 지점 (main.ts tryPoint) */
+  onPoint: ((x: number, y: number) => void) | null = null;
+
   private keys = new Set<string>();
   private canvas: HTMLCanvasElement;
   private locked = false;
@@ -13,6 +16,7 @@ export class Input {
   // 터치 상태
   private moveTouch: { id: number; x0: number; y0: number; dx: number; dy: number } | null = null;
   private lookTouch: { id: number; x: number; y: number } | null = null;
+  private tapCandidate: { id: number; x: number; y: number; t: number } | null = null;
   usesTouch = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -51,10 +55,16 @@ export class Input {
 
   private onPointerDown(e: PointerEvent) {
     if (e.pointerType === 'mouse') {
-      if (!this.locked) this.canvas.requestPointerLock?.();
+      if (!this.locked) {
+        this.canvas.requestPointerLock?.();
+        return;
+      }
+      // 포인터락 중 클릭 = 화면 중앙(크로스헤어)을 짚는다
+      this.onPoint?.(window.innerWidth / 2, window.innerHeight / 2);
       return;
     }
     this.usesTouch = true;
+    this.tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
     const half = window.innerWidth / 2;
     if (e.clientX < half && !this.moveTouch) {
       this.moveTouch = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 };
@@ -75,6 +85,14 @@ export class Input {
   }
 
   private onPointerEnd(e: PointerEvent) {
+    // 짧게, 거의 안 움직인 터치 = 탭 = 지적 (드래그 이동/시점과 자연 구분)
+    if (this.tapCandidate && e.pointerId === this.tapCandidate.id) {
+      const c = this.tapCandidate;
+      const quick = performance.now() - c.t < 350;
+      const still = Math.hypot(e.clientX - c.x, e.clientY - c.y) < 14;
+      if (quick && still) this.onPoint?.(e.clientX, e.clientY);
+      this.tapCandidate = null;
+    }
     if (this.moveTouch && e.pointerId === this.moveTouch.id) this.moveTouch = null;
     if (this.lookTouch && e.pointerId === this.lookTouch.id) this.lookTouch = null;
   }

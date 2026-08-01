@@ -1,13 +1,13 @@
 // 그레이박스 골목 — 공용 복도 프리팹 + 구간별 테마 5종 (docs/development.md 구현 노트)
-// 전방 = -Z. 구간 끝(z=-segLength)에 본길 개구부, 왼쪽 벽 끝부분에 샛길 개구부.
+// 전방 = -Z. 구간 끝(z=-segLength) 중앙 개구부가 유일한 출구 — 갈림길 없음 (지적 문법).
 // 테마: 원룸 골목 / 상가 골목 / 놀이터 옆길 / 정류장 앞 / 먹자골목 입구 (story.md §4)
-// 이상현상 배치 3원칙(anomalies.md): 광원 안쪽 · 판정 10m 앞 · 실루엣 대비
+// 이상현상 배치 3원칙(anomalies.md): 광원 안쪽 · 관찰 시간 확보 · 실루엣 대비
 
 import * as THREE from 'three';
-import { CONFIG, SIDE_GAP, MAIN_GAP_HALF } from './config';
+import { CONFIG, MAIN_GAP_HALF } from './config';
 import { type AnomalyEffect } from './data';
 
-export { SIDE_GAP, MAIN_GAP_HALF }; // 기존 import 경로(main.ts) 유지
+export { MAIN_GAP_HALF }; // 기존 import 경로(main.ts) 유지
 
 export interface SegmentRefs {
   group: THREE.Group;
@@ -37,6 +37,8 @@ export interface SegmentRefs {
   trafficGreen: THREE.MeshStandardMaterial[];
   sign: THREE.Group;                        // 5: A-013
   shopTex: [THREE.CanvasTexture, THREE.CanvasTexture];    // 5: A-012 (간판 오탈자 — TXT)
+  /** 지적(포인팅) 히트 대상 — effect별 클릭 가능한 사물 (main.ts tryPoint 판정) */
+  hit: Record<AnomalyEffect, THREE.Object3D[]>;
 }
 
 const L = CONFIG.segLength;
@@ -171,29 +173,17 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   // 오른쪽 벽 (빌라 담벼락) — 통짜
   box(1, WALL_H, L, 0x232838, HW + 0.5, WALL_H / 2, -L / 2, group);
 
-  // 왼쪽 벽 — 샛길 개구부를 남기고 2조각
-  const leftFrontLen = -SIDE_GAP.zNear; // 0 ~ zNear
-  box(1, WALL_H, leftFrontLen, 0x20263a, -HW - 0.5, WALL_H / 2, SIDE_GAP.zNear / 2, group);
-  const leftBackLen = L + SIDE_GAP.zFar; // zFar ~ -L
-  box(1, WALL_H, leftBackLen, 0x20263a, -HW - 0.5, WALL_H / 2, (SIDE_GAP.zFar - L) / 2, group);
+  // 왼쪽 벽 — 통짜 (샛길 없음 — 출구는 끝 벽 개구부 하나뿐, 지적 문법 전환)
+  box(1, WALL_H, L, 0x20263a, -HW - 0.5, WALL_H / 2, -L / 2, group);
 
-  // 끝 벽 — 본길 개구부(중앙)를 남기고 2조각
+  // 끝 벽 — 개구부(중앙)를 남기고 2조각
   const endWallW = HW - MAIN_GAP_HALF + 1;
   box(endWallW, WALL_H, 1, 0x232838, -(MAIN_GAP_HALF + endWallW / 2), WALL_H / 2, -L - 0.5, group);
   box(endWallW, WALL_H, 1, 0x232838, MAIN_GAP_HALF + endWallW / 2, WALL_H / 2, -L - 0.5, group);
 
-  // 샛길 통로 (왼쪽으로 짧게 — 그레이박스)
-  // 어포던스: "들어갈 수 있어 보이게" — 틈의 빛 + 본길보다 밝은 바닥 (design-principles §0 시그니파이어)
-  box(8, 0.2, SIDE_GAP.zNear - SIDE_GAP.zFar + 2, 0x232838, -HW - 4.5, -0.1, (SIDE_GAP.zNear + SIDE_GAP.zFar) / 2, group);
-  box(8, WALL_H, 0.6, 0x1b2032, -HW - 4.5, WALL_H / 2, SIDE_GAP.zNear + 0.8, group);
-  box(8, WALL_H, 0.6, 0x1b2032, -HW - 4.5, WALL_H / 2, SIDE_GAP.zFar - 0.8, group);
-  const sideLight = new THREE.PointLight(0x9fb4d8, 5, 9, 1.6); // 한색 — 웜은 목표(버거집) 전용
-  sideLight.position.set(-HW - 2.2, 2.6, (SIDE_GAP.zNear + SIDE_GAP.zFar) / 2);
-  group.add(sideLight);
-
   // 가로등 (구간 중반) — 모든 구간 공용, A-008 깜빡임 타깃
   const lampZ = -L * 0.45;
-  box(0.15, 5, 0.15, 0x3a4157, HW - 0.4, 2.5, lampZ, group);
+  const lampPole = box(0.15, 5, 0.15, 0x3a4157, HW - 0.4, 2.5, lampZ, group);
   const lampLight = new THREE.PointLight(0xffc687, 22, 18, 1.8);
   lampLight.position.set(HW - 0.9, 4.8, lampZ);
   group.add(lampLight);
@@ -393,9 +383,10 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   // 신호등 2기 (길 양쪽 — A-011: 양쪽 다 빨간불 고정 / 정상: 교대 점등)
   const trafficRed: THREE.MeshStandardMaterial[] = [];
   const trafficGreen: THREE.MeshStandardMaterial[] = [];
+  const trafficHeads: THREE.Mesh[] = [];
   for (const tx of [-(HW - 0.4), HW - 0.4]) {
     box(0.12, 3.4, 0.12, 0x3a4157, tx, 1.7, -L * 0.55, t4);
-    box(0.3, 0.66, 0.24, 0x1c2230, tx, 3.55, -L * 0.55, t4);
+    trafficHeads.push(box(0.3, 0.66, 0.24, 0x1c2230, tx, 3.55, -L * 0.55, t4));
     const red = box(0.16, 0.16, 0.06, 0x351114, tx, 3.7, -L * 0.55 + 0.14, t4);
     const green = box(0.16, 0.16, 0.06, 0x11281a, tx, 3.42, -L * 0.55 + 0.14, t4);
     trafficRed.push(red.material as THREE.MeshStandardMaterial);
@@ -452,11 +443,28 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
     group.add(t);
   }
 
+  // 지적 히트 대상 — effect마다 "짚을 수 있는 사물". 새 effect 추가 시 여기도 강제된다 (Record)
+  const hit: Record<AnomalyEffect, THREE.Object3D[]> = {
+    umbrella: [umbrella],
+    sensor_on: [sensor],
+    window_red: [windowMesh],
+    flyer_digits: [flyer],
+    laundry_open: [laundryShutter, laundryInterior],
+    sign_lit: [storeSign],
+    realty_urgent: [realty],
+    swing: [swingPivot],
+    lamp_flicker: [lampPole],
+    ball_out: [ball],
+    traffic_red: trafficHeads,
+    sign_turn: [sign],
+    shop_typo: [shopSign],
+  };
+
   return {
     group, themes, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
     umbrella, sensorMat, sensorLight, windowMat, flyerMat, flyerTex,
     laundryShutter, laundryMat, laundryLight, storeSignMat, realtyMat, realtyTex,
-    swingPivot, ball, trafficRed, trafficGreen, sign, shopTex,
+    swingPivot, ball, trafficRed, trafficGreen, sign, shopTex, hit,
   };
 }
 

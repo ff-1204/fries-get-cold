@@ -75,31 +75,8 @@ async function passMain(page, run = false) {
   if (run) await page.keyboard.up('ShiftLeft');
 }
 
-/** 샛길 우회 — 개구부(가운데)까지 전진 후 왼쪽(A)으로 이탈 */
-async function passSide(page) {
-  const s0 = await state(page);
-  const gapZ = await page.evaluate(() => {
-    const g = globalThis.__fries.config().sideGap;
-    return (g.zNear + g.zFar) / 2;
-  });
-  await page.keyboard.down('KeyW');
-  await page.waitForFunction(
-    (gz) => { const s = globalThis.__fries.state(); return s.z <= gz || s.phase !== 'walk'; },
-    { polling: 60, timeout: 40000 },
-    gapZ,
-  );
-  await page.keyboard.up('KeyW');
-  await page.keyboard.down('KeyA');
-  await page.waitForFunction(
-    (a) => {
-      const s = globalThis.__fries.state();
-      return s.done !== a.done || s.phase !== 'walk';
-    },
-    { polling: 60, timeout: 20000 },
-    s0,
-  );
-  await page.keyboard.up('KeyA');
-}
+/** 지적 — ?a= 디버그 한정 검증 훅으로 결정적 재현 (이상 있으면 성공, 없으면 빈 지적) */
+const debugSpot = (page) => page.evaluate(() => globalThis.__fries.debugSpot());
 
 /** z 목표 지점까지만 전진 (스크린샷용) */
 async function walkTo(page, z) {
@@ -231,13 +208,25 @@ async function balance() {
     await browser.close();
   }
 
-  // 3) 정당 우회 = 무비용 (?a=umbrella — 구간 1 이상 고정, 샛길 이탈)
+  // 3) 지적 성공 = 무비용 통과 (?a=umbrella — 구간 1 이상 고정, 짚고 나서 직진)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=umbrella');
-    await passSide(page);
+    await debugSpot(page);
+    const spotted = (await state(page)).spotted;
+    await passMain(page);
     const s = await state(page);
-    console.log('정당 우회 확인:', JSON.stringify({ done: s.done, total: s.total, depth: s.depth, folds: s.folds, theme: s.theme }));
+    console.log('지적 통과 확인:', JSON.stringify({ spotted, done: s.done, total: s.total, depth: s.depth, folds: s.folds, theme: s.theme }));
+    await browser.close();
+  }
+
+  // 4) 빈 지적 = 깊이 +1 (?a=none — 이상 없는 구간에서 짚기)
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=none');
+    await debugSpot(page);
+    const s = await state(page);
+    console.log('빈 지적 확인:', JSON.stringify({ depth: s.depth, done: s.done, folds: s.folds }));
     await browser.close();
   }
 }

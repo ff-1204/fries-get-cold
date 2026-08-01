@@ -5,7 +5,16 @@ export class Hud {
   private msg = document.getElementById('msg')!;
   private fade = document.getElementById('fade')! as HTMLElement;
   private touchHint = document.getElementById('touch-hint')! as HTMLElement;
+  private reticle = document.getElementById('reticle')! as HTMLElement;
+  private reticleShown = false;
   private msgTimer = 0;
+
+  /** 지적 크로스헤어 — 걷는 동안만. 매 프레임 호출돼도 DOM 쓰기는 변화 시에만 */
+  setReticle(show: boolean) {
+    if (show === this.reticleShown) return;
+    this.reticleShown = show;
+    this.reticle.style.opacity = show ? '0.5' : '0';
+  }
 
   setStatus(text: string) {
     this.status.textContent = text;
