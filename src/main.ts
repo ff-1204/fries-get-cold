@@ -1,15 +1,15 @@
 // 튀김이 식기 전에 — 접히는 골목 (docs/game.md 판정)
-// 직진 + 지적(이상한 것을 직접 짚는다) + 접힘(놓침=연장) + 깊이(가로등 소등·soft fail)
+// 직진 + 확인(무섭지만 다가가서 짚어야 한다) + 접힘(지나침=연장+증식) + 깊이(가로등 소등·soft fail)
 
 import * as THREE from 'three';
 import { ANOMALIES, CONFIG, TEXT, type AnomalyDef } from './data';
-import { tasteFromFolds } from './balance';
+import { tasteFromFolds, activeCount } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
 import {
-  createWorld, applyAnomaly, applyDepth, setFoldMark, setShopNear, setSegmentTheme,
-  updateWorld, MAIN_GAP_HALF,
+  createWorld, applyAnomalies, applyDepth, setFoldMark, setShopNear, setSegmentTheme,
+  updateWorld, MAIN_GAP_HALF, SPAWN_ANCHORS,
 } from './world';
 import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
 
@@ -89,11 +89,12 @@ let theme = 1;              // 현재 걷는 구간 테마 1..5 — 접힘은 �
 let depth = 0;              // 골목이 나를 붙잡은 정도 — 가로등이 게이지 (config.depthLimit)
 let folds = 0;              // 이 밤의 접힘 횟수 — 시식 서사·노미스 추적
 let foldRepeat = false;     // 지금 구간이 접힘 반복인가 (분필 자국 표시)
-let spotted = false;        // 이번 구간의 이상을 지적했는가 — 지적 = 안전 통과
+let swarm = 0;              // 증식 — 확인 없이 지나칠 때마다 +1, 동시 이상 = 1+swarm (balance.ts)
 let spotCooldown = 0;       // 지적 연타 방지 (config.spotCooldownSec)
 let elapsed = 0;            // 이 밤의 경과 시간(초) — 새벽이 깊을수록 위험
-let anomaly: AnomalyDef | null = null;
-let lastAnomalyId: string | null = null;
+let anomalies: AnomalyDef[] = [];        // 이 구간의 활성 이상 (0~1+swarm)
+const checked = new Set<string>();       // 이 구간에서 확인을 마친 이상 id
+let lastIds = new Set<string>();         // 직전 구간의 이상 id — 연속 등장 방지
 let tripAnomalies = 0; // 이 밤에 등장한 이상 수 (밤 1 온보딩 보장용)
 
 const player = { x: 0, z: 0 };
@@ -109,10 +110,10 @@ const DEBUG_ANOMALY = new URLSearchParams(location.search).get('a');
 function rollSegment(foldStatus = false) {
   setSegmentTheme(refs, theme); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
 
-  // 이 테마·이 밤에 가능한 풀 — 이상은 그 구간 테마의 사물에만 걸 수 있다 (anomalies.md)
+  // 이 테마·이 밤에 가능한 풀 — 테마 사물 고정형 + 스폰 포인트 랜덤형(segment 0)
   // 같은 이상현상 연속 등장 방지 (공정성 — 접힘 반복 구간에서 특히 중요)
   const pool = ANOMALIES.filter(
-    (a) => a.segment === theme && a.night <= night && a.id !== lastAnomalyId,
+    (a) => (a.segment === theme || a.segment === 0) && a.night <= night && !lastIds.has(a.id),
   );
 
   // 온보딩 보장 (game-design-theory §6): 밤 1 첫 구간은 반드시 정상 —
@@ -122,20 +123,32 @@ function rollSegment(foldStatus = false) {
   const forceAnomaly = night === 1 && theme >= CONFIG.segments - 1 && tripAnomalies === 0;
 
   if (DEBUG_ANOMALY) {
-    anomaly = ANOMALIES.find((x) => x.effect === DEBUG_ANOMALY && x.segment === theme) ?? null;
+    const forced = ANOMALIES.find(
+      (x) => x.effect === DEBUG_ANOMALY && (x.segment === theme || x.segment === 0),
+    );
+    anomalies = forced ? [forced] : [];
   } else if (pool.length > 0 && !forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
-    anomaly = pool[Math.floor(Math.random() * pool.length)];
-    lastAnomalyId = anomaly.id;
-    tripAnomalies += 1;
+    // 증식 — 지나칠수록 동시 이상이 늘어난다 (풀에서 서로 다른 것을 뽑는다)
+    const n = Math.min(activeCount(swarm), pool.length);
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    anomalies = shuffled.slice(0, n);
+    tripAnomalies += n;
   } else {
-    anomaly = null;
+    anomalies = [];
   }
-  spotted = false;
+  lastIds = new Set(anomalies.map((a) => a.id));
+  checked.clear();
+  // 스폰 포인트 랜덤형 — 이번 출현 지점을 고른다 (world의 figure 핸들러가 읽는다).
+  // ?a= 디버그는 앵커 고정 — 스크린샷 검증의 결정성 (가로등 시야권 지점)
+  if (anomalies.some((a) => a.effect === 'figure')) {
+    refs.group.userData.figureAnchor =
+      DEBUG_ANOMALY ? 2 : Math.floor(Math.random() * SPAWN_ANCHORS.length);
+  }
   applyDepth(refs, depth);            // 꺼져가는 빛 — 이상 리셋보다 먼저 (lampBase 기준 제공)
-  applyAnomaly(refs, anomaly ? anomaly.effect : null);
+  applyAnomalies(refs, anomalies.map((a) => a.effect));
   setFoldMark(refs, foldRepeat);      // 접힘 반복 구간 — 바닥 분필 자국 (인지 4요소 ④)
   // '정적' — 이상 구간에서 환경음이 잦아든다 (fear-cognition §8, 시각 단서의 청각 병행)
-  audio.duck(!!anomaly);
+  audio.duck(anomalies.length > 0);
   setShopNear(refs, done === total - 1); // 마지막 걸음에서만 버거집 간판·불빛
 
   player.x = 0;
@@ -154,9 +167,10 @@ async function startNight() {
   theme = 1;
   depth = 0;
   folds = 0;
+  swarm = 0;
   foldRepeat = false;
   elapsed = 0;
-  lastAnomalyId = null;
+  lastIds = new Set();
   tripAnomalies = 0;
   rollSegment();
   phase = 'walk';
@@ -205,19 +219,21 @@ async function reachShop() {
   await hud.fadeIn(900);
 }
 
-/** 구간 통과 처리 — 출구는 하나뿐. 판정은 이미 걷는 동안 끝났다(지적 여부) */
+/** 구간 통과 처리 — 출구는 하나뿐. 판정은 이미 걷는 동안 끝났다(전부 확인했는가) */
 async function passSegment() {
   let repeat = false;
+  const missed = anomalies.filter((a) => !checked.has(a.id));
 
-  if (anomaly && !spotted) {
-    // 접힘 — 놓침은 죽음이 아니라 연장 (game.md 판정, 인지 보장 4요소)
+  if (missed.length > 0) {
+    // 접힘 — 확인 없이 지나침은 죽음이 아니라 연장 + 증식 (game.md 판정)
     folds += 1;
     total += 1;
     depth += CONFIG.foldDepthCost;
+    swarm = Math.min(CONFIG.swarmMax, swarm + 1); // 지나칠수록 골목의 어긋남이 늘어난다
     save.misses += 1; // 노미스(히든 엔딩) 추적 — 접힘 = 미스
     persist();
     repeat = true;
-    hud.say(`${anomaly.reveal}\n${TEXT.foldNotice}`, 3800); // reveal 암시 (인지 4요소 ②)
+    hud.say(`${missed[0].reveal}\n${TEXT.foldNotice}`, 3800); // reveal 암시 (인지 4요소 ②)
     audio.duck(true); // 정적 — 사운드 드랍 (인지 4요소 ③, rollSegment가 이어받는다)
   }
 
@@ -235,7 +251,7 @@ async function passSegment() {
   rollSegment(repeat);
 }
 
-// ---------- 지적 — 이상한 것을 직접 짚는다 (판정의 동사, game.md 2026-08-02) ----------
+// ---------- 확인 — 무섭지만, 다가가서 직접 짚어야 한다 (판정의 동사, game.md 2026-08-02) ----------
 const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 const projPos = new THREE.Vector3();
@@ -253,18 +269,39 @@ function hitAnomaly(targets: THREE.Object3D[]): boolean {
   return false;
 }
 
-/** 지적 시도. force는 검증 훅 전용(?a= 디버그 한정) — 히트 테스트를 생략한다 */
+function targetDistance(targets: THREE.Object3D[]): number {
+  let min = Infinity;
+  for (const t of targets) {
+    t.getWorldPosition(projPos);
+    min = Math.min(min, projPos.distanceTo(camera.position));
+  }
+  return min;
+}
+
+/** 확인 시도. force는 검증 훅 전용(?a= 디버그 한정) — 히트·거리 테스트를 생략한다 */
 function tryPoint(px: number, py: number, force = false) {
   if (phase !== 'walk' || spotCooldown > 0) return;
   spotCooldown = CONFIG.spotCooldownSec;
   ndc.set((px / window.innerWidth) * 2 - 1, -(py / window.innerHeight) * 2 + 1);
 
-  if (anomaly && spotted) return; // 이미 짚었다 — 재지적은 무반응 (비용 없음)
-  if (anomaly && (force || hitAnomaly(refs.hit[anomaly.effect]))) {
-    spotted = true; // 이상은 사라지지 않는다 — 알아챘다는 사실만 남는다 (트윈 금지)
+  const unchecked = anomalies.filter((a) => !checked.has(a.id));
+  if (force && unchecked.length > 0) {
+    checked.add(unchecked[0].id);
     hud.say(TEXT.spotOk, 3000);
     return;
   }
+  for (const a of unchecked) {
+    if (!hitAnomaly(refs.hit[a.effect])) continue;
+    // 확인은 근접해야 성립 — 무서운 쪽으로 걸어가는 것이 이 게임의 공포 코어
+    if (targetDistance(refs.hit[a.effect]) > CONFIG.checkDistance) {
+      hud.say(TEXT.tooFar, 2200); // 비용 없음 — 다가가라는 지시일 뿐
+      return;
+    }
+    checked.add(a.id); // 이상은 사라지지 않는다 — 확인했다는 사실만 남는다 (트윈 금지)
+    hud.say(TEXT.spotOk, 3000);
+    return;
+  }
+  if (anomalies.length > 0 && unchecked.length === 0) return; // 전부 확인됨 — 재지적 무반응
   // 빈 지적 — 과잉 의심의 비용. 가로등이 그 자리에서 어두워진다 (즉각 인과, theory §9)
   depth += CONFIG.wasteDepthCost;
   applyDepth(refs, depth);
@@ -503,7 +540,8 @@ window.addEventListener('resize', () => {
 // 예외: debugSpot은 ?a= 디버그 모드 한정의 검증용 조작 훅 (지적을 결정적으로 재현)
 (window as unknown as Record<string, unknown>).__fries = {
   state: () => ({
-    phase, night, done, total, theme, depth, folds, spotted,
+    phase, night, done, total, theme, depth, folds, swarm,
+    active: anomalies.length, checked: checked.size,
     elapsed: Math.round(elapsed * 10) / 10,
     x: Math.round(player.x * 100) / 100, z: Math.round(player.z * 100) / 100,
   }),

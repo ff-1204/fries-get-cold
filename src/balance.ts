@@ -18,6 +18,16 @@ export function tasteFromFolds(folds: number): Taste {
 
 const SEG_DIST = CONFIG.segLength + 0.5;
 
+/** 증식 — 확인 없이 지나칠 때마다 이상이 하나씩 늘어난다 (상한 CONFIG.swarmMax) */
+export function swarmAfterFolds(folds: number): number {
+  return Math.min(CONFIG.swarmMax, folds);
+}
+
+/** 이상이 배정된 구간의 동시 출현 수 */
+export function activeCount(swarm: number): number {
+  return 1 + Math.min(CONFIG.swarmMax, swarm);
+}
+
 export interface NightPlan {
   /** 접힘(이상을 못 보고 지나침) 횟수 — 각각 구간 반복 1회 = 총 걸음 +1 */
   folds?: number;

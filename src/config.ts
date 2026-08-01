@@ -14,9 +14,11 @@ export const CONFIG = {
   // ---------- 깊이 — 유일한 자원 (game.md 판정, game-design-theory §5·§9) ----------
   // 숫자 게이지 없음: 가로등 밝기가 다이제틱 표시 (world.ts applyDepth 사다리)
   depthLimit: 6,           // 도달 = soft fail: 암전 → 골목 입구 리셋 (죽음 아님)
-  foldDepthCost: 2,        // 이상을 못 보고 지나침(접힘) — 구간 반복 + 남은 거리 +1과 함께
-  wasteDepthCost: 1,       // 빈 지적(아무것도 아닌 것을 짚음) — 정확한 지적은 비용 0
+  foldDepthCost: 2,        // 확인 없이 지나침(접힘) — 구간 반복 + 남은 거리 +1과 함께
+  wasteDepthCost: 1,       // 빈 지적(아무것도 아닌 것을 짚음) — 정확한 확인은 비용 0
   spotCooldownSec: 0.6,    // 지적 연타 방지 (스팸으로 우연히 맞추기 차단)
+  checkDistance: 4.5,      // 확인 성립 거리(m) — 멀리서는 안 된다. 무서운 쪽으로 다가가야 한다
+  swarmMax: 2,             // 증식 상한 — 동시 이상 = 1 + swarm ≤ 3 (지나칠 때마다 +1)
   // 밸런스 함의: 접힘 3회 = 리셋 / 빈 지적만 6회 = 리셋 ("전부 의심하면 밤이 끝나지 않는다")
 };
 

@@ -37,6 +37,7 @@ export interface SegmentRefs {
   trafficGreen: THREE.MeshStandardMaterial[];
   sign: THREE.Group;                        // 5: A-013
   shopTex: [THREE.CanvasTexture, THREE.CanvasTexture];    // 5: A-012 (간판 오탈자 — TXT)
+  figure: THREE.Group;                      // 전 구간: A-010 (스폰 앵커 랜덤 — HUM)
   /** 지적(포인팅) 히트 대상 — effect별 클릭 가능한 사물 (main.ts tryPoint 판정) */
   hit: Record<AnomalyEffect, THREE.Object3D[]>;
 }
@@ -48,6 +49,13 @@ const WALL_H = 7;
 // 입간판 방향 — 정상은 벽과 평행(옆면), 이상은 플레이어 정면 (실루엣 차이 = 명확성)
 const SIGN_REST_Y = Math.PI / 2;
 const SIGN_TURNED_Y = 0;
+
+/** 스폰 앵커 — 위치 자유형 이상현상(figure 등)이 출현하는 후보 지점 (전 테마 공용).
+ *  통행 한계 안쪽·가로등(z=-L*0.45) 시야권 — 걷다 보면 반드시 곁을 지나게 되는 자리들 */
+export const SPAWN_ANCHORS: Array<[number, number]> = [
+  [1.6, -L * 0.26], [-1.9, -L * 0.36], [2.1, -L * 0.49],
+  [-1.4, -L * 0.58], [0.9, -L * 0.71], [-2.1, -L * 0.81],
+];
 
 // 공 위치 — 정상은 펜스 안쪽, 이상은 길 한가운데
 const BALL_HOME = new THREE.Vector3(-2.35, 0.28, -L * 0.46);
@@ -192,6 +200,18 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   const shopGlow = new THREE.PointLight(0xffb23e, 0, 26, 2);
   shopGlow.position.set(0, 3, -L - 6);
   group.add(shopGlow);
+
+  // 그림자 사람 (A-010 HUM — 스폰 앵커 랜덤 출현. 등을 돌리고 서 있다 — 얼굴은 보여주지 않는다)
+  // 15세 원칙: 위협 동작 없음. 그냥 서 있는 것이 가장 무섭다 (fear-cognition §1 부재/이질)
+  const figure = new THREE.Group();
+  const figureMat = new THREE.MeshStandardMaterial({ color: 0x0b0e16, roughness: 1 });
+  const fBody = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.22, 0.28), figureMat);
+  fBody.position.y = 0.9;
+  const fHead = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), figureMat);
+  fHead.position.y = 1.66;
+  figure.add(fBody, fHead);
+  figure.visible = false;
+  group.add(figure);
 
   // 접힘 흔적 — 반복 구간 입구 바닥의 분필 원 ("누가 여기 표시를 해뒀다").
   // 같은 곳을 다시 걷고 있음을 공간이 말해준다 (game.md 접힘 인지 4요소 ④)
@@ -458,13 +478,14 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
     traffic_red: trafficHeads,
     sign_turn: [sign],
     shop_typo: [shopSign],
+    figure: [figure],
   };
 
   return {
     group, themes, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
     umbrella, sensorMat, sensorLight, windowMat, flyerMat, flyerTex,
     laundryShutter, laundryMat, laundryLight, storeSignMat, realtyMat, realtyTex,
-    swingPivot, ball, trafficRed, trafficGreen, sign, shopTex, hit,
+    swingPivot, ball, trafficRed, trafficGreen, sign, shopTex, figure, hit,
   };
 }
 
@@ -563,13 +584,23 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
     reset: (r) => { r.shopSignMat.map = r.shopTex[0]; r.shopSignMat.emissiveMap = r.shopTex[0]; },
     apply: (r) => { r.shopSignMat.map = r.shopTex[1]; r.shopSignMat.emissiveMap = r.shopTex[1]; },
   },
+  figure: {
+    reset: (r) => { r.figure.visible = false; },
+    apply: (r) => {
+      // 스폰 앵커 — main이 userData.figureAnchor에 고른 지점 (랜덤은 선택 로직의 몫)
+      const [ax, az] = SPAWN_ANCHORS[(r.group.userData.figureAnchor as number) ?? 0];
+      r.figure.position.set(ax, 0, az);
+      r.figure.rotation.y = Math.random() < 0.5 ? Math.PI : Math.PI * 0.85; // 등을 돌리고
+      r.figure.visible = true;
+    },
+  },
 };
 
-/** 구간 상태 초기화 후 이상현상 적용. 등장 트윈 없음 — "이미 그렇게 있어야 한다" (visual-polish §7) */
-export function applyAnomaly(refs: SegmentRefs, effect: AnomalyEffect | null) {
+/** 구간 상태 초기화 후 이상현상 적용 (0~복수). 등장 트윈 없음 — "이미 그렇게 있어야 한다" (visual-polish §7) */
+export function applyAnomalies(refs: SegmentRefs, effects: AnomalyEffect[]) {
   for (const h of Object.values(EFFECTS)) h.reset(refs); // 전 타깃 정상 복귀
-  refs.group.userData.effect = effect;
-  if (effect) EFFECTS[effect].apply?.(refs);
+  refs.group.userData.effects = effects;
+  for (const e of effects) EFFECTS[e].apply?.(refs);
 }
 
 /** 마지막 구간 여부에 따라 버거집 간판/불빛 연출 */
@@ -586,10 +617,10 @@ const TRAFFIC_GREEN_ON = 0x2f7a4a;
 
 /** 매 프레임 — 시간성 연출 (가로등 깜빡임 · 그네 · 신호등). 스텝/주기 방식, 트윈 금지 */
 export function updateWorld(refs: SegmentRefs, t: number) {
-  const effect = refs.group.userData.effect as AnomalyEffect | null;
+  const effects = (refs.group.userData.effects as AnomalyEffect[] | undefined) ?? [];
 
   // A-008 가로등 — 이상 시 두 번씩 깜빡임 (스텝 — 형광등은 튄다, visual-polish §7)
-  if (effect === 'lamp_flicker') {
+  if (effects.includes('lamp_flicker')) {
     const base = (refs.group.userData.lampBase as number) ?? 22;
     const phase = t % 1.6;
     const on = !(phase < 0.12 || (phase > 0.24 && phase < 0.36));
@@ -597,13 +628,13 @@ export function updateWorld(refs: SegmentRefs, t: number) {
   }
 
   // A-007 그네 — 바람 없는 흔들림
-  if (effect === 'swing') {
+  if (effects.includes('swing')) {
     refs.swingPivot.rotation.x = Math.sin(t * 2.2) * 0.38;
   }
 
   // 신호등 — 정상: 교대 점등 주기가 '학습된 정상' / A-011: 양쪽 다 빨간불 고정
   if (refs.themes[3].visible) {
-    const bothRed = effect === 'traffic_red';
+    const bothRed = effects.includes('traffic_red');
     const phase = t % 5.6;
     const greenOn = !bothRed && phase < 3.2;
     const redOn = bothRed || phase >= 3.2;

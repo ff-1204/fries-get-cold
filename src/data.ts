@@ -9,15 +9,17 @@ export type AnomalyEffect =
   | 'laundry_open' | 'sign_lit' | 'realty_urgent'              // 구간 2 상가 골목
   | 'swing' | 'lamp_flicker' | 'ball_out'                      // 구간 3 놀이터 옆길
   | 'traffic_red'                                              // 구간 4 정류장 앞
-  | 'sign_turn' | 'shop_typo';                                 // 구간 5 먹자골목 입구
+  | 'sign_turn' | 'shop_typo'                                  // 구간 5 먹자골목 입구
+  | 'figure';                                                  // 전 구간 — 스폰 포인트 랜덤 (HUM)
 
 export interface AnomalyDef {
   id: string;
   night: number;      // 등장 시작 밤
-  segment: number;    // 배치 구간 (1~5) — 구간 테마의 사물에만 걸 수 있다
+  /** 배치 구간 1~5 — 구간 테마의 사물에만. 0 = 전 구간 (스폰 포인트 랜덤 출현형) */
+  segment: number;
   category: 'OBJ' | 'LGT' | 'TXT' | 'HUM' | 'SPC' | 'SND' | 'MTA';
   effect: AnomalyEffect;
-  /** 실패 직후 암시 문구 (design-principles §3 — 공정성) */
+  /** 접힘 직후 암시 문구 (design-principles §3 — 공정성) */
   reveal: string;
   /** 가는 길 전용 — 귀갓길에는 보이지 않는 사물(버거집 간판 등)에 지정 (공정성) */
   outboundOnly?: boolean;
@@ -44,8 +46,10 @@ export const TEXT = {
     '오늘은 나가지 말까 했다. 신발을 신으며 생각했다.',
     '…오늘은 별로 먹고 싶지도 않은데. 근데 왜 나와 있지.',
   ],
-  /** 지적 성공 — 이상은 사라지지 않는다. 알아챘다는 사실만 남는다 */
-  spotOk: '…봤다.\n골목도, 내가 봤다는 걸 안다.',
+  /** 확인 성공 — 이상은 사라지지 않는다. 확인했다는 사실만 남는다 (대면 확인) */
+  spotOk: '…확인했다.\n아직, 그 자리에 있다.',
+  /** 원거리 지적 — 확인은 다가가야 성립한다 (비용 없음, 무서운 쪽으로 걸어가게 만드는 설계) */
+  tooFar: '…여기서는 잘 안 보인다.\n더 가까이 가야 한다.',
   /** 빈 지적 — 과잉 의심의 비용 (즉각 인과: 가로등 감광과 동시) */
   spotWaste: '아무것도 아니다.\n…가로등이 하나, 어두워졌다.',
   /** 접힘 — reveal(무엇이 어긋났었는지) 뒤에 이어 붙는 자각 문구 (인지 보장 4요소 ②) */

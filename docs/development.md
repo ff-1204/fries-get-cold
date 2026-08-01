@@ -326,3 +326,16 @@ story.md·design-principles.md 온도/왕복 종속부 교체, README·CLAUDE.md
 - **검증 훅 예외**: `__fries.debugSpot()`은 ?a= 디버그 모드 한정의 조작 훅 —
   E2E가 지적을 결정적으로 재현하기 위함. 상태 훅 읽기 전용 원칙의 명시적 예외
 - SIDE_GAP·샛길 지오메트리·정당 우회 개념 제거 — balance.ts는 folds/wastes 2축 모델로 단순화
+
+### 확인 의무·증식·스폰 포인트 (2026-08-02, v0.6.0) — 공포 상향
+
+관찰-신고 장르의 누적 문법과 대면 돌파 문법을 우리 식으로 결합 (game.md 결정 기록). 구현 노트:
+
+- **다중 이상**: `anomalies: AnomalyDef[]` + `checked: Set<id>` — applyAnomalies가
+  전체 리셋 후 복수 적용. 연속 등장 방지는 직전 구간 id 집합(lastIds) 기준
+- **근접 확인**: tryPoint에서 히트 후 `targetDistance ≤ CONFIG.checkDistance` 검사 —
+  원거리는 tooFar 안내(무비용). 증식은 balance.ts `swarmAfterFolds`/`activeCount` 순수 함수
+- **스폰 앵커**: world.ts `SPAWN_ANCHORS` 6곳 — figure 핸들러가 userData.figureAnchor를
+  읽어 배치. **?a= 디버그는 앵커 고정(2번)** — 스크린샷·E2E 결정성 (랜덤은 실플레이만)
+- 미해결: 접힘 반복 구간에서 증식된 동시 이상의 밀도 체감(2~3개가 좁은 구간에 겹칠 때의
+  가독성)은 실플레이로 확인 필요 — 앵커 간격은 확보돼 있으나 사물 고정형과의 겹침은 미검증

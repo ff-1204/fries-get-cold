@@ -120,6 +120,7 @@ async function shots() {
     ['a=realty_urgent', 'seg2-realty-anomaly', 1, -14.5],
     ['a=none', 'seg5-shopsign-normal', 4, -22],
     ['a=shop_typo', 'seg5-shopsign-anomaly', 4, -22],
+    ['a=figure', 'seg1-figure-anomaly', 0, -12], // 그림자 사람 (A-010) — 디버그 앵커 고정(z=-17.6)
   ];
   for (const [param, tag, passes, z] of cases) {
     const { browser, page } = await launch();
@@ -208,15 +209,15 @@ async function balance() {
     await browser.close();
   }
 
-  // 3) 지적 성공 = 무비용 통과 (?a=umbrella — 구간 1 이상 고정, 짚고 나서 직진)
+  // 3) 확인 성공 = 무비용 통과 (?a=umbrella — 구간 1 이상 고정, 확인하고 직진)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=umbrella');
     await debugSpot(page);
-    const spotted = (await state(page)).spotted;
+    const checked = (await state(page)).checked;
     await passMain(page);
     const s = await state(page);
-    console.log('지적 통과 확인:', JSON.stringify({ spotted, done: s.done, total: s.total, depth: s.depth, folds: s.folds, theme: s.theme }));
+    console.log('확인 통과:', JSON.stringify({ checked, done: s.done, total: s.total, depth: s.depth, folds: s.folds, theme: s.theme }));
     await browser.close();
   }
 

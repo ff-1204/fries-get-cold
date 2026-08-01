@@ -5,7 +5,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from './config.ts';
-import { tasteFromFolds, simulateNight } from './balance.ts';
+import { tasteFromFolds, simulateNight, swarmAfterFolds, activeCount } from './balance.ts';
+
+// 증식 (game.md 판정): 확인 없이 지나칠수록 동시 이상이 늘어난다 — 상한 1+swarmMax
+test('증식 — 지나침 0회=1개, 1회=2개, 2회 이상=3개 상한', () => {
+  assert.equal(activeCount(swarmAfterFolds(0)), 1);
+  assert.equal(activeCount(swarmAfterFolds(1)), 2);
+  assert.equal(activeCount(swarmAfterFolds(2)), 1 + CONFIG.swarmMax);
+  assert.equal(activeCount(swarmAfterFolds(5)), 1 + CONFIG.swarmMax);
+});
 
 // 판정 비대칭 (game.md): 접힘(놓침) 리스크 vs 빈 지적 비용
 test('무결점 밤 — 깊이 0, 아직 따뜻하다(바삭)', () => {
