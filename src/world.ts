@@ -453,71 +453,84 @@ export function setSegmentTheme(refs: SegmentRefs, segment: number) {
   refs.themes.forEach((t, i) => (t.visible = i === segment - 1));
 }
 
+// ---------- 이상현상 핸들러 레지스트리 ----------
+// effect마다 reset(정상 복귀)과 apply(이상 적용)를 한 곳에 붙여 둔다.
+// Record<AnomalyEffect, …>라서 data.ts에 effect를 추가하면 여기 항목이 없을 때
+// 컴파일 에러 — 리셋 누락(이상 상태가 다음 구간으로 새는 것)이 타입으로 막힌다.
+interface EffectHandler {
+  /** 정상 상태 — apply(와 updateWorld)가 만지는 모든 타깃을 되돌려야 한다 */
+  reset(refs: SegmentRefs): void;
+  /** 이상 상태. 시간성 연출(updateWorld가 매 프레임 처리)은 생략 */
+  apply?(refs: SegmentRefs): void;
+}
+
+const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
+  umbrella: {
+    reset: (r) => { r.umbrella.visible = false; },
+    apply: (r) => { r.umbrella.visible = true; },
+  },
+  sensor_on: {
+    reset: (r) => { r.sensorMat.emissive.setHex(0x000000); r.sensorLight.intensity = 0; },
+    apply: (r) => { r.sensorMat.emissive.setHex(0xcfc2a4); r.sensorLight.intensity = 4; },
+  },
+  window_red: {
+    reset: (r) => { r.windowMat.emissive.setHex(0x000000); },
+    apply: (r) => { r.windowMat.emissive.setHex(0x7a1010); },
+  },
+  laundry_open: {
+    reset: (r) => {
+      r.laundryShutter.position.y = 1.25;
+      r.laundryShutter.scale.y = 1;
+      r.laundryMat.emissive.setHex(0x000000);
+      r.laundryLight.intensity = 0;
+    },
+    apply: (r) => {
+      r.laundryShutter.position.y = 2.0; // 반열림 — 아래로 내부가 드러난다
+      r.laundryShutter.scale.y = 0.42;
+      r.laundryMat.emissive.setHex(0x77878f);
+      r.laundryLight.intensity = 6;
+    },
+  },
+  sign_lit: {
+    reset: (r) => { r.storeSignMat.emissive.setHex(0x000000); },
+    apply: (r) => { r.storeSignMat.emissive.setHex(0x6e1414); }, // 저채도 적 — 이상 시그널 전용색
+  },
+  swing: {
+    reset: (r) => { r.swingPivot.rotation.x = 0; }, // 흔들림 자체는 updateWorld
+  },
+  lamp_flicker: {
+    reset: (r) => { r.lampLight.intensity = 22; }, // 깜빡임 자체는 updateWorld
+  },
+  traffic_red: {
+    reset: () => {}, // 신호등 등화는 테마 4 표시 중 updateWorld가 매 프레임 재계산
+  },
+  ball_out: {
+    reset: (r) => { r.ball.position.copy(BALL_HOME); },
+    apply: (r) => { r.ball.position.copy(BALL_OUT); },
+  },
+  sign_turn: {
+    reset: (r) => { r.sign.rotation.y = SIGN_REST_Y; },
+    apply: (r) => { r.sign.rotation.y = SIGN_TURNED_Y; },
+  },
+  flyer_digits: {
+    reset: (r) => { r.flyerMat.map = r.flyerTex[0]; },
+    apply: (r) => { r.flyerMat.map = r.flyerTex[1]; },
+  },
+  realty_urgent: {
+    reset: (r) => { r.realtyMat.map = r.realtyTex[0]; },
+    apply: (r) => { r.realtyMat.map = r.realtyTex[1]; },
+  },
+  shop_typo: {
+    reset: (r) => { r.shopSignMat.map = r.shopTex[0]; r.shopSignMat.emissiveMap = r.shopTex[0]; },
+    apply: (r) => { r.shopSignMat.map = r.shopTex[1]; r.shopSignMat.emissiveMap = r.shopTex[1]; },
+  },
+};
+
 /** 구간 상태 초기화 후 이상현상 적용. 등장 트윈 없음 — "이미 그렇게 있어야 한다" (visual-polish §7) */
 export function applyAnomaly(refs: SegmentRefs, effect: AnomalyEffect | null) {
-  // reset — 모든 타깃을 정상 상태로
-  refs.umbrella.visible = false;
-  refs.sensorMat.emissive.setHex(0x000000);
-  refs.sensorLight.intensity = 0;
-  refs.windowMat.emissive.setHex(0x000000);
-  refs.laundryShutter.position.y = 1.25;
-  refs.laundryShutter.scale.y = 1;
-  refs.laundryMat.emissive.setHex(0x000000);
-  refs.laundryLight.intensity = 0;
-  refs.storeSignMat.emissive.setHex(0x000000);
-  refs.swingPivot.rotation.x = 0;
-  refs.ball.position.copy(BALL_HOME);
-  refs.sign.rotation.y = SIGN_REST_Y;
-  refs.lampLight.intensity = 22;
-  refs.flyerMat.map = refs.flyerTex[0];
-  refs.realtyMat.map = refs.realtyTex[0];
-  refs.shopSignMat.map = refs.shopTex[0];
-  refs.shopSignMat.emissiveMap = refs.shopTex[0];
+  for (const h of Object.values(EFFECTS)) h.reset(refs); // 전 타깃 정상 복귀
   refs.group.userData.effect = effect;
-
-  switch (effect) {
-    case 'umbrella':
-      refs.umbrella.visible = true;
-      break;
-    case 'sensor_on':
-      refs.sensorMat.emissive.setHex(0xcfc2a4);
-      refs.sensorLight.intensity = 4;
-      break;
-    case 'window_red':
-      refs.windowMat.emissive.setHex(0x7a1010);
-      break;
-    case 'laundry_open':
-      refs.laundryShutter.position.y = 2.0; // 반열림 — 아래로 내부가 드러난다
-      refs.laundryShutter.scale.y = 0.42;
-      refs.laundryMat.emissive.setHex(0x77878f);
-      refs.laundryLight.intensity = 6;
-      break;
-    case 'sign_lit':
-      refs.storeSignMat.emissive.setHex(0x6e1414); // 저채도 적 — 이상 시그널 전용색
-      break;
-    case 'swing':
-    case 'lamp_flicker':
-    case 'traffic_red':
-      break; // 시간성 연출 — updateWorld에서 처리
-    case 'ball_out':
-      refs.ball.position.copy(BALL_OUT);
-      break;
-    case 'sign_turn':
-      refs.sign.rotation.y = SIGN_TURNED_Y;
-      break;
-    case 'flyer_digits':
-      refs.flyerMat.map = refs.flyerTex[1];
-      break;
-    case 'realty_urgent':
-      refs.realtyMat.map = refs.realtyTex[1];
-      break;
-    case 'shop_typo':
-      refs.shopSignMat.map = refs.shopTex[1];
-      refs.shopSignMat.emissiveMap = refs.shopTex[1];
-      break;
-    case null:
-      break;
-  }
+  if (effect) EFFECTS[effect].apply?.(refs);
 }
 
 /** 마지막 구간 여부에 따라 버거집 간판/불빛 연출 */

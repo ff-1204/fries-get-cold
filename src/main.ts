@@ -482,6 +482,8 @@ window.addEventListener('resize', () => {
     temp: Math.round(temp * 10) / 10, elapsed: Math.round(elapsed * 10) / 10,
     x: Math.round(player.x * 100) / 100, z: Math.round(player.z * 100) / 100,
   }),
+  // verify.mjs가 좌표·목표치를 여기서 파생시킨다 — 게임 상수를 스크립트에 손으로 복사하지 않기 위함
+  config: () => ({ ...CONFIG, sideGap: SIDE_GAP }),
 };
 
 camera.position.set(0, 1.65, 0);

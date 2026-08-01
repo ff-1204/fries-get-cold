@@ -19,8 +19,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 게임 쪽 상수와 동기화 (data.ts CONFIG) — 구간 길이가 바뀌면 여기도 확인
-const SIDE_GAP_Z = -28.5; // 샛길 개구부 진입 지점 (L=36 기준)
+// 게임 상수는 손으로 복사하지 않는다 — __fries.config()에서 파생 (구간 길이 변경에 자동 추종)
 
 async function launch() {
   const browser = await puppeteer.launch({
@@ -76,14 +75,18 @@ async function passMain(page, run = false) {
   if (run) await page.keyboard.up('ShiftLeft');
 }
 
-/** 샛길 우회 — 개구부까지 전진 후 왼쪽(A)으로 이탈 */
+/** 샛길 우회 — 개구부(가운데)까지 전진 후 왼쪽(A)으로 이탈 */
 async function passSide(page) {
   const s0 = await state(page);
+  const gapZ = await page.evaluate(() => {
+    const g = globalThis.__fries.config().sideGap;
+    return (g.zNear + g.zFar) / 2;
+  });
   await page.keyboard.down('KeyW');
   await page.waitForFunction(
     (gz) => { const s = globalThis.__fries.state(); return s.z <= gz || s.phase !== 'walk'; },
     { polling: 60, timeout: 40000 },
-    SIDE_GAP_Z,
+    gapZ,
   );
   await page.keyboard.up('KeyW');
   await page.keyboard.down('KeyA');
