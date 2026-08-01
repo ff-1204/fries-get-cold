@@ -294,3 +294,6 @@ story.md·design-principles.md 온도/왕복 종속부 교체, README·CLAUDE.md
   프롤로그, 검증 인프라(verify.mjs·__fries 훅), 저장 구조(결과 스키마는 변경)
 - 구 문법 코드는 M2 전까지 라이브에 그대로 남는다 (문서가 코드보다 앞서 있는 기간 —
   로드맵 M2 완료 기준으로 해소)
+- M2 착수 전 컨셉 학습성 검토 완료 (같은 날): 장르 스키마 일치/위반 분석 →
+  game-design-theory §9 신설(스키마·목표 구배·손실 회피·학습된 무기력), game.md에
+  '접힘 인지 보장 4요소', 이론 문서 3종(affective·visual-polish·theory)의 구 컨셉 잔재 정리
