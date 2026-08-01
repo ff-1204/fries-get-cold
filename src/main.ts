@@ -1,13 +1,16 @@
-// 튀김이 식기 전에 — M0 그레이박스 프로토타입
-// 구간 프리팹 1개 재활용 + 본길/샛길 우회 판정 + 왕복 + 온도 게이지 (docs/game.md)
+// 튀김이 식기 전에 — 접히는 골목 (M2 컨셉 전환, docs/game.md 판정)
+// 구간 프리팹 재활용 + 본길/샛길 판정 + 접힘(오답=연장) + 깊이(가로등 소등·soft fail)
 
 import * as THREE from 'three';
 import { ANOMALIES, CONFIG, TEXT, type AnomalyDef } from './data';
-import { gradeTaste, sideTempCost } from './balance';
+import { tasteFromFolds, sideDepthCost } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
-import { createWorld, applyAnomaly, setShopNear, setSegmentTheme, updateWorld, SIDE_GAP, MAIN_GAP_HALF } from './world';
+import {
+  createWorld, applyAnomaly, applyDepth, setFoldMark, setShopNear, setSegmentTheme,
+  updateWorld, SIDE_GAP, MAIN_GAP_HALF,
+} from './world';
 import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
 
 type Phase = 'gate' | 'walk' | 'transition';
@@ -80,13 +83,16 @@ let phase: Phase = 'gate';
 let started = false;
 let pausing = false;
 let night = save.night; // 이어하기 — 기기 내 저장에서 복원 (docs/privacy.md)
-let segment = 1;            // 1..CONFIG.segments
-let returning = false;
-let temp = CONFIG.tempMax;
+let done = 0;               // 이 밤에 지나온 걸음(구간) 수 — 접힘도 걸음은 소비한다
+let total = CONFIG.segments; // 이 밤의 총 구간 수 — 접힐 때마다 +1 (카운터는 정직하다)
+let theme = 1;              // 현재 걷는 구간 테마 1..5 — 접힘은 테마를 반복시킨다
+let depth = 0;              // 골목이 나를 붙잡은 정도 — 가로등이 게이지 (config.depthLimit)
+let folds = 0;              // 이 밤의 접힘 횟수 — 시식 서사·노미스 추적
+let foldRepeat = false;     // 지금 구간이 접힘 반복인가 (분필 자국 표시)
 let elapsed = 0;            // 이 밤의 경과 시간(초) — 새벽이 깊을수록 위험
 let anomaly: AnomalyDef | null = null;
 let lastAnomalyId: string | null = null;
-let tripAnomalies = 0; // 이번 편도에서 등장한 이상 수 (밤 1 온보딩 보장용)
+let tripAnomalies = 0; // 이 밤에 등장한 이상 수 (밤 1 온보딩 보장용)
 
 const player = { x: 0, z: 0 };
 
@@ -98,26 +104,23 @@ function anomalyChance(): number {
 // (effect 목록은 src/data/anomalies.json — 플레이테스트·스크린샷 검증용)
 const DEBUG_ANOMALY = new URLSearchParams(location.search).get('a');
 
-function rollSegment() {
-  setSegmentTheme(refs, segment); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
+function rollSegment(foldStatus = false) {
+  setSegmentTheme(refs, theme); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
 
-  // 이 구간·이 밤에 가능한 풀 — 이상은 그 구간 테마의 사물에만 걸 수 있다 (anomalies.md)
-  // 같은 이상현상 연속 등장 방지 + 귀갓길에 보이지 않는 사물 제외 (공정성)
+  // 이 테마·이 밤에 가능한 풀 — 이상은 그 구간 테마의 사물에만 걸 수 있다 (anomalies.md)
+  // 같은 이상현상 연속 등장 방지 (공정성 — 접힘 반복 구간에서 특히 중요)
   const pool = ANOMALIES.filter(
-    (a) =>
-      a.segment === segment && a.night <= night && a.id !== lastAnomalyId &&
-      !(returning && a.outboundOnly),
+    (a) => a.segment === theme && a.night <= night && a.id !== lastAnomalyId,
   );
 
   // 온보딩 보장 (game-design-theory §6): 밤 1 첫 구간은 반드시 정상 —
   // "정상 상태의 학습"이 먼저 (fear-cognition §1: 이상현상 = 학습된 정상의 위반)
-  const forceNormal = !DEBUG_ANOMALY && night === 1 && !returning && segment === 1;
-  // 밤 1 편도 막바지까지 이상이 한 번도 없었다면 강제 등장 (문법 학습 보장)
-  const forceAnomaly =
-    night === 1 && !returning && segment >= CONFIG.segments - 1 && tripAnomalies === 0;
+  const forceNormal = !DEBUG_ANOMALY && night === 1 && done === 0;
+  // 밤 1 막바지까지 이상이 한 번도 없었다면 강제 등장 (문법 학습 보장)
+  const forceAnomaly = night === 1 && theme >= CONFIG.segments - 1 && tripAnomalies === 0;
 
   if (DEBUG_ANOMALY) {
-    anomaly = ANOMALIES.find((x) => x.effect === DEBUG_ANOMALY && x.segment === segment) ?? null;
+    anomaly = ANOMALIES.find((x) => x.effect === DEBUG_ANOMALY && x.segment === theme) ?? null;
   } else if (pool.length > 0 && !forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
     anomaly = pool[Math.floor(Math.random() * pool.length)];
     lastAnomalyId = anomaly.id;
@@ -125,82 +128,71 @@ function rollSegment() {
   } else {
     anomaly = null;
   }
+  applyDepth(refs, depth);            // 꺼져가는 빛 — 이상 리셋보다 먼저 (lampBase 기준 제공)
   applyAnomaly(refs, anomaly ? anomaly.effect : null);
+  setFoldMark(refs, foldRepeat);      // 접힘 반복 구간 — 바닥 분필 자국 (인지 4요소 ④)
   // '정적' — 이상 구간에서 환경음이 잦아든다 (fear-cognition §8, 시각 단서의 청각 병행)
   audio.duck(!!anomaly);
-  setShopNear(refs, !returning && segment === CONFIG.segments);
+  setShopNear(refs, done === total - 1); // 마지막 걸음에서만 버거집 간판·불빛
 
   player.x = 0;
   player.z = 0;
   input.yaw = 0;
   input.pitch = 0;
 
-  hud.setStatus(`${TEXT.nightLabel(night)} — ${TEXT.segLabel(segment, CONFIG.segments, returning)}`);
+  const label = `${TEXT.nightLabel(night)} — ${TEXT.segLabel(done + 1, total, theme)}`;
+  if (foldStatus) hud.setStatusFold(label); // 접힘 — 카운터 강조 교체 (인지 4요소 ①)
+  else hud.setStatus(label);
 }
 
 async function startNight() {
-  segment = 1;
-  returning = false;
-  temp = CONFIG.tempMax;
+  done = 0;
+  total = CONFIG.segments;
+  theme = 1;
+  depth = 0;
+  folds = 0;
+  foldRepeat = false;
   elapsed = 0;
   lastAnomalyId = null;
   tripAnomalies = 0;
-  hud.showTemp(false);
   rollSegment();
   phase = 'walk';
   hud.say(TEXT.intros[Math.min(night - 1, TEXT.intros.length - 1)]);
 }
 
-async function failNight() {
+/** 깊이 한계 — 죽음이 아니라 골목 입구 리셋 (15세 원칙: 실패조차 암전) */
+async function softFail() {
   phase = 'transition';
-  save.misses += 1; // 노미스 히든 엔딩 판정용 (game.md 엔딩)
-  persist();
-  const reveal = anomaly ? anomaly.reveal : '';
-  await hud.fadeOut(900);
-  await hud.blackScreen(`${reveal}\n\n${TEXT.fail}`, '…다시 나간다');
+  await hud.fadeOut(1400);
+  await hud.blackScreen(TEXT.softFail, TEXT.softFailBtn);
   input.activate(); // 포인터락 재획득
-  await startNight();
+  await startNight(); // 같은 밤을 처음부터 — 배운 채로 다시 걷는다 (theory §9 자비 설계)
   await hud.fadeIn(900);
 }
 
+/** 버거집 도착 = 밤의 끝. 귀가는 컷으로 (귀갓길 실주행은 밤 5 세트피스에 아껴둔다 — M3) */
 async function reachShop() {
   phase = 'transition';
   await hud.fadeOut(800);
   await hud.blackScreen(`${TEXT.shopArrive}\n\n${TEXT.shopBuy}`, '봉투를 받는다 (3,200원)');
-  input.activate();
-  returning = true;
-  segment = CONFIG.segments;
-  tripAnomalies = 0;
-  hud.showTemp(true);
-  hud.setTemp(1);
-  rollSegment();
-  hud.say(TEXT.returnStart);
-  phase = 'walk';
-  await hud.fadeIn(800);
-}
-
-async function reachHome() {
-  phase = 'transition';
-  await hud.fadeOut(1000);
-  const taste: TasteResult = gradeTaste(temp);
+  const taste: TasteResult = tasteFromFolds(folds); // 감자튀김은 접힘 횟수를 비추는 서사 (balance.ts)
   const result =
     taste === 'crispy' ? TEXT.resultCrispy :
     taste === 'lukewarm' ? TEXT.resultLukewarm :
     TEXT.resultSoggy;
-  save.results[night - 1] = taste; // 밤별 시식 기록 — 기기 내 저장 (연출 도중 이탈 대비, 먼저 저장)
+  save.results[night - 1] = taste; // 밤별 기록 — 기기 내 저장 (연출 도중 이탈 대비, 먼저 저장)
   save.night = night + 1;
   persist();
   // 시식 — 매 밤의 End이므로 가장 정성스러운 순간이어야 한다 (affective §1-4 Peak-End)
-  // 귀가 비트 → 결과별 틴트에서 한 입씩(입마다 크런치, 먹는 동안에도 식는다) → 마무리 모놀로그
+  // 귀가 컷 → 결과별 틴트에서 한 입씩(입마다 크런치) → 밤별 마무리 모놀로그
   await hud.blackScreen(TEXT.homeArrive, TEXT.homeOpen);
-  const q = temp / CONFIG.tempMax;
+  const q = taste === 'crispy' ? 0.95 : taste === 'lukewarm' ? 0.55 : 0.25;
   await hud.tasteScene({
-    // "온도"가 아니라 "바삭함" — 손실 프레이밍, 게이지 라벨과 일관 (affective §1-4)
-    gauge: `🍟 바삭함 ${Math.round(temp)}%`,
+    gauge: TEXT.tasteGauge[taste],
     result,
     epilogue: TEXT.epilogues[Math.min(night - 1, TEXT.epilogues.length - 1)],
     endLabel: TEXT.tasteEnd,
-    // 시식(성공)의 감정 좌표 = 긍정·저각성 → 웜 틴트, 눅눅하면 한랭 (affective §1-2)
+    // 시식(성공)의 감정 좌표 = 긍정·저각성 → 웜 틴트, 식었으면 한랭 (affective §1-2)
     bg: taste === 'crispy' ? '#181008' : taste === 'lukewarm' ? '#100e12' : '#0a0d16',
     onBite: (bite) => audio.crunch(Math.max(0.05, q * (1 - bite * 0.18))),
   });
@@ -212,27 +204,39 @@ async function reachHome() {
 
 /** 구간 통과 처리. side=샛길 경유 여부 */
 async function passSegment(side: boolean) {
+  let repeat = false;
+
   if (side) {
     if (anomaly) {
-      hud.say(TEXT.sideSafe);
+      hud.say(TEXT.sideSafe); // 정당 우회 — 무비용 (관찰이 정확하면 벌하지 않는다)
     } else {
-      hud.say(returning ? TEXT.sideWasteReturn : TEXT.sideWaste);
-      if (!returning) elapsed += CONFIG.sidePathTimeCost;
+      depth += sideDepthCost(false); // 과잉 경계 — 다음 구간의 가로등이 즉시 어두워진다 (인과)
+      hud.say(TEXT.sideWaste);
     }
-    if (returning) temp -= sideTempCost(!!anomaly); // 정당 ×0.5 / 과잉 ×1.5 (balance.ts)
   } else if (anomaly) {
-    await failNight();
-    return;
+    // 접힘 — 오답은 죽음이 아니라 연장 (game.md 판정, 인지 보장 4요소)
+    folds += 1;
+    total += 1;
+    depth += CONFIG.foldDepthCost;
+    save.misses += 1; // 노미스(히든 엔딩) 추적 — 접힘 = 미스
+    persist();
+    repeat = true;
+    hud.say(`${anomaly.reveal}\n${TEXT.foldNotice}`, 3800); // reveal 암시 (인지 4요소 ②)
+    audio.duck(true); // 정적 — 사운드 드랍 (인지 4요소 ③, rollSegment가 이어받는다)
   }
 
-  const last = returning ? segment <= 1 : segment >= CONFIG.segments;
-  if (last) {
-    if (returning) await reachHome();
-    else await reachShop();
+  done += 1;
+  if (depth >= CONFIG.depthLimit) {
+    await softFail();
     return;
   }
-  segment += returning ? -1 : 1;
-  rollSegment();
+  if (done >= total) {
+    await reachShop();
+    return;
+  }
+  foldRepeat = repeat;
+  if (!repeat) theme = Math.min(theme + 1, CONFIG.segments); // 접힘은 같은 테마를 반복
+  rollSegment(repeat);
 }
 
 // ---------- 이동/판정 ----------
@@ -246,8 +250,9 @@ function updateWalk(dt: number) {
   const moving = Math.abs(move.forward) + Math.abs(move.strafe) > 0.1;
   audio.update(dt, moving, move.run);
 
-  // 새벽의 깊이 — 경과 시간에 따라 안개가 짙어진다 (affective §2-1, 수치 없이 체감으로)
-  (scene.fog as THREE.FogExp2).density = 0.052 + Math.min(0.018, (elapsed / 60) * 0.0035);
+  // 새벽의 깊이 — 경과 시간 + 깊이에 따라 안개가 짙어진다 (affective §2-1, 수치 없이 체감으로)
+  (scene.fog as THREE.FogExp2).density =
+    0.052 + Math.min(0.018, (elapsed / 60) * 0.0035) + Math.min(0.02, depth * 0.0035);
 
   const sin = Math.sin(input.yaw);
   const cos = Math.cos(input.yaw);
@@ -272,17 +277,6 @@ function updateWalk(dt: number) {
   }
   // 끝벽 통과 방지 (개구부 밖)
   if (player.z < -L + 0.4 && Math.abs(player.x) >= MAIN_GAP_HALF) player.z = -L + 0.4;
-
-  // 귀갓길 온도
-  if (returning) {
-    temp -= CONFIG.tempDecayPerSec * dt;
-    hud.setTemp(temp / CONFIG.tempMax);
-    if (temp <= 0) {
-      temp = 0;
-      void reachHome(); // 완전히 식으면 그냥 눅눅 엔딩으로
-      return;
-    }
-  }
 
   camera.position.set(player.x, 1.65, player.z);
   camera.rotation.set(0, 0, 0);
@@ -475,8 +469,8 @@ window.addEventListener('resize', () => {
 // 헤드리스 플레이테스트 훅 — 상태 읽기 전용 (development.md '검증 방법', 밸런싱 실측용)
 (window as unknown as Record<string, unknown>).__fries = {
   state: () => ({
-    phase, night, segment, returning,
-    temp: Math.round(temp * 10) / 10, elapsed: Math.round(elapsed * 10) / 10,
+    phase, night, done, total, theme, depth, folds,
+    elapsed: Math.round(elapsed * 10) / 10,
     x: Math.round(player.x * 100) / 100, z: Math.round(player.z * 100) / 100,
   }),
   // verify.mjs가 좌표·목표치를 여기서 파생시킨다 — 게임 상수를 스크립트에 손으로 복사하지 않기 위함

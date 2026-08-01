@@ -33,10 +33,9 @@ export const TEXT = {
   nightLabel: (n: number) => `밤 ${n}`,
   /** 구간 이름 (story.md §4 무대) — HUD에 표기해 "어디를 걷는지"를 학습시킨다 */
   segNames: ['원룸 골목', '상가 골목', '놀이터 옆길', '정류장 앞', '먹자골목 입구'],
-  segLabel: (s: number, total: number, returning: boolean) =>
-    returning
-      ? `귀갓길 ${total - s + 1}/${total} — ${TEXT.segNames[s - 1]}`
-      : `${s}/${total} — ${TEXT.segNames[s - 1]}`,
+  /** cur/total — 접히면 total이 늘어난다. 카운터는 절대 거짓말하지 않는다 (game.md 정직한 판정) */
+  segLabel: (cur: number, total: number, theme: number) =>
+    `${cur}/${total} — ${TEXT.segNames[theme - 1]}`,
   /** 밤별 인트로 모놀로그 — 담담한 톤 유지 (story.md 톤 가이드) */
   intros: [
     '새벽 한 시. 감자튀김이 먹고 싶다.',
@@ -46,17 +45,21 @@ export const TEXT = {
     '…오늘은 별로 먹고 싶지도 않은데. 근데 왜 나와 있지.',
   ],
   sideSafe: '샛길로 우회했다. …본길 쪽에서 무언가 지나가는 소리.',
-  sideWaste: '괜한 걱정이었다. 시간만 흘렀다.',
-  sideWasteReturn: '괜한 걱정이었다. …감자튀김이 식는다.',
+  sideWaste: '괜한 걱정이었다. …가로등이 하나, 어두워졌다.',
+  /** 접힘 — reveal(무엇이 어긋났었는지) 뒤에 이어 붙는 자각 문구 (인지 보장 4요소 ②) */
+  foldNotice: '…같은 골목이다. 걸어온 만큼, 늘어나 있다.',
+  softFail:
+    '…여기가 어디지.\n\n정신을 차려 보니, 골목 입구다.\n그리고, 여전히 감자튀김이 먹고 싶다.',
+  softFailBtn: '…다시 걷는다',
   shopArrive: '버거버거 24시. 형광등이 눈부시다.',
   shopBuy: '"감자튀김 엘 사이즈, 삼천이백 원입니다."',
-  returnStart: '봉투가 따뜻하다. 식기 전에 돌아가자.',
-  fail: '…침대에서 눈을 뜬다.\n손에는 아무것도 없다.\n그리고, 여전히 감자튀김이 먹고 싶다.',
   homeArrive: '현관문을 잠근다. 방 안은, 나갈 때 그대로다.\n봉투에서 기름 냄새가 올라온다.',
   homeOpen: '불도 안 켜고 봉투를 뜯는다',
+  /** 시식 게이지 자리 — 온도 시스템 퇴역, 감자튀김은 접힘 횟수를 비추는 서사로만 (balance.ts) */
+  tasteGauge: { crispy: '🍟 아직 따뜻하다', lukewarm: '🍟 조금 식었다', soggy: '🍟 다 식었다' },
   resultCrispy: '바삭하다.\n오늘 밤은, 이걸로 됐다.',
-  resultLukewarm: '미지근하다.\n…그래도 감자튀김은 감자튀김이다.',
-  resultSoggy: '눅눅하다.\n신중함도 공짜가 아니구나.',
+  resultLukewarm: '미지근하다.\n…길이 좀, 길었으니까.',
+  resultSoggy: '눅눅하다.\n오늘 골목은, 유난히 길었다.',
   /** 시식 마지막 — 밤별 마무리 모놀로그 (story.md §5 각 밤의 '마지막 컷'. Peak-End의 End) */
   epilogues: [
     '맛있다.\n근데 세탁소, 새벽 두 시에 왜 열려 있지.',

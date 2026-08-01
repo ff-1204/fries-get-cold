@@ -3,23 +3,20 @@
 // (콘텐츠·텍스트는 data.ts 파사드 — 여기는 수치·레이아웃만)
 
 export const CONFIG = {
-  segments: 5,             // 편도 구간 수
+  segments: 5,             // 기본 밤 길이 — 접힘이 없을 때의 총 구간 수
   segLength: 36,           // 구간 길이 (m)
   corridorHalfWidth: 3,    // 골목 절반 폭
   walkSpeed: 4.2,          // m/s
   runSpeed: 7.0,
   baseAnomalyChance: 0.4,  // 구간당 이상 발생 기본 확률 (docs/anomalies.md)
   chancePerMinute: 0.06,   // 새벽이 깊을수록 상승
-  tempMax: 100,
-  // 귀갓길 자연 하락 — 목표: 전 구간 보통 걸음 = 미지근 도착 (design-principles §4).
-  // 헤드리스 실측(2026-08-02): 걷기 61%(미지근) · 질주 77%(바삭) · 걷기+과잉우회 2회 24%(눅눅)
-  tempDecayPerSec: 0.9,
-  // 샛길 우회 1회당 온도 비용 — 정당 우회(이상 있음)는 ×0.5, 과잉 경계(정상)는 ×1.5.
-  // 샛길이 거리상 본길과 비슷해 시간 비용이 미미하므로 이 값이 과잉 경계 억제의 전부다
-  sidePathTempCost: 12,
-  sidePathTimeCost: 12,    // (가는 길) 샛길 1회당 경과 시간 가산 초 → 위험 증가
-  crispyThreshold: 62,     // 이상: 바삭
-  lukewarmThreshold: 30,   // 이상: 미지근 / 미만: 눅눅
+
+  // ---------- 깊이 — 유일한 자원 (game.md 판정, game-design-theory §5·§9) ----------
+  // 숫자 게이지 없음: 가로등 밝기가 다이제틱 표시 (world.ts applyDepth 사다리)
+  depthLimit: 6,           // 도달 = soft fail: 암전 → 골목 입구 리셋 (죽음 아님)
+  foldDepthCost: 2,        // 오답 본길(접힘) — 구간 반복 + 남은 거리 +1과 함께
+  wasteDepthCost: 1,       // 과잉 경계(정상인데 샛길) — 정당 우회(이상 있음)는 비용 0
+  // 밸런스 함의: 접힘 3회 = 리셋 / 과잉 경계만 6회 = 리셋 ("전부 겁먹으면 밤이 끝나지 않는다")
 };
 
 // ---------- 레이아웃 파생 상수 (world.ts 지오메트리 + main.ts 판정이 공유) ----------

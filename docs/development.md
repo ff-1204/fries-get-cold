@@ -297,3 +297,18 @@ story.md·design-principles.md 온도/왕복 종속부 교체, README·CLAUDE.md
 - M2 착수 전 컨셉 학습성 검토 완료 (같은 날): 장르 스키마 일치/위반 분석 →
   game-design-theory §9 신설(스키마·목표 구배·손실 회피·학습된 무기력), game.md에
   '접힘 인지 보장 4요소', 이론 문서 3종(affective·visual-polish·theory)의 구 컨셉 잔재 정리
+
+### M2 구현 (2026-08-02, v0.4.0) — 문서-코드 간극 해소
+
+접히는 골목이 코드로 구현되어 라이브 배포됨. 구현 노트:
+
+- **상태 모델**: done(걸음)·total(5+접힘)·theme(1..5)·depth·folds. 접힘 = done+1·total+1·
+  테마 반복 — 카운터 분자·분모가 함께 늘어 "걸었는데 남은 거리가 안 줄었다"가 표시된다
+- **깊이 시각화**: world.applyDepth — 가로등 사다리 LAMP_LADDER + lampBase를
+  group.userData로 공유 (lamp_flicker 이상현상이 감광 상태와 공존). 리셋 순서 주의:
+  rollSegment에서 applyDepth → applyAnomaly (레지스트리 리셋이 lampBase를 읽는다)
+- **verify.mjs 판정 실측**: ?a=&lt;effect&gt;가 해당 구간에서 이상을 고정하는 성질로
+  접힘 루프(본길 강행 3회 → 입구 리셋)·정당 우회(샛길 → 무비용)를 결정적으로 재현
+- 시뮬레이션(balance.ts 깊이 모델)과 E2E 실측 일치: 무결점 편도 43.5s (모델 43.45s)
+- 남은 것: 접힘 변주 심화(프롭 변주 — M3), **직접 처음부터 플레이**(무설명 학습 검증),
+  모바일 실기기 확인 (이월)

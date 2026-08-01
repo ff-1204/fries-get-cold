@@ -1,8 +1,8 @@
-// 헤드리스 검증 — 이상현상 가시성 스크린샷 + 밸런싱 실측 (docs/development.md '검증 방법')
+// 헤드리스 검증 — 이상현상 가시성 스크린샷 + 판정 실측 (docs/development.md '검증 방법')
 //
 // 준비: npm run dev -- --port 5199 --strictPort  (별도 터미널)
 // 사용: npm run verify:shots    — 이상현상 정상/이상 비교 + 구간 테마 스크린샷 → verify-shots/
-//       npm run verify:balance  — ?a=none 클린 왕복 실측 (걷기/질주/걷기+과잉우회2 온도 목표 검증)
+//       npm run verify:balance  — 무결점 밤·접힘→입구 리셋·정당 우회 실측 (접히는 골목 판정)
 //
 // 원리: main.ts의 읽기 전용 훅 window.__fries.state()로 위치·상태를 읽으며
 // page.keyboard로 주파한다 (WASD 리스너는 포인터락과 무관).
@@ -58,7 +58,7 @@ async function startGame(page, params = '') {
 
 const state = (page) => page.evaluate(() => globalThis.__fries.state());
 
-/** 본길 통과 — phase/segment/returning이 바뀔 때까지 전진 (run=Shift) */
+/** 본길 통과 — 걸음(done)이 넘어가거나 phase가 바뀔 때까지 전진 (run=Shift) */
 async function passMain(page, run = false) {
   const s0 = await state(page);
   if (run) await page.keyboard.down('ShiftLeft');
@@ -66,7 +66,7 @@ async function passMain(page, run = false) {
   await page.waitForFunction(
     (a) => {
       const s = globalThis.__fries.state();
-      return s.segment !== a.segment || s.returning !== a.returning || s.phase !== 'walk';
+      return s.done !== a.done || s.phase !== 'walk';
     },
     { polling: 100, timeout: 40000 },
     s0,
@@ -93,7 +93,7 @@ async function passSide(page) {
   await page.waitForFunction(
     (a) => {
       const s = globalThis.__fries.state();
-      return s.segment !== a.segment || s.returning !== a.returning || s.phase !== 'walk';
+      return s.done !== a.done || s.phase !== 'walk';
     },
     { polling: 60, timeout: 20000 },
     s0,
@@ -153,71 +153,91 @@ async function shots() {
     await browser.close();
   }
   // 구간별 테마·구조 한 바퀴 (정상)
-  const { browser, page } = await launch();
-  await startGame(page, 'a=none');
-  for (let seg = 1; seg <= 5; seg++) {
-    await walkTo(page, -9);
-    await shot(page, `theme-seg${seg}-front`);
-    await walkTo(page, -20);
-    await shot(page, `theme-seg${seg}-mid`);
-    if (seg < 5) await passMain(page);
-  }
-  await browser.close();
-}
-
-// ---------- 모드 2: 밸런싱 실측 (?a=none 클린 왕복) ----------
-async function playNight(page, { run = false, detours = 0 } = {}) {
-  const t0 = Date.now();
-  for (let i = 0; i < 5; i++) await passMain(page); // 가는 길: 직진
-  await clickOverlayButton(page); // 버거집 — 봉투를 받는다
-  await page.waitForFunction(() => globalThis.__fries.state().returning === true, { timeout: 10000 });
-  const tShop = Date.now();
-  let d = detours;
-  for (let i = 0; i < 5; i++) {
-    if ((await state(page)).phase !== 'walk') break;
-    if (d > 0) { await passSide(page); d -= 1; }
-    else await passMain(page, run);
-  }
-  await clickOverlayButton(page); // 귀가 비트 → 시식으로
-  await page.waitForFunction(
-    (sel) => [...document.querySelectorAll(`${sel} .sub`)].some((e) => e.textContent.includes('바삭함')),
-    { polling: 150, timeout: 20000 },
-    DYN,
-  );
-  const gauge = await page.evaluate(
-    (sel) => [...document.querySelectorAll(`${sel} .sub`)].at(-1).textContent, DYN);
-  const quote = await page.evaluate(
-    (sel) => [...document.querySelectorAll(`${sel} .quote`)].at(-1).textContent, DYN);
-  return {
-    gauge, quote,
-    outboundSec: ((tShop - t0) / 1000).toFixed(1),
-    returnSec: ((Date.now() - tShop) / 1000).toFixed(1),
-  };
-}
-
-async function balance() {
-  // 목표 (config.ts CONFIG 주석): 걷기=미지근 / 질주=바삭 / 걷기+과잉 우회 2회=눅눅
-  const cases = [
-    ['walk', { run: false, detours: 0 }],
-    ['run', { run: true, detours: 0 }],
-    ['walk+2detour', { run: false, detours: 2 }],
-  ];
-  for (const [name, opt] of cases) {
+  {
     const { browser, page } = await launch();
     await startGame(page, 'a=none');
-    const r = await playNight(page, opt);
-    console.log(`[${name}] ${r.gauge} | ${r.quote.split('\n')[0]} | 편도 ${r.outboundSec}s, 귀로 ${r.returnSec}s`);
-    if (name === 'walk') {
-      // 시식 연출 통과 확인: 한 입 ×2 → 에필로그 → 다음 밤 진입
-      await clickOverlayButton(page);
-      await sleep(600);
-      await clickOverlayButton(page);
-      await sleep(3500);
-      await shot(page, 'taste-epilogue');
-      await clickOverlayButton(page);
-      await page.waitForFunction(() => globalThis.__fries.state().night === 2, { timeout: 15000 });
-      console.log('밤 2 진입 확인:', JSON.stringify(await state(page)));
+    for (let seg = 1; seg <= 5; seg++) {
+      await walkTo(page, -9);
+      await shot(page, `theme-seg${seg}-front`);
+      await walkTo(page, -20);
+      await shot(page, `theme-seg${seg}-mid`);
+      if (seg < 5) await passMain(page);
     }
+    await browser.close();
+  }
+  // 접힘 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛)
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=umbrella');
+    await passMain(page); // 접힘 1회 → 같은 구간 반복 (depth 2)
+    await walkTo(page, -3.2); // 분필 자국(z=-5.5)이 전방 바닥에 보이는 지점
+    await shot(page, 'fold-repeat-mark');
+    await walkTo(page, -12); // 가로등(z=-16.2) 앞 — 감광 확인
+    await shot(page, 'fold-depth2-lamp');
+    await browser.close();
+  }
+}
+
+// ---------- 모드 2: 판정 실측 (접힘·깊이·soft fail — game.md 판정) ----------
+async function balance() {
+  // 1) 무결점 밤 (?a=none) — 접힘 0 → '아직 따뜻하다' → 시식 → 밤 2 진입
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=none');
+    const t0 = Date.now();
+    for (let i = 0; i < 5; i++) await passMain(page);
+    const sec = ((Date.now() - t0) / 1000).toFixed(1);
+    await clickOverlayButton(page); // 버거집 — 봉투를 받는다
+    await sleep(1200);
+    await clickOverlayButton(page); // 귀가 컷 → 시식으로
+    await page.waitForFunction(
+      (sel) => [...document.querySelectorAll(`${sel} .sub`)].some((e) => e.textContent.includes('🍟')),
+      { polling: 150, timeout: 20000 },
+      DYN,
+    );
+    const gauge = await page.evaluate(
+      (sel) => [...document.querySelectorAll(`${sel} .sub`)].at(-1).textContent, DYN);
+    const quote = await page.evaluate(
+      (sel) => [...document.querySelectorAll(`${sel} .quote`)].at(-1).textContent, DYN);
+    console.log(`[무결점] ${gauge} | ${quote.split('\n')[0]} | 편도 ${sec}s`);
+    await clickOverlayButton(page); // 한 입
+    await sleep(600);
+    await clickOverlayButton(page); // 한 입 더
+    await sleep(3500);
+    await shot(page, 'taste-epilogue');
+    await clickOverlayButton(page); // 불을 끄고 눕는다
+    await page.waitForFunction(() => globalThis.__fries.state().night === 2, { timeout: 15000 });
+    console.log('밤 2 진입 확인:', JSON.stringify(await state(page)));
+    await browser.close();
+  }
+
+  // 2) 접힘 3회 = 깊이 한계 → 골목 입구 리셋 (?a=umbrella — 구간 1 이상 고정, 본길 강행)
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=umbrella');
+    for (let i = 0; i < 2; i++) {
+      await passMain(page);
+      const s = await state(page);
+      console.log(`[접힘 ${i + 1}] ${JSON.stringify({ done: s.done, total: s.total, depth: s.depth, folds: s.folds })}`);
+    }
+    await passMain(page); // 3번째 접힘 → depth 6 → soft fail 오버레이
+    await clickOverlayButton(page); // …다시 걷는다
+    await page.waitForFunction(
+      () => { const s = globalThis.__fries.state(); return s.phase === 'walk' && s.done === 0; },
+      { timeout: 15000 },
+    );
+    const s = await state(page);
+    console.log('입구 리셋 확인:', JSON.stringify({ night: s.night, done: s.done, total: s.total, depth: s.depth }));
+    await browser.close();
+  }
+
+  // 3) 정당 우회 = 무비용 (?a=umbrella — 구간 1 이상 고정, 샛길 이탈)
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=umbrella');
+    await passSide(page);
+    const s = await state(page);
+    console.log('정당 우회 확인:', JSON.stringify({ done: s.done, total: s.total, depth: s.depth, folds: s.folds, theme: s.theme }));
     await browser.close();
   }
 }

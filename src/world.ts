@@ -12,6 +12,8 @@ export { SIDE_GAP, MAIN_GAP_HALF }; // 기존 import 경로(main.ts) 유지
 export interface SegmentRefs {
   group: THREE.Group;
   themes: THREE.Group[]; // index = 구간 - 1
+  ambient: THREE.AmbientLight;   // 깊이 사다리 대상 (applyDepth)
+  foldMark: THREE.Mesh;          // 접힘 반복 구간의 바닥 분필 자국 (인지 보장 4요소 ④)
   lampLight: THREE.PointLight;
   shopGlow: THREE.PointLight;
   shopSign: THREE.Mesh;
@@ -153,7 +155,8 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   scene.background = new THREE.Color(0x0a0e1a); // OLED 대응: 순수 검정 금지 (responsive-design §6)
   scene.fog = new THREE.FogExp2(0x0a0e1a, 0.052);
 
-  scene.add(new THREE.AmbientLight(0x2a3050, 1.1));
+  const ambient = new THREE.AmbientLight(0x2a3050, 1.1);
+  scene.add(ambient);
   const moon = new THREE.DirectionalLight(0x8090c0, 0.4);
   moon.position.set(4, 10, 2);
   scene.add(moon);
@@ -199,6 +202,17 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   const shopGlow = new THREE.PointLight(0xffb23e, 0, 26, 2);
   shopGlow.position.set(0, 3, -L - 6);
   group.add(shopGlow);
+
+  // 접힘 흔적 — 반복 구간 입구 바닥의 분필 원 ("누가 여기 표시를 해뒀다").
+  // 같은 곳을 다시 걷고 있음을 공간이 말해준다 (game.md 접힘 인지 4요소 ④)
+  const foldMark = new THREE.Mesh(
+    new THREE.RingGeometry(0.42, 0.5, 24),
+    new THREE.MeshBasicMaterial({ color: 0x8b90a8, transparent: true, opacity: 0.32 }),
+  );
+  foldMark.rotation.x = -Math.PI / 2;
+  foldMark.position.set(0.9, 0.03, -5.5); // 스폰 직후 자연 시야 — 광원(가로등) 이전이라도 근거리라 식별됨
+  foldMark.visible = false;
+  group.add(foldMark);
 
   // 버거집 간판(개구부 위) — 마지막 구간에서만 점등. 글자는 캔버스 텍스처 (A-012 오탈자 타깃)
   const shopTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
@@ -439,7 +453,7 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   }
 
   return {
-    group, themes, lampLight, shopGlow, shopSign, shopSignMat,
+    group, themes, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
     umbrella, sensorMat, sensorLight, windowMat, flyerMat, flyerTex,
     laundryShutter, laundryMat, laundryLight, storeSignMat, realtyMat, realtyTex,
     swingPivot, ball, trafficRed, trafficGreen, sign, shopTex,
@@ -449,6 +463,24 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
 /** 현재 구간(1~5)의 테마만 표시 */
 export function setSegmentTheme(refs: SegmentRefs, segment: number) {
   refs.themes.forEach((t, i) => (t.visible = i === segment - 1));
+}
+
+// ---------- 깊이 시각화 — 꺼져가는 빛 ----------
+// 깊이는 숫자로 표시하지 않는다: 가로등 밝기가 다이제틱 게이지다 (game-design-theory §9 위반 2).
+// 스텝 사다리 — 트윈 없이 구간 전환 시 적용 ("이미 그렇게 있어야 한다", visual-polish §7)
+const LAMP_LADDER = [22, 16, 11, 7, 4, 2]; // index = min(depth, 5). depthLimit(6) 직전 = 거의 어둠
+
+/** 깊이에 따른 광량 적용. rollSegment마다 applyAnomaly보다 먼저 호출 */
+export function applyDepth(refs: SegmentRefs, depth: number) {
+  const base = LAMP_LADDER[Math.min(depth, LAMP_LADDER.length - 1)];
+  refs.group.userData.lampBase = base;
+  refs.lampLight.intensity = base;
+  refs.ambient.intensity = Math.max(0.55, 1.1 - depth * 0.09);
+}
+
+/** 접힘 반복 구간 여부 — 바닥 분필 자국 표시 */
+export function setFoldMark(refs: SegmentRefs, show: boolean) {
+  refs.foldMark.visible = show;
 }
 
 // ---------- 이상현상 핸들러 레지스트리 ----------
@@ -497,7 +529,8 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
     reset: (r) => { r.swingPivot.rotation.x = 0; }, // 흔들림 자체는 updateWorld
   },
   lamp_flicker: {
-    reset: (r) => { r.lampLight.intensity = 22; }, // 깜빡임 자체는 updateWorld
+    // 깜빡임 자체는 updateWorld. 기준 밝기는 깊이 사다리를 따른다 (applyDepth가 먼저 실행)
+    reset: (r) => { r.lampLight.intensity = (r.group.userData.lampBase as number) ?? 22; },
   },
   traffic_red: {
     reset: () => {}, // 신호등 등화는 테마 4 표시 중 updateWorld가 매 프레임 재계산
@@ -549,9 +582,10 @@ export function updateWorld(refs: SegmentRefs, t: number) {
 
   // A-008 가로등 — 이상 시 두 번씩 깜빡임 (스텝 — 형광등은 튄다, visual-polish §7)
   if (effect === 'lamp_flicker') {
+    const base = (refs.group.userData.lampBase as number) ?? 22;
     const phase = t % 1.6;
     const on = !(phase < 0.12 || (phase > 0.24 && phase < 0.36));
-    refs.lampLight.intensity = on ? 22 : 2;
+    refs.lampLight.intensity = on ? base : Math.min(2, base);
   }
 
   // A-007 그네 — 바람 없는 흔들림

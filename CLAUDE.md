@@ -7,7 +7,7 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 「튀김이 식기 전에」 — 새벽 골목을 걷는 **심리 호러 / 이상현상 관찰** 브라우저 게임
 (Three.js + TypeScript + Vite, 싱글플레이). 추격자 대신 **접히는 골목**(판정 오답 =
 늘어나는 남은 거리)과 깊이·꺼져가는 가로등이 긴장을 만든다. 감자튀김은 동기이자 유머 앵커.
-(2026-08-02 컨셉 전환 — 구 온도·왕복 시스템 코드가 남아 있다면 M2 전환 대상이다, game.md 결정 기록)
+(2026-08-02 컨셉 전환, v0.4.0에서 구현 완료 — game.md 결정 기록·판정 절)
 
 - 라이브: https://ff-1204.github.io/fries-get-cold/ (GitHub Pages, `gh-pages` 브랜치 서빙)
 - 원격: https://github.com/ff-1204/fries-get-cold.git

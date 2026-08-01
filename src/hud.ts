@@ -1,9 +1,7 @@
 // DOM 오버레이 HUD — docs/development.md (텍스처보다 가독성 우선)
 
 export class Hud {
-  private status = document.getElementById('status')!;
-  private tempWrap = document.getElementById('temp-wrap')!;
-  private tempFill = document.getElementById('temp-fill')! as HTMLElement;
+  private status = document.getElementById('status')! as HTMLElement;
   private msg = document.getElementById('msg')!;
   private fade = document.getElementById('fade')! as HTMLElement;
   private touchHint = document.getElementById('touch-hint')! as HTMLElement;
@@ -13,12 +11,13 @@ export class Hud {
     this.status.textContent = text;
   }
 
-  showTemp(show: boolean) {
-    this.tempWrap.style.display = show ? 'block' : 'none';
-  }
-
-  setTemp(ratio: number) {
-    this.tempFill.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
+  /** 접힘 — 카운터 교체를 놓칠 수 없게 (팝 금지: 페이드 아웃 → 교체 → 페이드 인, visual-polish §7) */
+  setStatusFold(text: string) {
+    this.status.style.opacity = '0';
+    setTimeout(() => {
+      this.status.textContent = text;
+      this.status.style.opacity = '1';
+    }, 320);
   }
 
   showTouchHint() {

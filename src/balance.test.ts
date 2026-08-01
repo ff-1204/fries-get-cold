@@ -1,53 +1,70 @@
-// 밸런스 순수 시뮬레이션 테스트 — 브라우저 없이 밀리초에 3목표를 검증한다.
+// 밸런스 순수 시뮬레이션 테스트 — 브라우저 없이 밀리초에 깊이 모델을 검증한다.
 // 실행: npm run verify:sim  (Node 내장 node:test + 네이티브 TS — 의존성 0)
 // 역할 분담: 여기는 커밋 전 1차 검증, verify:balance(실브라우저 E2E)는 릴리즈 전 최종 확인.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from './config.ts';
-import { gradeTaste, sideTempCost, simulateReturn } from './balance.ts';
+import { tasteFromFolds, sideDepthCost, simulateNight } from './balance.ts';
 
-// 목표 3종 (design-principles §4) — verify:balance와 같은 케이스
-test('걷기 = 미지근 도착', () => {
-  assert.equal(simulateReturn({}).taste, 'lukewarm');
+// 판정 비대칭 (game.md): 접힘 리스크 vs 깊이 비용
+test('무결점 밤 — 깊이 0, 아직 따뜻하다(바삭)', () => {
+  const r = simulateNight({});
+  assert.equal(r.depth, 0);
+  assert.equal(r.softFail, false);
+  assert.equal(r.taste, 'crispy');
+  assert.equal(r.total, CONFIG.segments);
 });
 
-test('질주 = 바삭 도착', () => {
-  assert.equal(simulateReturn({ run: true }).taste, 'crispy');
+test('정당 우회는 무비용 — 관찰이 정확하면 벌하지 않는다 (공정성)', () => {
+  assert.equal(sideDepthCost(true), 0);
+  const r = simulateNight({ detours: 3 });
+  assert.equal(r.depth, 0);
+  assert.equal(r.taste, 'crispy');
 });
 
-test('걷기 + 과잉 경계 우회 2회 = 눅눅', () => {
-  assert.equal(simulateReturn({ detours: 2 }).taste, 'soggy');
+test('접힘 1회 = 남은 거리 +1, 미지근', () => {
+  const r = simulateNight({ folds: 1 });
+  assert.equal(r.total, CONFIG.segments + 1);
+  assert.equal(r.taste, 'lukewarm');
+  assert.equal(r.softFail, false);
 });
 
-// 공정성: 정당한 우회(이상이 실제로 있었다)는 2회여도 눅눅까지 벌하지 않는다
-test('정당 우회 2회는 미지근 유지', () => {
-  assert.equal(simulateReturn({ detours: 2, anomalyOnDetour: true }).taste, 'lukewarm');
+test('접힘 2회 + 과잉 1회 = 깊이 5 — 아직 걸을 수 있다', () => {
+  const r = simulateNight({ folds: 2, wastes: 1 });
+  assert.equal(r.depth, 5);
+  assert.equal(r.softFail, false);
 });
 
-// 실브라우저 실측(2026-08-02, verify:balance)과의 정합 — 시뮬레이션이 현실을 대변하는지.
-// 허용 오차 ±3%p: 프레임 양자화·오버레이 전환의 잔차. 이보다 벌어지면 모델이 틀린 것.
-test('실측 정합: 걷기 61% · 질주 77% · 과잉우회2 24%', () => {
-  const measured: Array<[Parameters<typeof simulateReturn>[0], number]> = [
-    [{}, 61],
-    [{ run: true }, 77],
-    [{ detours: 2 }, 24],
-  ];
-  for (const [plan, pct] of measured) {
-    const sim = simulateReturn(plan).temp;
-    assert.ok(Math.abs(sim - pct) <= 3, `sim ${sim.toFixed(1)}% vs 실측 ${pct}%`);
-  }
+test('접힘 3회 = 깊이 한계 — 골목 입구 리셋', () => {
+  const r = simulateNight({ folds: 3 });
+  assert.equal(r.depth, CONFIG.depthLimit);
+  assert.equal(r.softFail, true);
 });
 
-// 등급 경계 — 문서 수치(crispy 62 / lukewarm 30)가 코드와 어긋나면 여기서 잡힌다
-test('시식 등급 경계값', () => {
-  assert.equal(gradeTaste(CONFIG.crispyThreshold), 'crispy');
-  assert.equal(gradeTaste(CONFIG.crispyThreshold - 0.1), 'lukewarm');
-  assert.equal(gradeTaste(CONFIG.lukewarmThreshold), 'lukewarm');
-  assert.equal(gradeTaste(CONFIG.lukewarmThreshold - 0.1), 'soggy');
+test('과잉 경계만 6회 = 리셋 — 전부 겁먹으면 밤이 끝나지 않는다', () => {
+  const r = simulateNight({ wastes: 6 });
+  assert.equal(r.softFail, true);
 });
 
-test('샛길 비용 비대칭 — 정당 ×0.5 / 과잉 ×1.5', () => {
-  assert.equal(sideTempCost(true), CONFIG.sidePathTempCost * 0.5);
-  assert.equal(sideTempCost(false), CONFIG.sidePathTempCost * 1.5);
+// 서사 등급 경계 — 문서 문구(접힘 0=따뜻/1~2=식음/3+=다 식음)와 코드 정합
+test('시식 서사 등급 경계값', () => {
+  assert.equal(tasteFromFolds(0), 'crispy');
+  assert.equal(tasteFromFolds(1), 'lukewarm');
+  assert.equal(tasteFromFolds(2), 'lukewarm');
+  assert.equal(tasteFromFolds(3), 'soggy');
+});
+
+// 템포 (design-principles §4): 접힘 없는 완주 편도 7~8분 이내 — 실제로는 1분 미만/구간
+test('무결점 완주 시간이 템포 예산 안에 있다', () => {
+  const r = simulateNight({});
+  assert.ok(r.seconds < 8 * 60, `완주 ${r.seconds.toFixed(0)}s ≥ 8분`);
+  assert.ok(r.seconds > 30, '모델 이상 — 완주가 비현실적으로 짧다');
+});
+
+test('접힘은 시간도 지불한다 — 반복 구간 1개분', () => {
+  const clean = simulateNight({});
+  const folded = simulateNight({ folds: 1 });
+  const perSeg = (CONFIG.segLength + 0.5) / CONFIG.walkSpeed;
+  assert.ok(Math.abs(folded.seconds - clean.seconds - perSeg) < 0.01);
 });
