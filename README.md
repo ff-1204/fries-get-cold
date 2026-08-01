@@ -50,6 +50,7 @@
 | [docs/development.md](./docs/development.md) | 개발 가이드 — 스택, 실제 구조, 명령, 배포, 성능 예산 |
 | [docs/responsive-design.md](./docs/responsive-design.md) | PC·모바일 대응 — 입력 분기, 뷰포트, 성능 티어, 테스트 매트릭스 |
 | [docs/workflow.md](./docs/workflow.md) | 워크플로 — 작업 절차, 콘텐츠 추가, 플레이테스트, 릴리즈 |
+| [docs/dori-lessons.md](./docs/dori-lessons.md) | 자매 프로젝트 dori 검증 교훈 — 크롤러·심사·모바일 웹 함정과 해법 |
 
 **전략·기록**
 
