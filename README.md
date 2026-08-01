@@ -30,6 +30,7 @@
 
 | 문서 | 내용 |
 |---|---|
+| [docs/spec.md](./docs/spec.md) | 현재 빌드 명세 — 규칙·승리 조건·구현 콘텐츠 현황 (실빌드 기준) |
 | [docs/game.md](./docs/game.md) | 기획 총괄 — 컨셉·시스템·다섯 밤 구조·로드맵·결정 기록 (허브 문서) |
 | [docs/story.md](./docs/story.md) | 스토리텔링 — 프롤로그, 다섯 밤 서사, 엔딩 3종, 톤 가이드 |
 | [docs/anomalies.md](./docs/anomalies.md) | 이상현상 설계 — 원칙, 분류, 목록, 데이터 스키마, 구현 현황 |
