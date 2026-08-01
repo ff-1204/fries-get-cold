@@ -196,7 +196,7 @@ async function playNight(page, { run = false, detours = 0 } = {}) {
 }
 
 async function balance() {
-  // 목표 (data.ts CONFIG 주석): 걷기=미지근 / 질주=바삭 / 걷기+과잉 우회 2회=눅눅
+  // 목표 (config.ts CONFIG 주석): 걷기=미지근 / 질주=바삭 / 걷기+과잉 우회 2회=눅눅
   const cases = [
     ['walk', { run: false, detours: 0 }],
     ['run', { run: true, detours: 0 }],

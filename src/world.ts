@@ -4,7 +4,10 @@
 // 이상현상 배치 3원칙(anomalies.md): 광원 안쪽 · 판정 10m 앞 · 실루엣 대비
 
 import * as THREE from 'three';
-import { CONFIG, type AnomalyEffect } from './data';
+import { CONFIG, SIDE_GAP, MAIN_GAP_HALF } from './config';
+import { type AnomalyEffect } from './data';
+
+export { SIDE_GAP, MAIN_GAP_HALF }; // 기존 import 경로(main.ts) 유지
 
 export interface SegmentRefs {
   group: THREE.Group;
@@ -37,11 +40,6 @@ export interface SegmentRefs {
 const L = CONFIG.segLength;
 const HW = CONFIG.corridorHalfWidth;
 const WALL_H = 7;
-
-// 샛길 개구부 (왼쪽 벽, 구간 끝 부근)
-export const SIDE_GAP = { zNear: -(L - 9), zFar: -(L - 4) };
-// 본길 개구부 (끝 벽 중앙)
-export const MAIN_GAP_HALF = 1.4;
 
 // 입간판 방향 — 정상은 벽과 평행(옆면), 이상은 플레이어 정면 (실루엣 차이 = 명확성)
 const SIGN_REST_Y = Math.PI / 2;

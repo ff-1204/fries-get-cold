@@ -32,7 +32,10 @@ fries-get-cold/
     ├── hud.ts                # DOM HUD (상태·온도·자막·암전·오버레이)
     ├── audio.ts              # 프로시저럴 사운드 (환경음·정적·발소리·크런치)
     ├── save.ts               # 기기 내 저장 (localStorage)
-    ├── data.ts               # 수치(CONFIG)·텍스트(TEXT)·타입, 콘텐츠 파사드
+    ├── config.ts             # 수치·레이아웃 상수 (JSON·three 의존 없음 — Node가 직접 읽는다)
+    ├── balance.ts            # 온도·시식 판정 순수 로직 + 귀갓길 시뮬레이션 (게임·테스트 공유)
+    ├── balance.test.ts       # 밸런스 시뮬레이션 테스트 (node:test — npm run verify:sim)
+    ├── data.ts               # 콘텐츠 파사드 — 텍스트(TEXT)·이상현상 타입, CONFIG 재수출
     └── data/anomalies.json   # 이상현상 콘텐츠 (스키마: docs/anomalies.md)
 ```
 
@@ -60,6 +63,7 @@ npm run dev          # 개발 서버 (핫 리로드)
 npm run build        # 타입 검사 + Pages용 빌드 (dist/)
 npm run build:local  # 단일 파일 빌드 → dist-local/index.html (play-local.html로 복사)
 npm run deploy       # 빌드 후 gh-pages 브랜치로 배포
+npm run verify:sim   # 밸런스 순수 시뮬레이션 테스트 (node:test, 브라우저 불요, <1초)
 ```
 
 Node는 PATH에 없을 수 있다 (`C:\Program Files\nodejs`). 없으면 해당 경로를 PATH에 추가한다.
@@ -262,6 +266,12 @@ v0.3.3 → v0.3.4. 기능 상세는 CHANGELOG — 여기에는 구조 결정과 
 - **verify.mjs 상수 중복 제거**: `__fries.config()` 훅(CONFIG + SIDE_GAP)에서 샛길
   진입 좌표를 파생 — 게임 상수를 스크립트에 손으로 복사하는 패턴 자체를 금지
   (dori-lessons §3 '대외 문구는 소스 상수와 대조'와 같은 축의 규칙)
+- **밸런스 순수 시뮬레이션 테스트** (v0.3.5): 실브라우저 E2E(밸런스 3케이스 ≈5분)의
+  1차 검증을 브라우저 없이 <1초로. CONFIG를 config.ts(JSON·three 의존 없음)로,
+  온도·판정 수식을 balance.ts로 추출해 게임과 테스트가 **같은 소스**를 읽는다 —
+  Node 24 네이티브 TS + 내장 node:test라 새 러너 의존성 0 (@types/node만 추가).
+  거리 모델은 판정 트리거 좌표에서 파생, '실측 정합 ±3%p' 테스트가 모델-현실 이탈을 감시.
+  역할 분담: verify:sim = 커밋 전 상시 / verify:balance(E2E) = 릴리즈 전 최종
 
 ### 남은 구조 부채 (M2/M3 착수 전 검토 — 2026-08-02 분석)
 

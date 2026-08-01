@@ -26,6 +26,7 @@ workflow.md의 「설계 판정 → 구현 → 검증 → 문서화 → 커밋�
 ### 1. 빌드
 
 ```bash
+npm run verify:sim   # 밸런스 순수 시뮬레이션 (브라우저 불요, <1초) — 항상 돌린다
 npm run build        # tsc 타입 검사 포함 — 실패하면 여기서 멈추고 고친다
 npm run build:local  # 단일 파일 빌드 + play-local.html 자동 복사
 ```

@@ -16,6 +16,7 @@
 | gh-pages | 6.3.0 | MIT | gh-pages 브랜치 배포 (devDependency) | 배포물 미포함 |
 | @rollup/wasm-node | 4.62.3 | MIT | rollup 네이티브 대체 (overrides, 빌드 전용) | 배포물 미포함 |
 | puppeteer-core | 25.4.0 | Apache-2.0 | 헤드리스 검증 스크립트 (devDependency, scripts/verify.mjs) | 배포물 미포함 |
+| @types/node | 26.1.2 | MIT | node:test 타입 정의 (devDependency, balance.test.ts) | 배포물 미포함 |
 | three-mesh-bvh | (미도입) | MIT | 충돌/레이캐스팅 — M1 도입 예정 | 도입 시 갱신 |
 
 ## 에셋 (추가 시 기록)

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist --dotfiles",
     "verify:shots": "node scripts/verify.mjs shots",
-    "verify:balance": "node scripts/verify.mjs balance"
+    "verify:balance": "node scripts/verify.mjs balance",
+    "verify:sim": "node --test src/balance.test.ts"
   },
   "dependencies": {
     "three": "^0.178.0"
@@ -20,6 +21,7 @@
     "rollup": "npm:@rollup/wasm-node@^4.62.3"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "@types/three": "^0.178.0",
     "gh-pages": "^6.3.0",
     "puppeteer-core": "^25.4.0",

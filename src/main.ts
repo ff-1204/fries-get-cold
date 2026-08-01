@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { ANOMALIES, CONFIG, TEXT, type AnomalyDef } from './data';
+import { gradeTaste, sideTempCost } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
@@ -181,10 +182,7 @@ async function reachShop() {
 async function reachHome() {
   phase = 'transition';
   await hud.fadeOut(1000);
-  const taste: TasteResult =
-    temp >= CONFIG.crispyThreshold ? 'crispy' :
-    temp >= CONFIG.lukewarmThreshold ? 'lukewarm' :
-    'soggy';
+  const taste: TasteResult = gradeTaste(temp);
   const result =
     taste === 'crispy' ? TEXT.resultCrispy :
     taste === 'lukewarm' ? TEXT.resultLukewarm :
@@ -219,10 +217,9 @@ async function passSegment(side: boolean) {
       hud.say(TEXT.sideSafe);
     } else {
       hud.say(returning ? TEXT.sideWasteReturn : TEXT.sideWaste);
-      if (returning) temp -= CONFIG.sidePathTempCost;
-      else elapsed += CONFIG.sidePathTimeCost;
+      if (!returning) elapsed += CONFIG.sidePathTimeCost;
     }
-    if (returning) temp -= CONFIG.sidePathTempCost * 0.5; // 샛길은 기본적으로 느리다
+    if (returning) temp -= sideTempCost(!!anomaly); // 정당 ×0.5 / 과잉 ×1.5 (balance.ts)
   } else if (anomaly) {
     await failNight();
     return;
