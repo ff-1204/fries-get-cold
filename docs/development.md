@@ -279,3 +279,18 @@ v0.3.3 → v0.3.4. 기능 상세는 CHANGELOG — 여기에는 구조 결정과 
 - main.ts 488줄 — 게임 로직과 UI 부트스트랩 혼재, `getElementById(...)!` 20여 곳.
   M2에서 systems/ 분해할 때 함께 (기존 이월 항목)
 - 밤 6+ 텍스트 없음 — `intros`/`epilogues` 5개 클램프 반복. M3 엔딩 구현에서 해소
+
+### 컨셉 전환 (2026-08-02, 같은 날 후반)
+
+온도 게이지·상시 왕복을 퇴역시키고 **접히는 골목 + 깊이 + 꺼져가는 빛**으로 재기획
+(경위·시스템 상세는 game.md 결정 기록·코어 루프). 문서 반영: game.md 전면 개정,
+story.md·design-principles.md 온도/왕복 종속부 교체, README·CLAUDE.md·anomalies.md 노트.
+
+코드 영향 (M2 컨셉 전환에서 실행 — 이번 커밋은 문서만):
+
+- **퇴역 대상**: temp·tempDecay·sidePathTempCost 계열(config), 시식 등급 연출(hud.tasteScene의
+  게이지), returning 상시 분기, balance.ts 시뮬레이션(깊이 모델로 재작성), verify:balance 케이스
+- **생존 자산**: 본길/샛길 판정 트리거, 이상현상 레지스트리·JSON·배치 원칙, 구간 테마 5종,
+  프롤로그, 검증 인프라(verify.mjs·__fries 훅), 저장 구조(결과 스키마는 변경)
+- 구 문법 코드는 M2 전까지 라이브에 그대로 남는다 (문서가 코드보다 앞서 있는 기간 —
+  로드맵 M2 완료 기준으로 해소)
