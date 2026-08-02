@@ -41,6 +41,8 @@ npm run verify:balance   # E2E 실측 4케이스 (무결점 밤/접힘 3회→�
 
 - 스크린샷은 직접 눈으로 확인한다 — 명확성 자가 테스트: "정상/이상 두 장을 나란히 보면
   3초 안에 찾는가?" + 배치 3원칙 (anomalies.md)
+- 정규 케이스 밖의 화면(타이틀·카드 UI·조작·밝기 비교)이 바뀌었다면 **/verify-ui 스킬**의
+  스크래치 스크립트 패턴으로 추가 촬영
 - **새 이상현상을 추가했다면** scripts/verify.mjs의 cases 배열에 케이스를 추가한 뒤 촬영
 - 함정: 소스 수정 직후 실행은 vite reload로 "frame got detached" 가능 — 재실행하면 된다
 - 끝나면 dev 서버 종료. TaskStop 후에도 node 자식이 5199를 물고 살아남을 수 있다 —

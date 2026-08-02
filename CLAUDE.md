@@ -58,8 +58,10 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 
 ## 검증 도구
 
-- `?a=<effect>` — 이상현상 강제 (`?a=none` = 항상 정상), `window.__fries.state()` — 상태 훅
+- `?a=<effect>` — 환각 강제 (`?a=none` = 항상 정상), `window.__fries.state()` — 상태 훅
 - `npm run verify:shots` / `verify:balance` — 헤드리스 스크린샷·밸런스 실측 (scripts/verify.mjs)
+- UI·연출·화면 변경 후에는 **/verify-ui 스킬** — 임시 스크린샷 스크립트 패턴
+  (모바일 에뮬레이션·저장 시드·조작 실측·함정 목록)
 - 작업 마무리는 **/ship 스킬** (.claude/skills/ship) — 빌드→검증→문서→커밋→배포 체크리스트
 
 ## 상업 안전 (개발 중 상시)
