@@ -36,7 +36,7 @@ npm run build:local  # 단일 파일 빌드 + play-local.html 자동 복사
 ```bash
 npm run dev -- --port 5199 --strictPort   # 백그라운드
 npm run verify:shots     # 이상현상 정상/이상 비교 + 구간 테마 스크린샷 → verify-shots/
-npm run verify:balance   # 온도 목표 3종 (걷기=미지근/질주=바삭/과잉우회2=눅눅) + 시식→밤2 진입
+npm run verify:balance   # E2E 실측 4케이스 (무결점 밤/접힘 3회→입구 리셋/지적 통과/빈 지적)
 ```
 
 - 스크린샷은 직접 눈으로 확인한다 — 명확성 자가 테스트: "정상/이상 두 장을 나란히 보면

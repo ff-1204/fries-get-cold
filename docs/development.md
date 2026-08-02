@@ -16,7 +16,7 @@
 
 멀티플레이어 없음 → 서버 없음. 전부 정적 파일.
 
-## 디렉터리 구조 (M0 현재)
+## 디렉터리 구조 (v0.6.0 현재)
 
 ```
 fries-get-cold/
@@ -29,31 +29,33 @@ fries-get-cold/
     ├── main.ts               # 게임 루프, 밤 상태 머신, 이동/판정
     ├── world.ts              # 공용 복도 + 구간 테마 5종, 이상현상 effect 핸들러
     ├── input.ts              # 입력 추상화 (포인터락+WASD / 반분할 터치)
-    ├── hud.ts                # DOM HUD (상태·온도·자막·암전·오버레이)
+    ├── hud.ts                # DOM HUD (구간 카운터·자막·암전·오버레이)
     ├── audio.ts              # 프로시저럴 사운드 (환경음·정적·발소리·크런치)
     ├── save.ts               # 기기 내 저장 (localStorage)
     ├── config.ts             # 수치·레이아웃 상수 (JSON·three 의존 없음 — Node가 직접 읽는다)
-    ├── balance.ts            # 온도·시식 판정 순수 로직 + 귀갓길 시뮬레이션 (게임·테스트 공유)
+    ├── balance.ts            # 깊이·접힘 판정 순수 로직 + 밤 시뮬레이션 (게임·테스트 공유)
     ├── balance.test.ts       # 밸런스 시뮬레이션 테스트 (node:test — npm run verify:sim)
     ├── data.ts               # 콘텐츠 파사드 — 텍스트(TEXT)·이상현상 타입, CONFIG 재수출
     └── data/anomalies.json   # 이상현상 콘텐츠 (스키마: docs/anomalies.md)
 ```
 
-M1 분리 계획: main.ts가 커지면 systems/(anomaly·rules·temperature·night)와 data/*.json으로
+분리 계획 (M3 착수 전 검토): main.ts가 커지면 systems/(anomaly·rules·night)와 data/*.json으로
 분해한다. 원칙 유지: **콘텐츠는 데이터, 로직은 시스템** — 이상현상 추가에 코드 수정이
 필요하면 설계 실패.
 
-## 핵심 구현 노트 (M0 실제)
+## 핵심 구현 노트 (v0.6.0 실제)
 
 - **구간 재활용**: 구간 프리팹 1개를 고정하고, 통과 시 플레이어 좌표와 이상현상 상태만
   리셋(rollSegment) — 별도 텔레포트 연출 없이 루프 성립.
-- **판정**: 본길(끝 벽 개구부)·샛길(왼쪽 벽 개구부) 통과를 좌표 트리거로 감지, 구간의
-  이상 유무와 대조해 실패/통과/비용 처리 (main.ts updateWalk → passSegment).
-- **온도**: 귀갓길에만 자연 감쇠 + 샛길 비용. 0이 되면 눅눅 귀가 처리.
+- **판정**: 크로스헤어/탭 레이캐스트 + 관용 반경으로 사물을 짚는다 (4.5m 이내 근접 확인).
+  구간의 이상 유무와 대조해 통과 / 접힘·증식 / 빈 지적(깊이 +1) 처리
+  (main.ts tryPoint → passSegment).
+- **깊이**: 가로등 감광 사다리(world.applyDepth)가 게이지를 대신한다.
+  한계 6 = 암전 후 골목 입구 리셋 (soft fail).
 - **포인터락**: 오버레이 표시 시 해제(hud.blackScreen), 버튼 클릭 후 재획득(input.activate) —
   이 순서를 지키지 않으면 PC에서 커서가 사라져 진행 불가.
 - **조명/안개**: 앰비언트+달빛+구간 포인트라이트, FogExp2. 규칙은 [visual-polish.md](./visual-polish.md) §4.
-- **스마트폰 UI(M2)**: DOM 오버레이로 구현 예정 — 텍스처보다 가독성·수정 용이성 우선.
+- **스마트폰 UI(M3)**: DOM 오버레이로 구현 예정 — 텍스처보다 가독성·수정 용이성 우선.
 
 ## 개발 명령
 
@@ -64,12 +66,14 @@ npm run build        # 타입 검사 + Pages용 빌드 (dist/)
 npm run build:local  # 단일 파일 빌드 → dist-local/index.html (play-local.html로 복사)
 npm run deploy       # 빌드 후 gh-pages 브랜치로 배포
 npm run verify:sim   # 밸런스 순수 시뮬레이션 테스트 (node:test, 브라우저 불요, <1초)
+npm run verify:shots # 헤드리스 스크린샷 검증 (dev 서버 필요 — 아래 '검증 방법')
+npm run verify:balance # E2E 밸런스 실측 4케이스 (dev 서버 필요)
 ```
 
 Node는 PATH에 없을 수 있다 (`C:\Program Files\nodejs`). 없으면 해당 경로를 PATH에 추가한다.
 
-디버그: URL에 `?a=umbrella|window_light|lamp_flicker|sign_tilt|none`을 붙이면 해당 이상현상이
-매 구간 강제된다 (플레이테스트·스크린샷 검증용 — 2026-07-29 전 요소 가시성 검증에 사용).
+디버그: URL에 `?a=<effect>`를 붙이면 해당 이상현상이 매 구간 강제된다 (`?a=none` = 항상 정상).
+effect 키 목록은 [anomalies.md](./anomalies.md) 현황판 (= world.ts 핸들러 키 = 디버그 키).
 
 ## 배포 (GitHub Pages — 로컬 빌드 + gh-pages 브랜치)
 

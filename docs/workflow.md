@@ -20,7 +20,7 @@
 4. **문서화**: 코드와 **같은 커밋**에서 관련 문서 갱신 —
    시스템 변경 → game.md, 이상현상 추가 → anomalies.md, 구조 변경 → development.md,
    서드파티 추가 → licenses.md (즉시), 방향 결정 → game.md '결정 기록'.
-5. **커밋**: Conventional Commits + 한국어 본문. 예: `feat: 온도 게이지 귀갓길 감쇠 구현`
+5. **커밋**: Conventional Commits + 한국어 본문. 예: `feat: 접힘 reveal 자막 연출 추가`
 
 ## 콘텐츠(이상현상) 추가 절차
 
