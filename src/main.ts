@@ -24,6 +24,10 @@ app.appendChild(renderer.domElement);
 
 // 밝기 슬라이더 (visual-polish §4 — "골목이 겨우 보일 정도" 패턴). 설정은 기기 내 저장.
 // 조절하는 동안 시작 화면을 걷어(peek) 실제 골목을 보면서 맞춘다 — 결과가 보여야 조절할 수 있다.
+// EXPOSURE_BASE (2026-08-02 밝기 재조정): 저장값 의미(1.0 = 기본)를 유지한 채 전체 노출을
+// 배율로 상향 — 기존 저장 사용자도 마이그레이션 없이 함께 밝아진다. 분위기는 노출이 아니라
+// 팔레트·안개·감광 사다리가 담당 (visual-polish §3·§4)
+const EXPOSURE_BASE = 1.35;
 const brightEl = document.getElementById('bright') as HTMLInputElement | null;
 const startOverlay = document.getElementById('start')!;
 let peekTimer = 0;
@@ -36,12 +40,12 @@ function peekOff() {
 }
 if (brightEl) {
   brightEl.value = String(save.brightness);
-  renderer.toneMappingExposure = save.brightness;
+  renderer.toneMappingExposure = save.brightness * EXPOSURE_BASE;
   brightEl.addEventListener('pointerdown', peekOn);
   window.addEventListener('pointerup', peekOff);
   window.addEventListener('pointercancel', peekOff);
   brightEl.addEventListener('input', () => {
-    renderer.toneMappingExposure = parseFloat(brightEl.value);
+    renderer.toneMappingExposure = parseFloat(brightEl.value) * EXPOSURE_BASE;
     save.brightness = parseFloat(brightEl.value);
     persist();
     peekOn(); // 키보드(방향키) 조절도 미리보기 — 잠시 후 자동 복귀
@@ -204,8 +208,13 @@ async function reachShop() {
   // 귀가 컷 → 결과별 틴트에서 한 입씩(입마다 크런치) → 밤별 마무리 모놀로그
   await hud.blackScreen(TEXT.homeArrive, TEXT.homeOpen);
   const q = taste === 'crispy' ? 0.95 : taste === 'lukewarm' ? 0.55 : 0.25;
+  // 도장 진행 — 시식 화면 상단 한 줄 (개업 이벤트. 밤 6+는 칸이 없다 — 조용한 어긋남)
+  const stampLine =
+    night > 5
+      ? '…도장 찍을 칸이, 이제 없다'
+      : `도장 ${'●'.repeat(night)}${'○'.repeat(5 - night)}`;
   await hud.tasteScene({
-    gauge: TEXT.tasteGauge[taste],
+    gauge: `${TEXT.tasteGauge[taste]} · ${stampLine}`,
     result,
     epilogue: TEXT.epilogues[Math.min(night - 1, TEXT.epilogues.length - 1)],
     endLabel: TEXT.tasteEnd,
@@ -359,7 +368,7 @@ function updateWalk(dt: number) {
 
   // 새벽의 깊이 — 경과 시간 + 깊이에 따라 안개가 짙어진다 (affective §2-1, 수치 없이 체감으로)
   (scene.fog as THREE.FogExp2).density =
-    0.052 + Math.min(0.018, (elapsed / 60) * 0.0035) + Math.min(0.02, depth * 0.0035);
+    0.044 + Math.min(0.018, (elapsed / 60) * 0.0035) + Math.min(0.02, depth * 0.0035);
 
   const sin = Math.sin(input.yaw);
   const cos = Math.cos(input.yaw);
@@ -454,7 +463,7 @@ prologueBtn.addEventListener('click', () => {
     phoneEl.classList.remove('on');
     prologueBtn.style.visibility = 'hidden';
     setTimeout(() => {
-      prologueMsg.textContent = '"감자튀김 하나에 만육천칠백 원은 좀 아니지."';
+      prologueMsg.textContent = '"배달이 안 되는 24시 튀김집이라니. 좀 아니지."';
       prologueMsg.style.opacity = '1';
       prologueBtn.textContent = '이불을 걷는다';
       prologueBtn.style.visibility = 'visible';
@@ -482,9 +491,24 @@ function refreshContinueUi() {
   continueEl.style.display = show ? 'block' : 'none';
   resetBtn.style.display = show ? 'inline-block' : 'none';
   if (show) {
-    const misses = save.misses > 0 ? ` 그동안 ${save.misses}번, 침대에서 눈을 떴다.` : '';
+    const misses = save.misses > 0 ? ` 그동안 ${save.misses}번, 골목 입구로 돌아왔다.` : '';
     continueEl.textContent = `이어하기 — 밤 ${save.night}.${misses}`;
   }
+  refreshCoupon();
+}
+
+/** 쿠폰 도장 카드 — 지난 밤 수만큼 도장. 6개째부터는 칸 밖 (밤 6+ 무한 모드의 조용한 어긋남) */
+function refreshCoupon() {
+  const stampsEl = document.querySelector('#coupon .c-stamps');
+  const noteEl = document.querySelector('#coupon .c-note');
+  if (!stampsEl || !noteEl) return;
+  const got = save.night - 1;
+  const filled = Math.min(got, 5);
+  stampsEl.innerHTML =
+    '●'.repeat(filled) +
+    `<span class="empty">${'○'.repeat(5 - filled)}</span>` +
+    (got > 5 ? ' ●' : ''); // 여섯 번째 — 칸 밖
+  noteEl.textContent = got > 5 ? TEXT.couponOverflow : '도장 5개 — L 사이즈 무료';
 }
 
 let resetArmed = false;
@@ -501,7 +525,7 @@ resetBtn?.addEventListener('click', () => {
   night = save.night;
   if (brightEl) {
     brightEl.value = String(save.brightness);
-    renderer.toneMappingExposure = save.brightness;
+    renderer.toneMappingExposure = save.brightness * EXPOSURE_BASE;
   }
   applyMute(); // 음소거 설정도 기본값으로 되돌아감
   refreshContinueUi();

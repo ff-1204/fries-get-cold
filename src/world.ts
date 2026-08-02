@@ -133,7 +133,7 @@ function realtyTexture(urgent: boolean): THREE.CanvasTexture {
   });
 }
 
-/** 버거집 간판 — 정상 "버거버거 24시" / 이상 "버거버거 24시간요" (story.md §7) */
+/** 튀김집 간판 — 정상 "감자상회 24시" / 이상 "감자상회 24시간요" (story.md §7) */
 function shopSignTexture(text: string): THREE.CanvasTexture {
   return canvasTex(512, 144, (c) => {
     c.fillStyle = '#140d05';
@@ -163,11 +163,13 @@ function box(
 
 export function createWorld(scene: THREE.Scene): SegmentRefs {
   scene.background = new THREE.Color(0x0a0e1a); // OLED 대응: 순수 검정 금지 (responsive-design §6)
-  scene.fog = new THREE.FogExp2(0x0a0e1a, 0.052);
+  // 밝기 재조정 (2026-08-02): 안개를 옅게, 앰비언트 바닥을 올린다 — 공포는 어둠의 절대량이
+  // 아니라 웜/한색 대비·안개·감광 사다리가 담당 (visual-polish §4 "다음 구간이 어렴풋이")
+  scene.fog = new THREE.FogExp2(0x0a0e1a, 0.044);
 
-  const ambient = new THREE.AmbientLight(0x2a3050, 1.1);
+  const ambient = new THREE.AmbientLight(0x39415e, 2.2);
   scene.add(ambient);
-  const moon = new THREE.DirectionalLight(0x8090c0, 0.4);
+  const moon = new THREE.DirectionalLight(0x8090c0, 0.75);
   moon.position.set(4, 10, 2);
   scene.add(moon);
 
@@ -226,8 +228,8 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
 
   // 버거집 간판(개구부 위) — 마지막 구간에서만 점등. 글자는 캔버스 텍스처 (A-012 오탈자 타깃)
   const shopTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
-    shopSignTexture('버거버거 24시'),
-    shopSignTexture('버거버거 24시간요'),
+    shopSignTexture('감자상회 24시'),
+    shopSignTexture('감자상회 24시간요'),
   ];
   const shopSignMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, map: shopTex[0], emissiveMap: shopTex[0], emissive: 0x000000,
@@ -497,14 +499,15 @@ export function setSegmentTheme(refs: SegmentRefs, segment: number) {
 // ---------- 깊이 시각화 — 꺼져가는 빛 ----------
 // 깊이는 숫자로 표시하지 않는다: 가로등 밝기가 다이제틱 게이지다 (game-design-theory §9 위반 2).
 // 스텝 사다리 — 트윈 없이 구간 전환 시 적용 ("이미 그렇게 있어야 한다", visual-polish §7)
-const LAMP_LADDER = [22, 16, 11, 7, 4, 2]; // index = min(depth, 5). depthLimit(6) 직전 = 거의 어둠
+const LAMP_LADDER = [26, 20, 14, 9, 5.5, 3]; // index = min(depth, 5). depthLimit(6) 직전 = 거의 어둠
+// 2026-08-02 상향: 바닥을 올리되 단차(감광 체감)는 유지 — 깊이는 여전히 가로등이 게이지다
 
 /** 깊이에 따른 광량 적용. rollSegment마다 applyAnomaly보다 먼저 호출 */
 export function applyDepth(refs: SegmentRefs, depth: number) {
   const base = LAMP_LADDER[Math.min(depth, LAMP_LADDER.length - 1)];
   refs.group.userData.lampBase = base;
   refs.lampLight.intensity = base;
-  refs.ambient.intensity = Math.max(0.55, 1.1 - depth * 0.09);
+  refs.ambient.intensity = Math.max(1.1, 2.2 - depth * 0.18);
 }
 
 /** 접힘 반복 구간 여부 — 바닥 분필 자국 표시 */
@@ -559,7 +562,7 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
   },
   lamp_flicker: {
     // 깜빡임 자체는 updateWorld. 기준 밝기는 깊이 사다리를 따른다 (applyDepth가 먼저 실행)
-    reset: (r) => { r.lampLight.intensity = (r.group.userData.lampBase as number) ?? 22; },
+    reset: (r) => { r.lampLight.intensity = (r.group.userData.lampBase as number) ?? 26; },
   },
   traffic_red: {
     reset: () => {}, // 신호등 등화는 테마 4 표시 중 updateWorld가 매 프레임 재계산
@@ -621,7 +624,7 @@ export function updateWorld(refs: SegmentRefs, t: number) {
 
   // A-008 가로등 — 이상 시 두 번씩 깜빡임 (스텝 — 형광등은 튄다, visual-polish §7)
   if (effects.includes('lamp_flicker')) {
-    const base = (refs.group.userData.lampBase as number) ?? 22;
+    const base = (refs.group.userData.lampBase as number) ?? 26;
     const phase = t % 1.6;
     const on = !(phase < 0.12 || (phase > 0.24 && phase < 0.36));
     refs.lampLight.intensity = on ? base : Math.min(2, base);
