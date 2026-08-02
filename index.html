@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>약효가 다하기 전에 — Before the Meds Wear Off</title>
-  <meta name="description" content="새벽 한 시, 약이 떨어졌다. 24시 약국은 처음 가보는 골목 끝 — 약 기운이 다할수록, 보여서는 안 되는 것들이 보인다." />
+  <title>튀김이 식기 전에 — Before the Fries Get Cold</title>
+  <meta name="description" content="퇴근길에 들른 새 감자튀김집 FF-1204. 나와 보니 밤이었다 — 돌아가는 길에, 있어서는 안 되는 것들이 서 있다." />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -79,12 +79,13 @@
       from { box-shadow: 0 0 0 rgba(255, 178, 62, 0); }
       to { box-shadow: 0 0 24px rgba(255, 178, 62, 0.26); }
     }
-    .overlay button.ghost {
+    .overlay button.ghost, .overlay a.ghost {
       background: none; color: #8b90a8; font-weight: 400;
       font-size: clamp(11px, 1.6vw, 13px); padding: 8px 12px; margin-top: 0;
       text-decoration: underline; text-underline-offset: 3px;
       animation: none; /* 숨쉬는 글로우는 주 행동 버튼만 */
     }
+    .overlay a.ghost { display: inline-block; pointer-events: auto; cursor: pointer; }
     .overlay .fineprint { font-size: clamp(10px, 1.4vw, 12px); opacity: 0.35; }
     .overlay .fineprint a { color: inherit; pointer-events: auto; }
 
@@ -126,7 +127,7 @@
       transition: opacity 1.2s; z-index: 5;
     }
 
-    /* 쿠폰 도장 카드 — 진행(밤)의 디제틱 표시 (story.md §2 개업 이벤트: 도장 5개 = L 무료) */
+    /* 방문 도장 카드 — 진행(밤)의 디제틱 표시. 무료 쿠폰 약속은 폐지 (v0.11.6) */
     #coupon {
       border: 1px dashed rgba(255, 178, 62, 0.38); border-radius: 10px;
       padding: 9px 20px 11px; display: flex; flex-direction: column; gap: 3px;
@@ -138,8 +139,8 @@
     }
     #coupon .c-stamps .empty { color: #2a3148; }
 
-    /* 모바일 조작 힌트 — 상단 카운터 아래 (하단 자막 #msg·걷기 버튼과 겹치지 않는 자리),
-       줄바꿈 허용 (좁은 화면에서 잘리지 않게) */
+    /* 온보딩 조작 힌트 (1일차 — 조작은 타이틀이 아니라 스테이지 안에서 배운다) —
+       상단 카운터 아래 (하단 자막 #msg·걷기 버튼과 겹치지 않는 자리), 줄바꿈 허용 */
     #touch-hint {
       position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 36px);
       left: 50%; transform: translateX(-50%); width: max-content; max-width: 82vw;
@@ -149,7 +150,7 @@
 
     /* ---------- 걷기 버튼 (모바일) — 직진뿐이라 조향이 필요 없다: 누르는 동안 걷는다 ----------
        왼손 엄지 = 걷기 홀드, 오른손(화면 어디든) 드래그 = 시점, 탭 = 확인.
-       위로 살짝 밀면 달리기. 조이스틱 폐지 (responsive-design §1) */
+       달리기 없음 — 조작은 홀드 하나 (v0.11.2). 조이스틱 폐지 (responsive-design §1) */
     #walk-btn {
       pointer-events: auto; display: none; position: absolute;
       left: max(22px, env(safe-area-inset-left)); bottom: max(26px, env(safe-area-inset-bottom));
@@ -162,7 +163,6 @@
       transition: border-color 0.25s, background-color 0.25s, transform 0.25s;
     }
     #walk-btn.held { border-color: rgba(255, 178, 62, 0.6); background: rgba(18, 20, 32, 0.55); }
-    #walk-btn.run { border-color: #ffb23e; transform: scale(1.05); }
 
     /* 터치 기기: 걷기 버튼 표시, 크로스헤어 숨김(지적은 탭 지점 — 중앙 점은 오해를 만든다),
        안내 문구는 터치용으로 교체 */
@@ -174,7 +174,7 @@
       .touch-only { display: block; }
     }
   </style>
-  <script type="module" crossorigin src="/fries-get-cold/assets/index-BAhrZQ6c.js"></script>
+  <script type="module" crossorigin src="/fries-get-cold/assets/index-DZt24da-.js"></script>
 </head>
 <body>
   <div id="app"></div>
@@ -183,7 +183,7 @@
     <div id="status"></div>
     <div id="reticle"></div>
     <div id="msg"></div>
-    <div id="touch-hint">버튼을 누르는 동안 걷습니다 · 화면을 쓸면 주변을 봅니다 · 이상한 것은 가까이 가서 탭</div>
+    <div id="touch-hint"></div>
     <button id="walk-btn" aria-label="누르는 동안 걷기">걷는다</button>
   </div>
 
@@ -191,18 +191,18 @@
   <div id="pain"></div>
 
   <div id="start" class="overlay hidden">
-    <div class="clock">01:04</div>
-    <h1>약효가 다하기 전에</h1>
-    <div class="sub">Before the Meds Wear Off</div>
-    <div class="quote">약이 떨어졌다. 24시 약국은, 처음 가보는 골목 끝에 있다.</div>
-    <div class="sub">🎧 이어폰을 권장합니다</div>
+    <h1>튀김이 식기 전에</h1>
+    <div class="sub">Before the Fries Get Cold</div>
+    <div class="quote">퇴근길에 현수막을 봤다. FF-1204 — 새로 생긴 감자튀김집.</div>
     <div class="sub" id="continue-info" style="display:none"></div>
-    <div id="coupon">
-      <div>FF-1204 — 5일분 처방</div>
+    <!-- 쿠폰 도장 카드 — 재방문(진행 있음)에만 표시: 첫 방문 타이틀은 전제 한 줄만 남긴다 (v0.9.1 타이틀 다이어트) -->
+    <div id="coupon" style="display:none">
+      <div>🍟 FF-1204 — 방문 도장</div>
       <div class="c-stamps"></div>
-      <div class="c-note">하루 한 알 · 5일분</div>
+      <div class="c-note">밤마다 하나씩</div>
     </div>
-    <button id="start-btn">현관문을 연다</button>
+    <!-- 문구는 main.ts refreshContinueUi가 상황에 맞게 교체 (첫 방문 = 퇴근길 / 재방문 = 가게에서) -->
+    <button id="start-btn">퇴근길에 나선다</button>
     <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
       <button id="settings-btn" class="ghost">⚙ 설정</button>
       <button id="reset-btn" class="ghost" style="display:none">기록 삭제 · 처음부터</button>
@@ -217,11 +217,14 @@
         소리 <button id="sound-btn" aria-label="소리 끄기">🔊</button>
         <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
       </div>
+      <div class="sub">🎧 이어폰을 권장합니다</div>
+      <!-- 조작 전체 참조 — 기본 학습은 1일차 인게임 힌트가 담당, 여기는 다시 볼 사람용 -->
+      <div class="sub pc-only">조작 — WASD 이동 · 마우스 시점 · 클릭 = 직시 · M 소리</div>
+      <div class="sub touch-only">조작 — 버튼 홀드 = 걷기 · 드래그 = 시점 · 탭 = 직시</div>
     </div>
-    <div class="sub pc-only">PC: 클릭 후 WASD 이동 · 마우스 시점 · Shift 달리기 · 이상한 것은 가까이 가서 클릭으로 확인 · M 소리 켬/끔</div>
-    <div class="sub touch-only">왼손 버튼을 누르는 동안 걷습니다 · 화면을 쓸면 주변을 봅니다 · 이상한 것은 가까이 가서 탭으로 확인</div>
-    <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다 ·
-      <a href="https://github.com/ff-1204/fries-get-cold/blob/main/docs/privacy.md" target="_blank" rel="noopener">개인정보처리방침</a></div>
+    <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다.</div>
+    <a class="ghost" href="https://github.com/ff-1204/fries-get-cold/blob/main/docs/privacy.md"
+      target="_blank" rel="noopener">개인정보처리방침</a>
   </div>
 
 </body>
