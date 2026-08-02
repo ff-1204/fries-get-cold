@@ -47,10 +47,9 @@ async function startGame(page, params = '') {
 
 const state = (page) => page.evaluate(() => globalThis.__fries.state());
 
-/** 본길 통과 — 걸음(done)이 넘어가거나 phase가 바뀔 때까지 전진 (run=Shift) */
-async function passMain(page, run = false) {
+/** 본길 통과 — 걸음(done)이 넘어가거나 phase가 바뀔 때까지 전진 (달리기 없음 — v0.11.2) */
+async function passMain(page) {
   const s0 = await state(page);
-  if (run) await page.keyboard.down('ShiftLeft');
   await page.keyboard.down('KeyW');
   await page.waitForFunction(
     (a) => {
@@ -61,7 +60,6 @@ async function passMain(page, run = false) {
     s0,
   );
   await page.keyboard.up('KeyW');
-  if (run) await page.keyboard.up('ShiftLeft');
 }
 
 /** 지적 — ?a= 디버그 한정 검증 훅으로 결정적 재현 (이상 있으면 성공, 없으면 빈 지적) */
@@ -101,19 +99,23 @@ async function shot(page, name) {
 // ---------- 모드 1: 스크린샷 (이상현상 정상/이상 비교 + 구간 테마) ----------
 // 새 이상현상을 추가하면 여기에 [파라미터, 도달 구간, 관찰 z] 케이스를 추가한다
 async function shots() {
+  // v0.11.0 귀갓길 구조: 테마가 5→1 역순이므로 구간 S에 도달하려면 (5 - S)번 통과한다.
+  // avert(사람 형태)는 정면으로 담으면 붙잡히므로 스크린샷용으로 `avert=off`를 붙인다
   const cases = [
-    // [디버그 파라미터, 태그, 통과할 구간 수, 관찰 z] — 환각 9종 (v0.9.0 컨셉 전환)
-    ['a=none', 'seg1-normal', 0, -8],
-    ['a=blood_trail', 'seg1-blood-anomaly', 0, -8],
-    ['a=skull', 'seg1-skull-anomaly', 0, -4],
-    ['a=face_window', 'seg1-face-anomaly', 0, -19],
-    ['a=none', 'seg2-normal', 1, -10],
-    ['a=handprints', 'seg2-handprints-anomaly', 1, -10],
-    ['a=swing_figure', 'seg3-swingfigure-anomaly', 2, -10],
-    ['a=eyes', 'seg3-eyes-anomaly', 2, -15],
-    ['a=bus_figure', 'seg4-busfigure-anomaly', 3, -7],
-    ['a=drag_mark', 'seg5-dragmark-anomaly', 4, -14],
-    ['a=figure', 'seg1-figure-anomaly', 0, -12], // 그림자 사람 (H-009) — 디버그 앵커 고정(z=-17.6)
+    // [디버그 파라미터, 태그, 통과할 구간 수, 관찰 z]
+    ['a=drag_mark', 'seg5-dragmark-anomaly', 0, -14],
+    ['a=none', 'seg5-normal', 0, -14],
+    ['a=bus_figure&avert=off', 'seg4-busfigure-anomaly', 1, -7],
+    ['a=swing_figure&avert=off', 'seg3-swingfigure-anomaly', 2, -10],
+    ['a=eyes&avert=off', 'seg3-eyes-anomaly', 2, -15],
+    ['a=handprints', 'seg2-handprints-anomaly', 3, -10],
+    ['a=none', 'seg2-normal', 3, -10],
+    ['a=blood_trail', 'seg1-blood-anomaly', 4, -8],
+    ['a=skull', 'seg1-skull-anomaly', 4, -4],
+    ['a=face_window&avert=off', 'seg1-face-anomaly', 4, -19],
+    ['a=none', 'seg1-normal', 4, -8],
+    // 그림자 사람 (H-009) — 어느 구간에나. 디버그 앵커 고정(z=-17.6)
+    ['a=figure&avert=off', 'seg5-figure-anomaly', 0, -12],
   ];
   for (const [param, tag, passes, z] of cases) {
     const { browser, page } = await launch();
@@ -127,19 +129,20 @@ async function shots() {
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=none');
-    for (let seg = 1; seg <= 5; seg++) {
+    for (let i = 0; i < 5; i++) {
+      const seg = (await state(page)).theme; // 귀갓길은 5→1 역순 — 실제 테마로 라벨링
       await walkTo(page, -9);
       await shot(page, `theme-seg${seg}-front`);
       await walkTo(page, -20);
       await shot(page, `theme-seg${seg}-mid`);
-      if (seg < 5) await passMain(page);
+      if (i < 4) await passMain(page);
     }
     await browser.close();
   }
   // 접힘 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛)
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=blood_trail');
+    await startGame(page, 'a=drag_mark'); // 귀갓길 첫 구간(테마 5)의 흔적 — 바로 판정에 걸린다
     await passMain(page); // 접힘 1회 → 같은 구간 반복 (depth 2)
     await walkTo(page, -3.2); // 분필 자국(z=-5.5)이 전방 바닥에 보이는 지점
     await shot(page, 'fold-repeat-mark');
@@ -158,11 +161,9 @@ async function balance() {
     const t0 = Date.now();
     for (let i = 0; i < 5; i++) await passMain(page);
     const sec = ((Date.now() - t0) / 1000).toFixed(1);
-    await clickOverlayButton(page); // 새벽약국 — 오늘 치 약을 받는다
-    await sleep(1200);
-    await clickOverlayButton(page); // 귀가 컷 → 복약으로
+    await clickOverlayButton(page); // 집 도착 컷 — 문을 열고 들어간다
     await page.waitForFunction(
-      (sel) => [...document.querySelectorAll(`${sel} .sub`)].some((e) => e.textContent.includes('💊')),
+      (sel) => [...document.querySelectorAll(`${sel} .sub`)].some((e) => e.textContent.includes('🏠')),
       { polling: 150, timeout: 20000 },
       DYN,
     );
@@ -170,22 +171,24 @@ async function balance() {
       (sel) => [...document.querySelectorAll(`${sel} .sub`)].at(-1).textContent, DYN);
     const quote = await page.evaluate(
       (sel) => [...document.querySelectorAll(`${sel} .quote`)].at(-1).textContent, DYN);
-    console.log(`[무결점] ${gauge} | ${quote.split('\n')[0]} | 편도 ${sec}s`);
-    await clickOverlayButton(page); // 한 입
+    console.log(`[무결점] ${gauge} | ${quote.split('\n')[0]} | 귀갓길 ${sec}s`);
+    await clickOverlayButton(page); // 신발을 벗는다
     await sleep(600);
-    await clickOverlayButton(page); // 한 입 더
-    await sleep(3500);
-    await shot(page, 'taste-epilogue');
     await clickOverlayButton(page); // 불을 끄고 눕는다
+    await sleep(3500);
+    await shot(page, 'home-epilogue');
+    await clickOverlayButton(page); // 에필로그 → 다음 밤 오프닝 컷
+    await sleep(1200);
+    await clickOverlayButton(page); // 가게를 나선다
     await page.waitForFunction(() => globalThis.__fries.state().night === 2, { timeout: 15000 });
     console.log('밤 2 진입 확인:', JSON.stringify(await state(page)));
     await browser.close();
   }
 
-  // 2) 접힘 3회 = 깊이 한계 → 골목 입구 리셋 (?a=blood_trail — 구간 1 환각 고정, 지나치기 강행)
+  // 2) 접힘 3회 = 깊이 한계 → 골목 입구 리셋 (?a=drag_mark — 귀갓길 첫 구간 흔적, 지나치기 강행)
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=blood_trail');
+    await startGame(page, 'a=drag_mark');
     for (let i = 0; i < 2; i++) {
       await passMain(page);
       const s = await state(page);
@@ -202,10 +205,10 @@ async function balance() {
     await browser.close();
   }
 
-  // 3) 확인 성공 = 무비용 통과 (?a=blood_trail — 구간 1 환각 고정, 직시하고 직진)
+  // 3) 직시 성공 = 무비용 통과 (?a=drag_mark — 흔적을 직시하고 직진)
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=blood_trail');
+    await startGame(page, 'a=drag_mark');
     await debugSpot(page);
     const checked = (await state(page)).checked;
     await passMain(page);
@@ -221,6 +224,36 @@ async function balance() {
     await debugSpot(page);
     const s = await state(page);
     console.log('빈 지적 확인:', JSON.stringify({ depth: s.depth, done: s.done, folds: s.folds }));
+    await browser.close();
+  }
+
+  // 5) avert — 사람 형태를 짚으면 즉시 붙잡힌다 = 접힘 (v0.11.0 괴담 규칙)
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=bus_figure'); // 구간 4 = 귀갓길 두 번째
+    await passMain(page);                  // 테마 5 → 4 (여기서 등장)
+    const s0 = await state(page);
+    await debugSpot(page);                 // 손가락질 → grabbed
+    await page.waitForFunction(() => globalThis.__fries.state().phase === 'walk',
+      { polling: 120, timeout: 15000 });
+    const s = await state(page);
+    console.log('손가락질 붙잡힘:', JSON.stringify({
+      avert: s0.avert, folds: s.folds, total: s.total, depth: s.depth, theme: s.theme,
+    }));
+    await browser.close();
+  }
+
+  // 6) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (접힘 없음)
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=bus_figure&avert=off'); // 응시 정지 = '눈을 마주치지 않은' 상태
+    await passMain(page);
+    const s0 = await state(page);
+    await passMain(page); // 확인 없이 통과 — avert는 접힘 대상이 아니다
+    const s = await state(page);
+    console.log('외면 통과:', JSON.stringify({
+      avert: s0.avert, folds: s.folds, total: s.total, depth: s.depth,
+    }));
     await browser.close();
   }
 }

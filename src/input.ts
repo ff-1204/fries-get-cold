@@ -1,5 +1,6 @@
 // 입력 추상화 레이어 — docs/responsive-design.md §1
 // PC: Pointer Lock + WASD / 모바일: 걷기 버튼 홀드(전진) + 화면 어디든 드래그(시점) + 탭(지적)
+// 달리기 없음 (v0.11.2) — 이 게임의 속도는 하나뿐이다
 // 길이 직진뿐이라 조향이 필요 없다 — 조이스틱·반분할 폐지 (v0.7.0)
 // 기기 고정 감지 대신 pointerType으로 런타임 전환
 
@@ -10,9 +11,8 @@ export class Input {
   /** 지적 콜백 — 화면 좌표(px). PC(포인터락)는 화면 중앙, 모바일은 탭 지점 (main.ts tryPoint) */
   onPoint: ((x: number, y: number) => void) | null = null;
 
-  /** 걷기 버튼 (모바일 #walk-btn) — main.ts가 홀드/밀기 상태를 넣는다 */
+  /** 걷기 버튼 (모바일 #walk-btn) — main.ts가 홀드 상태를 넣는다 */
   touchForward = 0;
-  touchRun = false;
 
   private keys = new Set<string>();
   private canvas: HTMLCanvasElement;
@@ -94,26 +94,21 @@ export class Input {
     if (this.lookTouch && e.pointerId === this.lookTouch.id) this.lookTouch = null;
   }
 
-  /** forward: +1 전진 / strafe: +1 오른쪽 / run: 달리기 */
-  getMove(): { forward: number; strafe: number; run: boolean } {
+  /** forward: +1 전진 / strafe: +1 오른쪽 (달리기 없음 — v0.11.2) */
+  getMove(): { forward: number; strafe: number } {
     let forward = 0;
     let strafe = 0;
-    let run = false;
 
     if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) forward += 1;
     if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) forward -= 1;
     if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) strafe += 1;
     if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) strafe -= 1;
-    if (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) run = true;
-
-    // 걷기 버튼 (모바일) — 누르는 동안 전진, 위로 밀면 달리기
+    // 걷기 버튼 (모바일) — 누르는 동안 전진
     forward += this.touchForward;
-    if (this.touchRun) run = true;
 
     return {
       forward: Math.max(-1, Math.min(1, forward)),
       strafe: Math.max(-1, Math.min(1, strafe)),
-      run,
     };
   }
 }

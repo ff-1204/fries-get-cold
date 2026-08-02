@@ -233,8 +233,8 @@ devDependency, licenses.md 기록 완료). dev 서버(`npm run dev -- --port 519
 
 - `npm run verify:shots` — 이상현상 정상/이상 비교 + 구간 테마 스크린샷 → `verify-shots/`
   (새 이상현상을 추가하면 스크립트의 cases 배열에 한 줄 추가)
-- `npm run verify:balance` — `?a=none` 클린 왕복 실측: 걷기=미지근 / 질주=바삭 /
-  걷기+과잉 우회 2회=눅눅 3목표 검증 + 시식 연출→밤 2 진입 통과 확인
+- `npm run verify:balance` — 판정 실측 6케이스 (무결점 귀갓길→밤 2 / 접힘 3회→리셋 /
+  직시 통과 무비용 / 빈 지적 깊이+1 / 손가락질 붙잡힘 / 외면 통과 무비용)
 
 구현 함정 (스크립트에 주석으로도 있음): 오버레이 버튼 클릭은 동적 오버레이만 골라야 한다
 (#start 등 정적 오버레이의 숨은 버튼을 잡으면 오클릭) / 소스 수정 직후 실행은 vite reload
@@ -350,8 +350,9 @@ story.md·design-principles.md 온도/왕복 종속부 교체, README·CLAUDE.md
 "3D 조작이 어렵다"는 피드백으로 모바일 입력을 재설계 (상세는 responsive-design §1). 구현 노트:
 
 - **걷기 버튼**: `#walk-btn`(index.html, `@media (pointer: coarse)`에서만 표시) →
-  main.ts가 pointerdown/move/up으로 `input.touchForward`/`touchRun`을 넣는다
-  (setPointerCapture로 버튼 밖 이탈에도 추적). input.ts에서 moveTouch(반분할) 제거 —
+  main.ts가 pointerdown/up으로 `input.touchForward`를 넣는다
+  (setPointerCapture로 버튼 밖 이탈에도 추적. v0.11.2에서 달리기·밀기 제스처 폐지).
+  input.ts에서 moveTouch(반분할) 제거 —
   터치는 lookTouch(전면 드래그) + tapCandidate만 남아 단순해졌다
 - **크로스헤어**: 터치에서 CSS로 숨김 — 모바일 지적은 탭 지점 좌표라 중앙 점이 거짓 신호였다
 - **컨셉 마감은 전부 CSS**: 비네트(#hud::before), 타이틀 글로우·01:04 시계, 카운터 앰버 보더,

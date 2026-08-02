@@ -33,17 +33,16 @@ export interface NightPlan {
   folds?: number;
   /** 빈 지적(아무것도 아닌 것을 짚음) 횟수 — 깊이만 지불, 거리 비용 없음 */
   wastes?: number;
-  run?: boolean;
 }
 
 /** 밤 하나를 수식으로 주파한 결과. softFail이면 도착 전에 골목 입구로 리셋된다 */
 export function simulateNight(plan: NightPlan = {}): {
   depth: number; softFail: boolean; total: number; taste: Taste; seconds: number;
 } {
-  const { folds = 0, wastes = 0, run = false } = plan;
+  const { folds = 0, wastes = 0 } = plan;
   const depth = folds * CONFIG.foldDepthCost + wastes * CONFIG.wasteDepthCost;
   const total = CONFIG.segments + folds; // 접힘마다 남은 거리 +1
-  const seconds = (total * SEG_DIST) / (run ? CONFIG.runSpeed : CONFIG.walkSpeed);
+  const seconds = (total * SEG_DIST) / CONFIG.walkSpeed;
   return {
     depth,
     softFail: depth >= CONFIG.depthLimit,

@@ -5,6 +5,7 @@ export type TasteResult = 'crispy' | 'lukewarm' | 'soggy';
 
 export interface SaveData {
   night: number;                    // 다음에 시작할 밤 (1부터)
+  tut: boolean;                     // 첫날 아침(튜토리얼 편도) 완료 여부 — 밤 1 귀갓길부터 재개
   misses: number;                   // 누적 실패 횟수 — 히든 엔딩 '노미스' 판정용 (game.md 엔딩)
   results: (TasteResult | null)[];  // 밤별 마지막 시식 결과 (인덱스 = 밤 - 1)
   brightness: number;               // 밝기 슬라이더 (톤 매핑 노출)
@@ -12,7 +13,7 @@ export interface SaveData {
 }
 
 const KEY = 'fries.save.v1';
-const DEFAULTS: SaveData = { night: 1, misses: 0, results: [], brightness: 1.0, muted: false };
+const DEFAULTS: SaveData = { night: 1, tut: false, misses: 0, results: [], brightness: 1.0, muted: false };
 
 /** 외부 데이터 방어 — 손상·조작된 값이 게임 상태를 깨지 않게 기본값으로 되돌린다 */
 function sanitize(raw: unknown): SaveData {
@@ -21,6 +22,8 @@ function sanitize(raw: unknown): SaveData {
   const r = raw as Record<string, unknown>;
   if (typeof r.night === 'number' && Number.isInteger(r.night) && r.night >= 1 && r.night <= 99)
     d.night = r.night;
+  if (typeof r.tut === 'boolean') d.tut = r.tut;
+  if (d.night > 1) d.tut = true; // 밤 2+ 저장은 튜토리얼을 이미 지난 것 (구버전 저장 마이그레이션)
   if (typeof r.misses === 'number' && Number.isInteger(r.misses) && r.misses >= 0)
     d.misses = r.misses;
   if (Array.isArray(r.results))
@@ -64,5 +67,5 @@ export function resetSave(): void {
 }
 
 export function hasProgress(): boolean {
-  return save.night > 1 || save.misses > 0;
+  return save.night > 1 || save.misses > 0 || save.tut;
 }

@@ -69,7 +69,7 @@ export class AudioEngine {
   }
 
   /** 이동 중 호출 — 걸음 간격으로 발소리 (즉각 피드백, design-principles §0) */
-  update(dt: number, moving: boolean, run: boolean) {
+  update(dt: number, moving: boolean) {
     if (!this.ctx) return;
     if (!moving) {
       this.stepTimer = 0.12;
@@ -77,12 +77,12 @@ export class AudioEngine {
     }
     this.stepTimer -= dt;
     if (this.stepTimer <= 0) {
-      this.footstep(run);
-      this.stepTimer = run ? 0.3 : 0.46;
+      this.footstep();
+      this.stepTimer = 0.6; // 느린 걸음에 맞춘 보폭 간격 (v0.11.3 walkSpeed 3.2 기준)
     }
   }
 
-  private footstep(run: boolean) {
+  private footstep() {
     const ctx = this.ctx;
     if (!ctx || !this.master) return;
     const src = ctx.createBufferSource();
@@ -93,7 +93,7 @@ export class AudioEngine {
     bp.Q.value = 1.2;
     const g = ctx.createGain();
     const t = ctx.currentTime;
-    g.gain.setValueAtTime(run ? 0.16 : 0.1, t);
+    g.gain.setValueAtTime(0.1, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
     src.connect(bp).connect(g).connect(this.master);
     src.start();
@@ -125,6 +125,28 @@ export class AudioEngine {
         src.stop(t + 0.05);
       }
     }
+  }
+
+  /** 차가 지나간다 — 다가왔다 멀어지는 저역 럼블 (v0.11.9).
+   *  시각(헤드라이트)의 청각 병행: 화면을 안 보고 있어도 차가 오는 걸 안다 (fear-cognition §8) */
+  carPass(seconds: number) {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(seconds + 0.2);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(240, t);              // 멀리서는 둔탁하게
+    lp.frequency.linearRampToValueAtTime(900, t + seconds * 0.45); // 가까울수록 열린다
+    lp.frequency.linearRampToValueAtTime(220, t + seconds);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + seconds * 0.45); // 도플러 없이 음량만으로
+    g.gain.exponentialRampToValueAtTime(0.0008, t + seconds);
+    src.connect(lp).connect(g).connect(this.master);
+    src.start(t);
+    src.stop(t + seconds + 0.2);
   }
 
   private noiseBuffer(seconds: number): AudioBuffer {
