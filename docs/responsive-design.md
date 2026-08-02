@@ -31,7 +31,7 @@ PC 브라우저와 모바일 브라우저를 모두 지원하기 위한 고려�
 - `devicePixelRatio`는 **최대 2로 캡** (3배 렌더링은 발열·프레임 저하만 유발).
 - iOS Safari 제스처 충돌: 화면 가장자리 스와이프(뒤로가기)와 카메라 드래그가
   겹치지 않게 가장자리 안전 영역(safe area inset) 확보. `touch-action: none` 필수.
-- 노치/펀치홀: `env(safe-area-inset-*)`로 HUD(구간 카운터, 조이스틱) 배치.
+- 노치/펀치홀: `env(safe-area-inset-*)`로 HUD(구간 카운터, 걷기 버튼) 배치.
 
 ## 3. 성능 — 모바일이 기준선
 
