@@ -37,7 +37,16 @@ export interface SegmentRefs {
   trafficGreen: THREE.MeshStandardMaterial[];
   sign: THREE.Group;                        // 5: A-013
   shopTex: [THREE.CanvasTexture, THREE.CanvasTexture];    // 5: A-012 (간판 오탈자 — TXT)
-  figure: THREE.Group;                      // 전 구간: A-010 (스폰 앵커 랜덤 — HUM)
+  figure: THREE.Group;                      // 전 구간: H-009 그림자 사람 (스폰 앵커 랜덤 — HUM)
+  // --- 환각 타깃 (2026-08-02 컨셉 전환 — 약 기운이 떨어질 때 보이는 것들) ---
+  bloodTrail: THREE.Group;                  // 1: H-001 바닥 핏자국
+  skull: THREE.Group;                       // 1: H-002 배출장 위 백골
+  facePlane: THREE.Mesh;                    // 1: H-003 창문의 창백한 얼굴
+  handprints: THREE.Mesh;                   // 2: H-004 셔터의 손자국들
+  swingFigure: THREE.Group;                 // 3: H-005 그네에 앉은 형체
+  eyes: THREE.Group;                        // 3: H-006 펜스 뒤 어둠의 눈
+  busFigure: THREE.Group;                   // 4: H-007 정류장의 앉은 형체
+  dragMark: THREE.Group;                    // 5: H-008 끌린 자국
   /** 지적(포인팅) 히트 대상 — effect별 클릭 가능한 사물 (main.ts tryPoint 판정) */
   hit: Record<AnomalyEffect, THREE.Object3D[]>;
 }
@@ -133,7 +142,58 @@ function realtyTexture(urgent: boolean): THREE.CanvasTexture {
   });
 }
 
-/** 튀김집 간판 — 정상 "감자상회 24시" / 이상 "감자상회 24시간요" (story.md §7) */
+/** 창문의 창백한 얼굴 (H-003) — 어두운 유리 너머, 이목구비가 반쯤 뭉개진 얼굴 */
+function faceTexture(): THREE.CanvasTexture {
+  return canvasTex(256, 320, (c) => {
+    c.fillStyle = '#0d1220'; // 꺼진 유리창과 같은 어둠
+    c.fillRect(0, 0, 256, 320);
+    // 창백한 얼굴 — 흐릿한 경계 (환각의 문법: 또렷하면 사람, 뭉개지면 환각)
+    const g = c.createRadialGradient(128, 150, 20, 128, 150, 95);
+    g.addColorStop(0, 'rgba(190, 186, 170, 0.92)');
+    g.addColorStop(0.75, 'rgba(160, 155, 140, 0.5)');
+    g.addColorStop(1, 'rgba(120, 116, 104, 0)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.ellipse(128, 150, 72, 100, 0, 0, Math.PI * 2);
+    c.fill();
+    // 눈 — 파인 어둠 두 곳 (입은 없다)
+    c.fillStyle = 'rgba(10, 12, 18, 0.9)';
+    for (const ex of [98, 158]) {
+      c.beginPath();
+      c.ellipse(ex, 128, 11, 16, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+  });
+}
+
+/** 셔터의 손자국들 (H-004) — 검붉은 손바닥 자국. 안쪽에서 찍힌 방향 */
+function handprintsTexture(): THREE.CanvasTexture {
+  return canvasTex(1024, 512, (c) => {
+    c.clearRect(0, 0, 1024, 512);
+    const prints: Array<[number, number, number, number]> = [
+      [190, 260, 0.28, 0.85], [340, 180, -0.2, 0.7], [520, 300, 0.5, 0.9],
+      [660, 210, -0.4, 0.6], [810, 290, 0.15, 0.8], [430, 400, -0.1, 0.5],
+    ];
+    for (const [px, py, rot, alpha] of prints) {
+      c.save();
+      c.translate(px, py);
+      c.rotate(rot);
+      c.fillStyle = `rgba(90, 15, 15, ${alpha})`; // 저채도 적 — 이상 시그널 전용색 (visual-polish §3)
+      c.beginPath();
+      c.ellipse(0, 0, 26, 34, 0, 0, Math.PI * 2); // 손바닥
+      c.fill();
+      for (let f = 0; f < 5; f++) {
+        const a = -0.7 + f * 0.35;
+        c.beginPath();
+        c.ellipse(Math.sin(a) * 34, -Math.cos(a) * 44, 7, 17, a, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.restore();
+    }
+  });
+}
+
+/** 약국 간판 — 정상 "새벽약국 24시" / 이상 "새벽약국 24시간요" (story.md §7) */
 function shopSignTexture(text: string): THREE.CanvasTexture {
   return canvasTex(512, 144, (c) => {
     c.fillStyle = '#140d05';
@@ -228,8 +288,8 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
 
   // 버거집 간판(개구부 위) — 마지막 구간에서만 점등. 글자는 캔버스 텍스처 (A-012 오탈자 타깃)
   const shopTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
-    shopSignTexture('감자상회 24시'),
-    shopSignTexture('감자상회 24시간요'),
+    shopSignTexture('새벽약국 24시'),
+    shopSignTexture('새벽약국 24시간요'),
   ];
   const shopSignMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, map: shopTex[0], emissiveMap: shopTex[0], emissive: 0x000000,
@@ -238,8 +298,61 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   shopSign.position.set(0, 4.6, -L + 0.2); // 끝벽(z=-L~-L-1)보다 앞 — 벽 기둥에 좌우가 가리지 않게
   group.add(shopSign);
 
+  // 핏자국 공용 재질 — 저채도 적 (팔레트: 이상 시그널 전용색. 야하게 빛나지 않는다)
+  const bloodMat = new THREE.MeshStandardMaterial({ color: 0x571010, roughness: 1 });
+  const darkFigureMat = new THREE.MeshStandardMaterial({ color: 0x0b0e16, roughness: 1 });
+
   // ---------- 테마 1: 원룸 골목 ----------
   const t1 = new THREE.Group();
+
+  // H-001 바닥 핏자국 (환각) — 가로등(z=-16.2) 사거리 안, 통행부 한가운데를 가로질러
+  // 빌라 철문(z=-7.9) 쪽 어둠으로 이어진다. 걷다 보면 밟게 되는 자리 (관찰 시간 확보)
+  const bloodTrail = new THREE.Group();
+  const trailSpots: Array<[number, number, number]> = [
+    [0.55, -L * 0.31, 0.3], [0.2, -L * 0.345, 0.2], [-0.2, -L * 0.375, 0.26],
+    [-0.6, -L * 0.4, 0.17], [-1.1, -L * 0.42, 0.22], [-1.6, -L * 0.435, 0.14],
+  ];
+  for (const [bx, bz, r] of trailSpots) {
+    const spot = new THREE.Mesh(new THREE.CircleGeometry(r, 14), bloodMat);
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(bx, 0.015, bz);
+    bloodTrail.add(spot);
+  }
+  bloodTrail.visible = false;
+  t1.add(bloodTrail);
+
+  // H-002 배출장 위 백골 (환각) — 흰 두개골: 어두운 배경과의 실루엣 대비 (배치 3원칙)
+  const skull = new THREE.Group();
+  const boneMat = new THREE.MeshStandardMaterial({ color: 0xc9c2b0, roughness: 0.85 });
+  const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), boneMat);
+  cranium.position.y = 0.14;
+  cranium.scale.set(1, 0.92, 1.08);
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.16), boneMat);
+  jaw.position.set(0, -0.02, 0.04);
+  const socketMat = new THREE.MeshStandardMaterial({ color: 0x0a0c12, roughness: 1 });
+  for (const sx of [-0.062, 0.062]) {
+    const socket = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), socketMat);
+    socket.position.set(sx, 0.15, 0.145);
+    skull.add(socket);
+  }
+  skull.add(cranium, jaw);
+  skull.position.set(-HW + 0.8, 1.06, -L * 0.19); // 배출장 상단 박스(y0.85) 위
+  skull.rotation.y = Math.PI / 6; // 길 쪽을 살짝 향한다 — 눈구멍이 보이는 각
+  skull.visible = false;
+  t1.add(skull);
+
+  // H-003 창문의 얼굴 (환각) — 붉은 창(구 A-015) 자리. 내려다보는 창백한 얼굴
+  const faceTex = faceTexture();
+  const facePlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.0, 1.28),
+    new THREE.MeshStandardMaterial({
+      map: faceTex, emissiveMap: faceTex, emissive: 0x4a463c, // 유리 너머 어렴풋한 자체 발광 (식별 보장)
+    }),
+  );
+  facePlane.position.set(HW - 0.03, 3.4, -L * 0.68);
+  facePlane.rotation.y = -Math.PI / 2;
+  facePlane.visible = false;
+  t1.add(facePlane);
 
   // 재활용 배출장 — 우산 이상(A-001)의 '정상 상태' 학습 대상 (fear-cognition §1)
   box(1.6, 0.5, 1.0, 0x2a3142, -HW + 1.0, 0.25, -L * 0.2, t1);
@@ -318,6 +431,16 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   laundryLight.position.set(HW - 0.9, 1.3, -L * 0.39);
   t2.add(laundryLight);
 
+  // H-004 셔터의 손자국들 (환각) — 세탁소 셔터 앞면. 안쪽에서 찍힌 방향 (reveal이 말해준다)
+  const handprints = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.4, 1.7),
+    new THREE.MeshStandardMaterial({ map: handprintsTexture(), transparent: true, roughness: 1 }),
+  );
+  handprints.position.set(HW - 0.25, 1.25, -L * 0.39); // 셔터(x=HW-0.18, 두께 0.12) 바로 앞
+  handprints.rotation.y = -Math.PI / 2;
+  handprints.visible = false;
+  t2.add(handprints);
+
   // 상가 간판들 (소등 상태가 정상 — A-006: 하나가 켜짐)
   // 타깃 간판은 가로등 옆(z=-L*0.5) — 걸으며 자연 시야에 들어오는 각도 (배치 규칙 1·2)
   const storeSign = box(1.7, 0.65, 0.14, 0x1e2434, HW - 0.1, 3.2, -L * 0.5, t2);
@@ -375,6 +498,35 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   ball.position.copy(BALL_HOME);
   t3.add(ball);
 
+  // H-005 그네에 앉은 형체 (환각) — 흔들리지 않는다. 그게 더 이상하다
+  const swingFigure = new THREE.Group();
+  const sfBody = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.62, 0.26), darkFigureMat);
+  sfBody.position.y = 1.12;
+  const sfHead = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), darkFigureMat);
+  sfHead.position.set(0.05, 1.56, 0); // 고개를 약간 떨군 실루엣
+  const sfLegs = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.52, 0.16), darkFigureMat);
+  sfLegs.position.set(0.2, 0.56, 0);
+  sfLegs.rotation.z = 0.25;
+  swingFigure.add(sfBody, sfHead, sfLegs);
+  swingFigure.position.set(-HW + 0.22, 0, -L * 0.393); // 그네 좌판 위
+  swingFigure.visible = false;
+  t3.add(swingFigure);
+
+  // H-006 펜스 뒤 어둠의 눈 (환각) — 펜스와 왼쪽 벽 사이 어두운 띠, 눈높이.
+  // 스스로 어렴풋이 빛난다 (배치 3원칙: 자체 발광이 가장 확실)
+  const eyes = new THREE.Group();
+  const eyeMat = new THREE.MeshStandardMaterial({
+    color: 0x0b0e16, emissive: 0x8f96ac, emissiveIntensity: 0.9,
+  });
+  for (const exOff of [-0.09, 0.09]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), eyeMat);
+    eye.position.x = exOff;
+    eyes.add(eye);
+  }
+  eyes.position.set(-HW + 0.38, 1.42, -L * 0.55);
+  eyes.visible = false;
+  t3.add(eyes);
+
   // 구조 차별화 — 담 너머 수목 실루엣·펜스 연장·주택 철문 (이 구간만 하늘 쪽이 술렁인다)
   for (const [tz, s] of [[-L * 0.25, 1.6], [-L * 0.42, 2.0], [-L * 0.58, 1.5]] as Array<[number, number]>) {
     const tree = new THREE.Mesh(
@@ -401,6 +553,19 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   box(0.08, 2.5, 0.08, 0x2a3142, HW - 0.34, 1.25, -L * 0.29, t4);  // 기둥 (x≥2.62 — 통행 한계 밖)
   box(0.08, 2.5, 0.08, 0x2a3142, HW - 0.34, 1.25, -L * 0.35, t4);
   box(0.35, 0.08, 1.8, 0x2a3142, HW - 0.32, 0.55, -L * 0.32, t4);  // 벤치 (무릎 아래)
+
+  // H-007 정류장의 앉은 형체 (환각) — 버스는 새벽에 안 다닌다
+  const busFigure = new THREE.Group();
+  const bfBody = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.6, 0.26), darkFigureMat);
+  bfBody.position.y = 0.95;
+  const bfHead = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), darkFigureMat);
+  bfHead.position.set(-0.06, 1.38, 0); // 고개를 떨구고 있다
+  const bfLegs = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.18), darkFigureMat);
+  bfLegs.position.set(-0.2, 0.35, 0);
+  busFigure.add(bfBody, bfHead, bfLegs);
+  busFigure.position.set(HW - 0.42, 0, -L * 0.32); // 벤치(y0.55) 위
+  busFigure.visible = false;
+  t4.add(busFigure);
 
   // 신호등 2기 (길 양쪽 — A-011: 양쪽 다 빨간불 고정 / 정상: 교대 점등)
   const trafficRed: THREE.MeshStandardMaterial[] = [];
@@ -447,6 +612,19 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   sign.rotation.y = SIGN_REST_Y;
   t5.add(sign);
 
+  // H-008 끌린 자국 (환각) — 길 한가운데서 시작해 왼쪽 벽 어둠으로 이어지는 긴 자국
+  const dragMark = new THREE.Group();
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(0.34, 16), bloodMat);
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.set(0.7, 0.015, -L * 0.52);
+  const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 6.2), bloodMat);
+  streak.rotation.x = -Math.PI / 2;
+  streak.rotation.z = 0.42; // 시작점 → 왼쪽 벽 방향
+  streak.position.set(-0.55, 0.015, -L * 0.595);
+  dragMark.add(pool, streak);
+  dragMark.visible = false;
+  t5.add(dragMark);
+
   // 구조 차별화 — 현수막·어닝·돌출 간판·쌓인 상자 (먹자골목의 밀도, 단 전부 소등)
   box(HW * 2 + 0.6, 0.55, 0.05, 0x1f2030, 0, 4.4, -L * 0.12, t5); // 입구 현수막
   const aw1 = box(0.8, 0.07, 2.2, 0x2b2334, HW - 0.5, 2.6, -L * 0.36, t5);
@@ -481,6 +659,14 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
     sign_turn: [sign],
     shop_typo: [shopSign],
     figure: [figure],
+    blood_trail: [bloodTrail],
+    skull: [skull],
+    face_window: [facePlane],
+    handprints: [handprints],
+    swing_figure: [swingFigure],
+    eyes: [eyes],
+    bus_figure: [busFigure],
+    drag_mark: [dragMark],
   };
 
   return {
@@ -488,6 +674,7 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
     umbrella, sensorMat, sensorLight, windowMat, flyerMat, flyerTex,
     laundryShutter, laundryMat, laundryLight, storeSignMat, realtyMat, realtyTex,
     swingPivot, ball, trafficRed, trafficGreen, sign, shopTex, figure, hit,
+    bloodTrail, skull, facePlane, handprints, swingFigure, eyes, busFigure, dragMark,
   };
 }
 
@@ -596,6 +783,40 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
       r.figure.rotation.y = Math.random() < 0.5 ? Math.PI : Math.PI * 0.85; // 등을 돌리고
       r.figure.visible = true;
     },
+  },
+  // ---- 환각 (2026-08-02 컨셉 전환) — 전부 "있어서는 안 되는 것"의 출현/소거 토글.
+  // 직시(확인)하면 main.ts가 재적용으로 지운다 — 환각은 똑바로 보면 걷힌다
+  blood_trail: {
+    reset: (r) => { r.bloodTrail.visible = false; },
+    apply: (r) => { r.bloodTrail.visible = true; },
+  },
+  skull: {
+    reset: (r) => { r.skull.visible = false; },
+    apply: (r) => { r.skull.visible = true; },
+  },
+  face_window: {
+    reset: (r) => { r.facePlane.visible = false; },
+    apply: (r) => { r.facePlane.visible = true; },
+  },
+  handprints: {
+    reset: (r) => { r.handprints.visible = false; },
+    apply: (r) => { r.handprints.visible = true; },
+  },
+  swing_figure: {
+    reset: (r) => { r.swingFigure.visible = false; },
+    apply: (r) => { r.swingFigure.visible = true; },
+  },
+  eyes: {
+    reset: (r) => { r.eyes.visible = false; },
+    apply: (r) => { r.eyes.visible = true; },
+  },
+  bus_figure: {
+    reset: (r) => { r.busFigure.visible = false; },
+    apply: (r) => { r.busFigure.visible = true; },
+  },
+  drag_mark: {
+    reset: (r) => { r.dragMark.visible = false; },
+    apply: (r) => { r.dragMark.visible = true; },
   },
 };
 

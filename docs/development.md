@@ -386,3 +386,21 @@ story.md·design-principles.md 온도/왕복 종속부 교체, README·CLAUDE.md
   빈 지적 4회(디버그 spot 훅) → 깊이 4 상태를 스크린샷으로 대조해 어두움 체감 확인
 - 헤드리스(swiftshader) 렌더는 실기기보다 어둡게 나온다(기존 기록) — 최종 밝기 판단은
   실기기에서. 스크린샷 비교는 상대 변화 확인용
+
+### 컨셉 전환 — 약(FF-1204) (2026-08-02, v0.9.0)
+
+전제·서사는 game.md 결정 기록·story.md. 구현 노트:
+
+- **환각 8종 추가 방식**: 구 effect들은 유니온·레지스트리에서 제거하지 않고 **JSON 풀에서만
+  퇴역** — Record 완전성 리팩터링 리스크 없이 추가만으로 전환. 새 핸들러는 전부
+  visible 토글 (등장 트윈 금지 원칙과도 일치). ?a= 구 키는 JSON에 없어 무동작(무해)
+- **직시 소멸**: tryPoint 성공 시 남은 미확인 환각만 applyAnomalies 재적용 —
+  레지스트리 전체 리셋 구조라 별도 소거 코드 불요
+- **통증 비네트**: DOM #pain (저채도 적 radial-gradient, 깊이×0.09 불투명도,
+  4+에서 scale 맥동). applyDepth 호출부마다 applyPain 동기화
+- **프롤로그 제거**: index.html #wake/#prologue/#phone 삭제, main.ts 관련 배선 삭제 —
+  verify.mjs startGame이 단순해짐 (start 버튼 하나)
+- 검증: E2E 4케이스 통과 (무결점 편도 43.5s 불변 — 판정 결과 층은 동일), 환각 9종
+  스크린샷 전수 육안 — 배치 3원칙 준수 확인 (자체 발광형 얼굴·눈은 어둠 배치 예외 적용)
+- 잔여: 이론 문서(fear-cognition·affective 등)의 구 컨셉 예시 문구 정리,
+  직접 처음부터 플레이(무설명 학습 — 특히 "직시하면 사라진다"의 자가 학습 여부)

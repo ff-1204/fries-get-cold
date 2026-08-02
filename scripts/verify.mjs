@@ -33,25 +33,14 @@ async function launch() {
   return { browser, page };
 }
 
-/** 프롤로그(첫 시작 3클릭) → 타이틀 → 시작. params 예: 'a=none', 'a=laundry_open' */
+/** 타이틀 → 시작 (프롤로그 시퀀스는 v0.9.0에서 제거 — 타이틀 단일 게이트). params 예: 'a=none' */
 async function startGame(page, params = '') {
   await page.goto(BASE + (params ? `?${params}` : ''), { waitUntil: 'load' });
-  await page.waitForSelector('#wake-btn', { timeout: 20000 });
-  await sleep(500);
-  await page.click('#wake-btn');
-  for (let i = 0; i < 3; i++) {
-    await page.waitForFunction(() => {
-      const b = document.getElementById('prologue-btn');
-      return b && b.style.visibility !== 'hidden';
-    }, { timeout: 15000 });
-    await sleep(350);
-    await page.click('#prologue-btn');
-    await sleep(500);
-  }
   await page.waitForFunction(
     () => !document.getElementById('start').classList.contains('hidden'),
-    { timeout: 10000 },
+    { timeout: 20000 },
   );
+  await sleep(500);
   await page.click('#start-btn');
   await page.waitForFunction(() => globalThis.__fries?.state().phase === 'walk', { timeout: 10000 });
 }
@@ -90,9 +79,9 @@ async function walkTo(page, z) {
   await sleep(400);
 }
 
-// 동적 오버레이(blackScreen/tasteScene)만 — 정적 오버레이(#wake/#prologue/#start)의
+// 동적 오버레이(blackScreen/tasteScene)만 — 정적 오버레이(#start)의
 // 숨은 버튼을 잡으면 오클릭이 난다 (이 세션에서 실제로 겪은 함정)
-const DYN = 'body > .overlay:not(#wake):not(#prologue):not(#start)';
+const DYN = 'body > .overlay:not(#start)';
 
 async function clickOverlayButton(page) {
   await page.waitForFunction((sel) => {
@@ -113,14 +102,18 @@ async function shot(page, name) {
 // 새 이상현상을 추가하면 여기에 [파라미터, 도달 구간, 관찰 z] 케이스를 추가한다
 async function shots() {
   const cases = [
-    // [디버그 파라미터, 태그, 통과할 구간 수, 관찰 z]
-    ['a=none', 'seg1-flyer-normal', 0, -11],
-    ['a=flyer_digits', 'seg1-flyer-anomaly', 0, -11],
-    ['a=none', 'seg2-realty-normal', 1, -14.5],
-    ['a=realty_urgent', 'seg2-realty-anomaly', 1, -14.5],
-    ['a=none', 'seg5-shopsign-normal', 4, -22],
-    ['a=shop_typo', 'seg5-shopsign-anomaly', 4, -22],
-    ['a=figure', 'seg1-figure-anomaly', 0, -12], // 그림자 사람 (A-010) — 디버그 앵커 고정(z=-17.6)
+    // [디버그 파라미터, 태그, 통과할 구간 수, 관찰 z] — 환각 9종 (v0.9.0 컨셉 전환)
+    ['a=none', 'seg1-normal', 0, -8],
+    ['a=blood_trail', 'seg1-blood-anomaly', 0, -8],
+    ['a=skull', 'seg1-skull-anomaly', 0, -4],
+    ['a=face_window', 'seg1-face-anomaly', 0, -19],
+    ['a=none', 'seg2-normal', 1, -10],
+    ['a=handprints', 'seg2-handprints-anomaly', 1, -10],
+    ['a=swing_figure', 'seg3-swingfigure-anomaly', 2, -10],
+    ['a=eyes', 'seg3-eyes-anomaly', 2, -15],
+    ['a=bus_figure', 'seg4-busfigure-anomaly', 3, -7],
+    ['a=drag_mark', 'seg5-dragmark-anomaly', 4, -14],
+    ['a=figure', 'seg1-figure-anomaly', 0, -12], // 그림자 사람 (H-009) — 디버그 앵커 고정(z=-17.6)
   ];
   for (const [param, tag, passes, z] of cases) {
     const { browser, page } = await launch();
@@ -146,7 +139,7 @@ async function shots() {
   // 접힘 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛)
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=umbrella');
+    await startGame(page, 'a=blood_trail');
     await passMain(page); // 접힘 1회 → 같은 구간 반복 (depth 2)
     await walkTo(page, -3.2); // 분필 자국(z=-5.5)이 전방 바닥에 보이는 지점
     await shot(page, 'fold-repeat-mark');
@@ -165,11 +158,11 @@ async function balance() {
     const t0 = Date.now();
     for (let i = 0; i < 5; i++) await passMain(page);
     const sec = ((Date.now() - t0) / 1000).toFixed(1);
-    await clickOverlayButton(page); // 버거집 — 봉투를 받는다
+    await clickOverlayButton(page); // 새벽약국 — 오늘 치 약을 받는다
     await sleep(1200);
-    await clickOverlayButton(page); // 귀가 컷 → 시식으로
+    await clickOverlayButton(page); // 귀가 컷 → 복약으로
     await page.waitForFunction(
-      (sel) => [...document.querySelectorAll(`${sel} .sub`)].some((e) => e.textContent.includes('🍟')),
+      (sel) => [...document.querySelectorAll(`${sel} .sub`)].some((e) => e.textContent.includes('💊')),
       { polling: 150, timeout: 20000 },
       DYN,
     );
@@ -189,10 +182,10 @@ async function balance() {
     await browser.close();
   }
 
-  // 2) 접힘 3회 = 깊이 한계 → 골목 입구 리셋 (?a=umbrella — 구간 1 이상 고정, 본길 강행)
+  // 2) 접힘 3회 = 깊이 한계 → 골목 입구 리셋 (?a=blood_trail — 구간 1 환각 고정, 지나치기 강행)
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=umbrella');
+    await startGame(page, 'a=blood_trail');
     for (let i = 0; i < 2; i++) {
       await passMain(page);
       const s = await state(page);
@@ -209,10 +202,10 @@ async function balance() {
     await browser.close();
   }
 
-  // 3) 확인 성공 = 무비용 통과 (?a=umbrella — 구간 1 이상 고정, 확인하고 직진)
+  // 3) 확인 성공 = 무비용 통과 (?a=blood_trail — 구간 1 환각 고정, 직시하고 직진)
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=umbrella');
+    await startGame(page, 'a=blood_trail');
     await debugSpot(page);
     const checked = (await state(page)).checked;
     await passMain(page);

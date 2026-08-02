@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>튀김이 식기 전에 — Before the Fries Get Cold</title>
-  <meta name="description" content="새벽 한 시, 신장개업 튀김집으로 가는 처음 보는 골목. 걸어서 15분 — 앱에는 그렇게 적혀 있다." />
+  <title>약효가 다하기 전에 — Before the Meds Wear Off</title>
+  <meta name="description" content="새벽 한 시, 약이 떨어졌다. 24시 약국은 처음 가보는 골목 끝 — 약 기운이 다할수록, 보여서는 안 되는 것들이 보인다." />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -88,34 +88,18 @@
     .overlay .fineprint { font-size: clamp(10px, 1.4vw, 12px); opacity: 0.35; }
     .overlay .fineprint a { color: inherit; pointer-events: auto; }
 
-    /* ---------- 프롤로그 (story.md §2 — 이불 속 스마트폰) ---------- */
-    #wake, #prologue { background: #04060c; z-index: 11; }
-    #prologue { gap: 24px; }
-    #phone {
-      height: min(58dvh, 520px); aspect-ratio: 9 / 18.5;
-      background: #05060a; border: 2px solid #171b28; border-radius: 24px;
-      padding: 10px 8px; transition: box-shadow 0.6s;
+    /* ---------- 통증 비네트 — 깊이(약 기운 떨어짐)의 신체 감각화 ----------
+       저채도 적 (팔레트: 어긋남 전용색). 판정 정보를 가리지 않게 가장자리만, 최대 0.55 */
+    #pain {
+      position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0;
+      background: radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(90, 15, 15, 0.5) 100%);
+      transition: opacity 1.4s;
     }
-    #phone.on { box-shadow: 0 0 70px 8px rgba(120, 150, 235, 0.10); }
-    #phone-screen {
-      height: 100%; border-radius: 16px; background: #0c101c;
-      display: flex; flex-direction: column; gap: 10px; text-align: left;
-      padding: 14px 12px; opacity: 0; transition: opacity 0.3s;
-      font-size: clamp(11px, 2vh, 14px); overflow: hidden; word-break: keep-all;
+    #pain.acute { animation: painPulse 3.6s ease-in-out infinite alternate; }
+    @keyframes painPulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.045); }
     }
-    #phone.on #phone-screen { opacity: 1; }
-    .p-status { display: flex; justify-content: space-between; font-size: 0.8em; opacity: 0.5; }
-    .p-shop { font-weight: 700; font-size: 1.15em; margin-top: 6px; }
-    .p-sub { opacity: 0.55; font-size: 0.85em; }
-    .p-line { border-top: 1px solid #1c2233; }
-    .p-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .p-warn { color: #d8b26a; font-size: 0.9em; }
-    .p-fee { opacity: 0.7; font-size: 0.9em; }
-    .p-order {
-      margin-top: auto; text-align: center; background: #1a2030; color: #596180;
-      border-radius: 8px; padding: 10px; font-size: 0.9em;
-    }
-    #prologue-msg { min-height: 1.6em; opacity: 0; transition: opacity 0.9s; }
 
     /* 접이식 설정 (밝기·소리) — 타이틀 첫인상을 해치지 않게 기본 접힘 (visual-polish §1) */
     #settings-panel { display: none; flex-direction: column; align-items: center; gap: 12px; }
@@ -203,42 +187,19 @@
   </div>
 
   <div id="fade"></div>
-
-  <!-- 프롤로그 (story.md §2) — 첫 시작에만, 이어하기 시 생략 -->
-  <div id="wake" class="overlay hidden">
-    <div class="sub">새벽 한 시. 어두운 원룸. 이불 속.</div>
-    <button id="wake-btn">잠이 안 온다 — 스마트폰을 본다</button>
-  </div>
-
-  <div id="prologue" class="overlay hidden">
-    <div id="phone">
-      <div id="phone-screen">
-        <div class="p-status"><span>01:04</span><span>🔋 23%</span></div>
-        <div class="p-shop">🍟 감자상회 — 감자튀김 전문</div>
-        <div class="p-sub">NEW 신규 입점 · 리뷰 0 · 24시간 영업</div>
-        <div class="p-line"></div>
-        <div class="p-item"><span>🍟 감자튀김 (L)</span><b>3,200원</b></div>
-        <div class="p-line"></div>
-        <div class="p-fee">🎫 개업 이벤트 — 방문 도장 5개, L 사이즈 무료</div>
-        <div class="p-warn">⚠ 배달 불가 · 포장만 가능</div>
-        <div class="p-order">포장 전용 매장입니다 · 도보 15분</div>
-      </div>
-    </div>
-    <div class="quote" id="prologue-msg"></div>
-    <button id="prologue-btn">화면을 끈다</button>
-  </div>
+  <div id="pain"></div>
 
   <div id="start" class="overlay hidden">
     <div class="clock">01:04</div>
-    <h1>튀김이 식기 전에</h1>
-    <div class="sub">Before the Fries Get Cold</div>
-    <div class="quote">걸어서 15분. 앱에는 그렇게 적혀 있다.</div>
+    <h1>약효가 다하기 전에</h1>
+    <div class="sub">Before the Meds Wear Off</div>
+    <div class="quote">약이 떨어졌다. 24시 약국은, 처음 가보는 골목 끝에 있다.</div>
     <div class="sub">🎧 이어폰을 권장합니다</div>
     <div class="sub" id="continue-info" style="display:none"></div>
     <div id="coupon">
-      <div>감자상회 개업 이벤트</div>
+      <div>FF-1204 — 5일분 처방</div>
       <div class="c-stamps"></div>
-      <div class="c-note">도장 5개 — L 사이즈 무료</div>
+      <div class="c-note">하루 한 알 · 5일분</div>
     </div>
     <button id="start-btn">현관문을 연다</button>
     <div style="display:flex;align-items:center;justify-content:center;gap:2px;">

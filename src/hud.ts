@@ -81,7 +81,7 @@ export class Hud {
     p.style.transition = 'opacity 1.1s';
     p.textContent = o.result;
     const btn = document.createElement('button');
-    btn.textContent = '한 입';
+    btn.textContent = '약을 삼킨다';
     el.append(gauge, p, btn);
     document.body.append(el);
     requestAnimationFrame(() => (el.style.opacity = '1'));
@@ -92,10 +92,10 @@ export class Hud {
           resolve();
           return;
         }
-        o.onBite(bites); // 크런치 — 입력에 즉각 반응하되 반응은 조용하게 (visual-polish §2)
+        o.onBite(bites); // 삼킴 — 입력에 즉각 반응하되 반응은 조용하게 (visual-polish §2)
         bites += 1;
         if (bites < 2) {
-          btn.textContent = '한 입 더';
+          btn.textContent = '물을 마저 마신다';
           return;
         }
         // 마지막 입 → 여운 → 밤별 마무리 모놀로그 (그 밤의 마지막 기억)

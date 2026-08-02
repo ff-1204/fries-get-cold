@@ -62,6 +62,15 @@ const hud = new Hud();
 const audio = new AudioEngine();
 const clock = new THREE.Clock();
 
+// 통증 비네트 — 깊이(약 기운이 떨어진 정도)의 신체 감각화. 저채도 적 (팔레트: 어긋남 전용색).
+// 가로등 감광(다이제틱 게이지)의 보조 — 몸이 아파지는 감각을 화면 가장자리가 전한다
+const painEl = document.getElementById('pain');
+function applyPain(d: number) {
+  if (!painEl) return;
+  painEl.style.opacity = String(Math.min(0.55, d * 0.09));
+  painEl.classList.toggle('acute', d >= 4); // 한계 직전 — 느린 맥동
+}
+
 // ---------- 사운드 토글 (우상단 버튼 · M 키) — 설정은 기기 내 저장 ----------
 const soundBtn = document.getElementById('sound-btn') as HTMLButtonElement | null;
 function applyMute() {
@@ -149,6 +158,7 @@ function rollSegment(foldStatus = false) {
       DEBUG_ANOMALY ? 2 : Math.floor(Math.random() * SPAWN_ANCHORS.length);
   }
   applyDepth(refs, depth);            // 꺼져가는 빛 — 이상 리셋보다 먼저 (lampBase 기준 제공)
+  applyPain(depth);                   // 통증 비네트 동기화
   applyAnomalies(refs, anomalies.map((a) => a.effect));
   setFoldMark(refs, foldRepeat);      // 접힘 반복 구간 — 바닥 분필 자국 (인지 4요소 ④)
   // '정적' — 이상 구간에서 환경음이 잦아든다 (fear-cognition §8, 시각 단서의 청각 병행)
@@ -195,7 +205,7 @@ async function softFail() {
 async function reachShop() {
   phase = 'transition';
   await hud.fadeOut(800);
-  await hud.blackScreen(`${TEXT.shopArrive}\n\n${TEXT.shopBuy}`, '봉투를 받는다 (3,200원)');
+  await hud.blackScreen(`${TEXT.shopArrive}\n\n${TEXT.shopBuy}`, '오늘 치 약을 받는다');
   const taste: TasteResult = tasteFromFolds(folds); // 감자튀김은 접힘 횟수를 비추는 서사 (balance.ts)
   const result =
     taste === 'crispy' ? TEXT.resultCrispy :
@@ -208,11 +218,11 @@ async function reachShop() {
   // 귀가 컷 → 결과별 틴트에서 한 입씩(입마다 크런치) → 밤별 마무리 모놀로그
   await hud.blackScreen(TEXT.homeArrive, TEXT.homeOpen);
   const q = taste === 'crispy' ? 0.95 : taste === 'lukewarm' ? 0.55 : 0.25;
-  // 도장 진행 — 시식 화면 상단 한 줄 (개업 이벤트. 밤 6+는 칸이 없다 — 조용한 어긋남)
+  // 복약 체크 — 상단 한 줄 (5일분 처방. 6일차+는 칸이 없다 — 조용한 어긋남)
   const stampLine =
     night > 5
-      ? '…도장 찍을 칸이, 이제 없다'
-      : `도장 ${'●'.repeat(night)}${'○'.repeat(5 - night)}`;
+      ? '…체크할 칸이, 이제 없다'
+      : `복약 ${'●'.repeat(night)}${'○'.repeat(5 - night)}`;
   await hud.tasteScene({
     gauge: `${TEXT.tasteGauge[taste]} · ${stampLine}`,
     result,
@@ -293,9 +303,16 @@ function tryPoint(px: number, py: number, force = false) {
   spotCooldown = CONFIG.spotCooldownSec;
   ndc.set((px / window.innerWidth) * 2 - 1, -(py / window.innerHeight) * 2 + 1);
 
+  // 직시 = 환각 소멸 — 남은(미확인) 환각만 다시 적용해 방금 본 것을 지운다
+  // (2026-08-02 컨셉 전환: "환각은 똑바로 보면 걷힌다" — 확인의 즉각 보상)
+  const dispel = () => {
+    applyAnomalies(refs, anomalies.filter((x) => !checked.has(x.id)).map((x) => x.effect));
+  };
+
   const unchecked = anomalies.filter((a) => !checked.has(a.id));
   if (force && unchecked.length > 0) {
     checked.add(unchecked[0].id);
+    dispel();
     hud.say(TEXT.spotOk, 3000);
     return;
   }
@@ -306,14 +323,16 @@ function tryPoint(px: number, py: number, force = false) {
       hud.say(TEXT.tooFar, 2200); // 비용 없음 — 다가가라는 지시일 뿐
       return;
     }
-    checked.add(a.id); // 이상은 사라지지 않는다 — 확인했다는 사실만 남는다 (트윈 금지)
+    checked.add(a.id);
+    dispel(); // 트윈 없이 그냥 없어져 있다 — "원래 없던 것이다"
     hud.say(TEXT.spotOk, 3000);
     return;
   }
   if (anomalies.length > 0 && unchecked.length === 0) return; // 전부 확인됨 — 재지적 무반응
-  // 빈 지적 — 과잉 의심의 비용. 가로등이 그 자리에서 어두워진다 (즉각 인과, theory §9)
+  // 빈 지적 — 과잉 의심의 비용. 통증과 함께 가로등이 어두워진다 (즉각 인과, theory §9)
   depth += CONFIG.wasteDepthCost;
   applyDepth(refs, depth);
+  applyPain(depth);
   hud.say(TEXT.spotWaste, 3000);
   if (depth >= CONFIG.depthLimit) void softFail();
 }
@@ -422,57 +441,9 @@ async function pauseGame() {
   pausing = false;
 }
 
-// ---------- 프롤로그 (story.md §2 — 이불 속 배달 앱. 첫 시작에만) ----------
-// 감정 좌표: 나른한 욕구, 긍정·저각성 (affective §1-2) — 느린 페이드만, 팝 금지
-const wakeEl = document.getElementById('wake')!;
-const prologueEl = document.getElementById('prologue')!;
-const phoneEl = document.getElementById('phone')!;
-const prologueMsg = document.getElementById('prologue-msg')!;
-const prologueBtn = document.getElementById('prologue-btn') as HTMLButtonElement;
-
-function showTitleGate() {
-  startOverlay.classList.remove('hidden'); // 문이 열리면 — 타이틀 (story.md)
-}
-
-if (hasProgress()) {
-  showTitleGate(); // 이어하기 — 프롤로그 생략
-} else {
-  wakeEl.classList.remove('hidden');
-}
-
-document.getElementById('wake-btn')!.addEventListener('click', () => {
-  wakeEl.classList.add('hidden');
-  prologueEl.classList.remove('hidden');
-  setTimeout(() => phoneEl.classList.add('on'), 500);
-});
-
-let prologueStage = 0;
-prologueBtn.addEventListener('click', () => {
-  if (prologueStage === 0) {
-    // 화면을 끈다 → 정적 → (참지 못하고) 다시 켠다
-    prologueStage = 1;
-    phoneEl.classList.remove('on');
-    prologueBtn.style.visibility = 'hidden';
-    setTimeout(() => {
-      phoneEl.classList.add('on');
-      prologueBtn.textContent = '…다시 끈다';
-      prologueBtn.style.visibility = 'visible';
-    }, 2600);
-  } else if (prologueStage === 1) {
-    prologueStage = 2;
-    phoneEl.classList.remove('on');
-    prologueBtn.style.visibility = 'hidden';
-    setTimeout(() => {
-      prologueMsg.textContent = '"배달이 안 되는 24시 튀김집이라니. 좀 아니지."';
-      prologueMsg.style.opacity = '1';
-      prologueBtn.textContent = '이불을 걷는다';
-      prologueBtn.style.visibility = 'visible';
-    }, 1100);
-  } else {
-    prologueEl.classList.add('hidden');
-    showTitleGate();
-  }
-});
+// ---------- 타이틀 게이트 (2026-08-02 컨셉 전환: 프롤로그 폰 시퀀스 제거 — 타이틀 단일 화면) ----------
+// 전제 전달은 타이틀 한 줄("약이 떨어졌다")과 1일차 인트로 모놀로그가 담당 (story.md §2)
+startOverlay.classList.remove('hidden');
 
 // ---------- 설정 패널 접기/펼치기 (시작 화면) ----------
 const settingsPanel = document.getElementById('settings-panel');
@@ -492,12 +463,12 @@ function refreshContinueUi() {
   resetBtn.style.display = show ? 'inline-block' : 'none';
   if (show) {
     const misses = save.misses > 0 ? ` 그동안 ${save.misses}번, 골목 입구로 돌아왔다.` : '';
-    continueEl.textContent = `이어하기 — 밤 ${save.night}.${misses}`;
+    continueEl.textContent = `이어하기 — ${TEXT.nightLabel(save.night)}.${misses}`;
   }
   refreshCoupon();
 }
 
-/** 쿠폰 도장 카드 — 지난 밤 수만큼 도장. 6개째부터는 칸 밖 (밤 6+ 무한 모드의 조용한 어긋남) */
+/** 처방 카드 — 지난 일차만큼 복약 체크. 6개째부터는 칸 밖 (6일차+ 무한 모드의 조용한 어긋남) */
 function refreshCoupon() {
   const stampsEl = document.querySelector('#coupon .c-stamps');
   const noteEl = document.querySelector('#coupon .c-note');
@@ -508,7 +479,7 @@ function refreshCoupon() {
     '●'.repeat(filled) +
     `<span class="empty">${'○'.repeat(5 - filled)}</span>` +
     (got > 5 ? ' ●' : ''); // 여섯 번째 — 칸 밖
-  noteEl.textContent = got > 5 ? TEXT.couponOverflow : '도장 5개 — L 사이즈 무료';
+  noteEl.textContent = got > 5 ? TEXT.couponOverflow : '하루 한 알 · 5일분';
 }
 
 let resetArmed = false;

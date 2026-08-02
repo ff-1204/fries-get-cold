@@ -1,115 +1,74 @@
 [
   {
-    "id": "A-001",
+    "id": "H-001",
     "night": 1,
     "segment": 1,
     "category": "OBJ",
-    "effect": "umbrella",
-    "reveal": "…아무도 안 버린 우산이 놓여 있었다."
+    "effect": "blood_trail",
+    "reveal": "…바닥의 검붉은 자국은, 원래 없던 것이었다."
   },
   {
-    "id": "A-002",
-    "night": 1,
-    "segment": 1,
-    "category": "LGT",
-    "effect": "sensor_on",
-    "reveal": "…센서등이, 아무도 없는데 계속 켜져 있었다."
-  },
-  {
-    "id": "A-015",
-    "night": 1,
-    "segment": 1,
-    "category": "LGT",
-    "effect": "window_red",
-    "reveal": "…그 창문, 원래 불이 꺼져 있었는데."
-  },
-  {
-    "id": "A-003",
+    "id": "H-002",
     "night": 2,
     "segment": 1,
-    "category": "TXT",
-    "effect": "flyer_digits",
-    "reveal": "…전단지 전화번호가, 한 자리 모자랐다."
-  },
-  {
-    "id": "A-004",
-    "night": 1,
-    "segment": 2,
     "category": "OBJ",
-    "effect": "laundry_open",
-    "reveal": "…세탁소 셔터가 반쯤 열려 있었다. 안이 밝았다."
+    "effect": "skull",
+    "reveal": "…배출장 위에 놓여 있던 것. 그건, 쓰레기가 아니었다."
   },
   {
-    "id": "A-006",
-    "night": 1,
-    "segment": 2,
-    "category": "LGT",
-    "effect": "sign_lit",
-    "reveal": "…꺼져 있어야 할 간판 하나가, 켜져 있었다."
-  },
-  {
-    "id": "A-005",
+    "id": "H-003",
     "night": 2,
+    "segment": 1,
+    "category": "HUM",
+    "effect": "face_window",
+    "reveal": "…창문에서 내려다보던 얼굴. 그 집은, 빈집이다."
+  },
+  {
+    "id": "H-004",
+    "night": 1,
     "segment": 2,
-    "category": "TXT",
-    "effect": "realty_urgent",
-    "reveal": "…시세표에, 방값 대신 '급구' 두 글자만 적혀 있었다."
-  },
-  {
-    "id": "A-007",
-    "night": 1,
-    "segment": 3,
     "category": "OBJ",
-    "effect": "swing",
-    "reveal": "…바람도 없는데, 그네가 흔들리고 있었다."
+    "effect": "handprints",
+    "reveal": "…세탁소 셔터의 손자국들은, 안쪽에서 찍힌 것이었다."
   },
   {
-    "id": "A-008",
+    "id": "H-005",
     "night": 1,
     "segment": 3,
-    "category": "LGT",
-    "effect": "lamp_flicker",
-    "reveal": "…가로등이 두 번씩 깜빡이고 있었다."
+    "category": "HUM",
+    "effect": "swing_figure",
+    "reveal": "…그네에 앉아 있던 것은, 아이가 아니었다."
   },
   {
-    "id": "A-009",
-    "night": 1,
+    "id": "H-006",
+    "night": 2,
     "segment": 3,
-    "category": "OBJ",
-    "effect": "ball_out",
-    "reveal": "…공이 혼자 길 한가운데까지 나와 있었다."
+    "category": "HUM",
+    "effect": "eyes",
+    "reveal": "…펜스 뒤 어둠에서, 눈이 이쪽을 보고 있었다."
   },
   {
-    "id": "A-011",
+    "id": "H-007",
     "night": 1,
     "segment": 4,
-    "category": "LGT",
-    "effect": "traffic_red",
-    "reveal": "…양쪽 다, 빨간불이었다. 계속."
+    "category": "HUM",
+    "effect": "bus_figure",
+    "reveal": "…정류장에 앉아 있던 사람. 버스는, 새벽에 안 다닌다."
   },
   {
-    "id": "A-010",
-    "night": 3,
+    "id": "H-008",
+    "night": 1,
+    "segment": 5,
+    "category": "OBJ",
+    "effect": "drag_mark",
+    "reveal": "…무언가를 끌고 간 자국이, 어둠 쪽으로 이어져 있었다."
+  },
+  {
+    "id": "H-009",
+    "night": 2,
     "segment": 0,
     "category": "HUM",
     "effect": "figure",
-    "reveal": "…서 있던 그 사람, 그림자가 없었다."
-  },
-  {
-    "id": "A-013",
-    "night": 1,
-    "segment": 5,
-    "category": "OBJ",
-    "effect": "sign_turn",
-    "reveal": "…입간판이 나를 향해 돌아가 있었다."
-  },
-  {
-    "id": "A-012",
-    "night": 2,
-    "segment": 5,
-    "category": "TXT",
-    "effect": "shop_typo",
-    "outboundOnly": true,
-    "reveal": "…간판이 '24시간요'라고, 대답하고 있었다."
+    "reveal": "…등을 돌리고 서 있던 사람. 다시 봤을 때는, 없었다."
   }
 ]
