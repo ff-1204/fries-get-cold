@@ -157,7 +157,7 @@ npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
   fear-cognition) → 구현 → 코드와 같은 커밋에 문서 갱신 (workflow.md)
 - 코드 수정 시 `npm run build`(타입 검사 포함) + `npm run build:local`로 play-local.html 재생성
 - 서드파티 추가 즉시 licenses.md 기록. GPL 금지. LICENSE 파일 추가 금지(All Rights Reserved)
-- 15세 수위·특정 작품 언급 금지 원칙은 공개 레포 전제 — 커밋 전 상기
+- 표현 수위 법적 준수·특정 작품 언급 금지 원칙은 공개 레포 전제 — 커밋 전 상기
 
 ---
 
@@ -260,7 +260,8 @@ v0.3.3 → v0.3.4. 기능 상세는 CHANGELOG — 여기에는 구조 결정과 
 
 ### 이번 세션 요약
 
-- **docs/dori-lessons.md 신설** — dori가 실배포·AdSense 심사·모바일 실사용에서 검증한
+- **docs/dori-lessons.md 신설** (같은 날 문서 정리로 삭제 — 필요 시 git 이력 또는 dori 레포 참조)
+  — dori가 실배포·AdSense 심사·모바일 실사용에서 검증한
   교훈 이관 (크롤러에게 캔버스는 빈 페이지, 이모지 깨짐, 대외 문구-소스 대조,
   인앱 브라우저 함정). 대외 배포·모바일 기능 작업 전에 한 번 훑는다 (workflow.md)
 - **이상현상 핸들러 레지스트리** (world.ts): M3에서 30종+로 늘리기 전 부채 정리.
@@ -343,3 +344,19 @@ story.md·design-principles.md 온도/왕복 종속부 교체, README·CLAUDE.md
   읽어 배치. **?a= 디버그는 앵커 고정(2번)** — 스크린샷·E2E 결정성 (랜덤은 실플레이만)
 - 미해결: 접힘 반복 구간에서 증식된 동시 이상의 밀도 체감(2~3개가 좁은 구간에 겹칠 때의
   가독성)은 실플레이로 확인 필요 — 앵커 간격은 확보돼 있으나 사물 고정형과의 겹침은 미검증
+
+### UI 컨셉 마감 + 모바일 조작 단순화 (2026-08-02, v0.7.0)
+
+"3D 조작이 어렵다"는 피드백으로 모바일 입력을 재설계 (상세는 responsive-design §1). 구현 노트:
+
+- **걷기 버튼**: `#walk-btn`(index.html, `@media (pointer: coarse)`에서만 표시) →
+  main.ts가 pointerdown/move/up으로 `input.touchForward`/`touchRun`을 넣는다
+  (setPointerCapture로 버튼 밖 이탈에도 추적). input.ts에서 moveTouch(반분할) 제거 —
+  터치는 lookTouch(전면 드래그) + tapCandidate만 남아 단순해졌다
+- **크로스헤어**: 터치에서 CSS로 숨김 — 모바일 지적은 탭 지점 좌표라 중앙 점이 거짓 신호였다
+- **컨셉 마감은 전부 CSS**: 비네트(#hud::before), 타이틀 글로우·01:04 시계, 카운터 앰버 보더,
+  breathe 키프레임(주 버튼 한정 — .ghost/#sound-btn 제외). 에셋 추가 없음
+- **UI 시각 검증 스크립트**: 스크래치패드 ui-shots.mjs — verify.mjs와 같은 헤드리스 패턴 +
+  `setViewport({isMobile, hasTouch})`로 `pointer: coarse` 매체 질의까지 재현,
+  `touchscreen.touchStart` 홀드로 걷기 버튼 실주행 실측(z 좌표 __fries.state 확인).
+  교훈: 하단 고정 UI(힌트)는 자막(#msg)·버튼과 겹친다 — 상단 카운터 아래로 이동

@@ -1,5 +1,6 @@
 // 입력 추상화 레이어 — docs/responsive-design.md §1
-// PC: Pointer Lock + WASD / 모바일: 화면 반분할 터치 (좌=이동, 우=시점)
+// PC: Pointer Lock + WASD / 모바일: 걷기 버튼 홀드(전진) + 화면 어디든 드래그(시점) + 탭(지적)
+// 길이 직진뿐이라 조향이 필요 없다 — 조이스틱·반분할 폐지 (v0.7.0)
 // 기기 고정 감지 대신 pointerType으로 런타임 전환
 
 export class Input {
@@ -9,12 +10,15 @@ export class Input {
   /** 지적 콜백 — 화면 좌표(px). PC(포인터락)는 화면 중앙, 모바일은 탭 지점 (main.ts tryPoint) */
   onPoint: ((x: number, y: number) => void) | null = null;
 
+  /** 걷기 버튼 (모바일 #walk-btn) — main.ts가 홀드/밀기 상태를 넣는다 */
+  touchForward = 0;
+  touchRun = false;
+
   private keys = new Set<string>();
   private canvas: HTMLCanvasElement;
   private locked = false;
 
-  // 터치 상태
-  private moveTouch: { id: number; x0: number; y0: number; dx: number; dy: number } | null = null;
+  // 터치 상태 — 시점 드래그는 화면 어디서든 (첫 손가락), 탭은 지적 후보
   private lookTouch: { id: number; x: number; y: number } | null = null;
   private tapCandidate: { id: number; x: number; y: number; t: number } | null = null;
   usesTouch = false;
@@ -65,19 +69,13 @@ export class Input {
     }
     this.usesTouch = true;
     this.tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
-    const half = window.innerWidth / 2;
-    if (e.clientX < half && !this.moveTouch) {
-      this.moveTouch = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 };
-    } else if (!this.lookTouch) {
+    if (!this.lookTouch) {
       this.lookTouch = { id: e.pointerId, x: e.clientX, y: e.clientY };
     }
   }
 
   private onPointerMove(e: PointerEvent) {
-    if (this.moveTouch && e.pointerId === this.moveTouch.id) {
-      this.moveTouch.dx = e.clientX - this.moveTouch.x0;
-      this.moveTouch.dy = e.clientY - this.moveTouch.y0;
-    } else if (this.lookTouch && e.pointerId === this.lookTouch.id) {
+    if (this.lookTouch && e.pointerId === this.lookTouch.id) {
       this.applyLook((e.clientX - this.lookTouch.x) * 2.4, (e.clientY - this.lookTouch.y) * 2.4);
       this.lookTouch.x = e.clientX;
       this.lookTouch.y = e.clientY;
@@ -93,7 +91,6 @@ export class Input {
       if (quick && still) this.onPoint?.(e.clientX, e.clientY);
       this.tapCandidate = null;
     }
-    if (this.moveTouch && e.pointerId === this.moveTouch.id) this.moveTouch = null;
     if (this.lookTouch && e.pointerId === this.lookTouch.id) this.lookTouch = null;
   }
 
@@ -109,15 +106,9 @@ export class Input {
     if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) strafe -= 1;
     if (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) run = true;
 
-    if (this.moveTouch) {
-      const dead = 12;
-      const range = 70;
-      const fy = -this.moveTouch.dy;
-      const fx = this.moveTouch.dx;
-      if (Math.abs(fy) > dead) forward += Math.max(-1, Math.min(1, fy / range));
-      if (Math.abs(fx) > dead) strafe += Math.max(-1, Math.min(1, fx / range));
-      if (fy > range * 1.6) run = true; // 조이스틱 바깥으로 밀기 = 달리기
-    }
+    // 걷기 버튼 (모바일) — 누르는 동안 전진, 위로 밀면 달리기
+    forward += this.touchForward;
+    if (this.touchRun) run = true;
 
     return {
       forward: Math.max(-1, Math.min(1, forward)),

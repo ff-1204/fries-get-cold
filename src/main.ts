@@ -177,7 +177,7 @@ async function startNight() {
   hud.say(TEXT.intros[Math.min(night - 1, TEXT.intros.length - 1)]);
 }
 
-/** 깊이 한계 — 죽음이 아니라 골목 입구 리셋 (15세 원칙: 실패조차 암전) */
+/** 깊이 한계 — 죽음이 아니라 골목 입구 리셋 (soft fail 설계: 실패조차 암전, design-principles §1) */
 async function softFail() {
   phase = 'transition';
   await hud.fadeOut(1400);
@@ -310,6 +310,41 @@ function tryPoint(px: number, py: number, force = false) {
 }
 
 input.onPoint = (x, y) => tryPoint(x, y);
+
+// ---------- 걷기 버튼 (모바일 #walk-btn) — 누르는 동안 전진, 위로 밀면 달리기 ----------
+// 길이 직진뿐이라 조향이 필요 없다: 홀드 = 걷기, 손을 떼면 그 자리에서 관찰 (responsive-design §1)
+const walkBtn = document.getElementById('walk-btn') as HTMLButtonElement | null;
+if (walkBtn) {
+  let walkPointer: number | null = null;
+  let walkY0 = 0;
+  const endWalk = (e: PointerEvent) => {
+    if (e.pointerId !== walkPointer) return;
+    walkPointer = null;
+    input.touchForward = 0;
+    input.touchRun = false;
+    walkBtn.classList.remove('held', 'run');
+    walkBtn.textContent = '걷는다';
+  };
+  walkBtn.addEventListener('pointerdown', (e) => {
+    walkPointer = e.pointerId;
+    walkY0 = e.clientY;
+    input.usesTouch = true;
+    input.touchForward = 1;
+    walkBtn.classList.add('held');
+    walkBtn.setPointerCapture(e.pointerId);
+  });
+  walkBtn.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== walkPointer) return;
+    const run = walkY0 - e.clientY > 48; // 위로 밀기 = 달리기
+    if (run !== input.touchRun) {
+      input.touchRun = run;
+      walkBtn.classList.toggle('run', run);
+      walkBtn.textContent = run ? '달린다' : '걷는다';
+    }
+  });
+  walkBtn.addEventListener('pointerup', endWalk);
+  walkBtn.addEventListener('pointercancel', endWalk);
+}
 
 // ---------- 이동/판정 ----------
 const HW = CONFIG.corridorHalfWidth;

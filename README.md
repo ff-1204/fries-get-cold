@@ -23,7 +23,8 @@
 - **오프라인 플레이 (설치 불요)**: `play-local.html` 더블클릭 — 게임 전체가 든 단일 파일 빌드
 - **개발 모드** (Node.js 18+): `npm install` 후 `npm run dev`
 - **배포**: `npm run deploy` (빌드 → `gh-pages` 브랜치) / `npm run build:local` (단일 파일 재생성)
-- 조작 — PC: 클릭 후 WASD 이동, 마우스 시점, Shift 달리기 / 모바일: 좌측 드래그 이동, 우측 드래그 시점
+- 조작 — PC: 클릭 후 WASD 이동, 마우스 시점, Shift 달리기 / 모바일: "걷는다" 버튼을
+  누르는 동안 전진(위로 밀면 달리기), 화면 드래그로 시점, 탭으로 확인
 
 ## 문서
 
@@ -40,7 +41,7 @@
 
 | 문서 | 내용 |
 |---|---|
-| [docs/design-principles.md](./docs/design-principles.md) | 최상위 원칙 — 어포던스·정직한 판정, 15세 표현 수위, 깜놀·템포·오리지널리티 |
+| [docs/design-principles.md](./docs/design-principles.md) | 최상위 원칙 — 어포던스·정직한 판정, 표현 수위(법적 준수 기준), 깜놀·템포·오리지널리티 |
 | [docs/game-design-theory.md](./docs/game-design-theory.md) | 게임 디자인 이론 — MDA, 의미 있는 선택, Flow, 정보 에이전시, 자원 경제 |
 | [docs/fear-cognition.md](./docs/fear-cognition.md) | 공포의 인지과학 — 예측 오류, 위협 탐지, 스위트 스팟, 습관화, 안전 신호 |
 | [docs/affective-design.md](./docs/affective-design.md) | 감성 설계 — 순간별 감정 좌표, 긴장-이완 곡선, Peak-End, 사운드 심리 |
@@ -53,7 +54,6 @@
 | [docs/development.md](./docs/development.md) | 개발 가이드 — 스택, 실제 구조, 명령, 배포, 성능 예산 |
 | [docs/responsive-design.md](./docs/responsive-design.md) | PC·모바일 대응 — 입력 분기, 뷰포트, 성능 티어, 테스트 매트릭스 |
 | [docs/workflow.md](./docs/workflow.md) | 워크플로 — 작업 절차, 콘텐츠 추가, 플레이테스트, 릴리즈 |
-| [docs/dori-lessons.md](./docs/dori-lessons.md) | 자매 프로젝트 dori 검증 교훈 — 크롤러·심사·모바일 웹 함정과 해법 |
 
 **전략·기록**
 
@@ -61,7 +61,6 @@
 |---|---|
 | [docs/commercial.md](./docs/commercial.md) | 상업화 — 라이선스 정책, 지식재산 준수, 가격·플랫폼 로드맵 |
 | [docs/privacy.md](./docs/privacy.md) | 개인정보처리방침 — 수집 없음, 기기 내 저장(localStorage) 안내 |
-| [docs/trend-research.md](./docs/trend-research.md) | 조사 기록 — 장르·시장·기술 분석 (출처 포함) |
 | [docs/licenses.md](./docs/licenses.md) | 서드파티 라이선스 대장 |
 
 ## 라이선스
