@@ -67,6 +67,7 @@
 | [docs/commercial.md](./docs/commercial.md) | 상업화 — 라이선스 정책, 지식재산 준수, 가격·플랫폼 로드맵 |
 | [docs/privacy.md](./docs/privacy.md) | 개인정보처리방침 — 수집 없음, 기기 내 저장(localStorage) 안내 |
 | [docs/licenses.md](./docs/licenses.md) | 서드파티 라이선스 대장 |
+| [docs/pm-review-2026-08-03.md](./docs/pm-review-2026-08-03.md) | 게임 PM/기획 관점 문서 감사 기록 (v0.11.19 시점) |
 
 ## 라이선스
 
