@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { type Build, type Theme2Refs } from '../refs';
-import { box, realtyTexture, handprintsTexture } from '../kit';
+import { box, boxOf, concrete, realtyTexture, handprintsTexture } from '../kit';
 import { L, HW } from '../layout';
 
 type E = 'laundry_open' | 'sign_lit' | 'realty_urgent' | 'handprints';
@@ -50,14 +50,44 @@ export function createTheme2(): Build<Theme2Refs, E> {
   t2.add(realty);
 
   // 구조 차별화 — 닫힌 셔터 가게(슬랫 실루엣)·어닝·보도 단차 (상가의 문법: 셔터는 닫혀 있다)
-  for (const sz of [-L * 0.3, -L * 0.68]) {
-    box(0.12, 2.1, 2.3, 0x2a3143, -HW + 0.1, 1.15, sz, t2);
-    for (let i = 0; i < 4; i++) box(0.13, 0.05, 2.3, 0x1f2534, -HW + 0.1, 0.45 + i * 0.5, sz, t2);
-    const awning = box(0.85, 0.07, 2.5, 0x232134, -HW + 0.5, 2.65, sz, t2);
-    awning.rotation.z = -0.3; // 벽에서 내려오는 처마 기울기
+  // ---------- 밀도 (v0.11.34) — 가로등을 지나면 아무것도 없는 복도였다 ----------
+  // 셔터 가게를 **양쪽 전 구간으로** 늘린다. 상가 골목의 정상은 '닫혀 있음'이고,
+  // 그 반복이 많을수록 세탁소 반열림(A-004) 하나가 도드라진다 (fear-cognition §1)
+  const M = {
+    shutter: concrete(0x2a3143), slat: concrete(0x1f2534), awning: concrete(0x232134),
+    curb: concrete(0x222736), sign: concrete(0x20263a), steel: concrete(0x39415a),
+    prop: concrete(0x262c3e), dark: concrete(0x171c2a),
+  };
+  for (const [s, sz] of [[-1, -L * 0.3], [-1, -L * 0.68], [-1, -L * 0.86],
+    [1, -L * 0.19], [1, -L * 0.76]] as Array<[number, number]>) {
+    const x = s * (HW - 0.1);
+    boxOf(M.shutter, 0.12, 2.1, 2.3, x, 1.15, sz, t2);
+    for (let i = 0; i < 4; i++) boxOf(M.slat, 0.13, 0.05, 2.3, x, 0.45 + i * 0.5, sz, t2);
+    const awning = boxOf(M.awning, 0.85, 0.07, 2.5, s * (HW - 0.5), 2.65, sz, t2);
+    awning.rotation.z = s * 0.3;                                   // 벽에서 내려오는 처마
+    boxOf(M.sign, 0.14, 0.5, 2.0, s * (HW - 0.12), 3.05, sz, t2);  // 가게 간판 (소등)
   }
-  box(0.55, 0.14, L * 0.92, 0x222736, -HW + 0.28, 0.07, -L / 2, t2); // 보도 단차
-  box(0.55, 0.14, L * 0.92, 0x222736, HW - 0.28, 0.07, -L / 2, t2);
+  boxOf(M.curb, 0.55, 0.14, L * 0.92, -HW + 0.28, 0.07, -L / 2, t2); // 보도 단차
+  boxOf(M.curb, 0.55, 0.14, L * 0.92, HW - 0.28, 0.07, -L / 2, t2);
+
+  // 지하 계단 입구 — 상가 골목에만 있는 구멍. 난간 + 파인 어둠
+  boxOf(M.dark, 0.9, 0.3, 1.8, -HW + 0.55, 0.02, -L * 0.44, t2);
+  for (const rz of [-L * 0.41, -L * 0.47]) {
+    boxOf(M.steel, 0.06, 0.9, 0.06, -HW + 1.0, 0.45, rz, t2);
+  }
+  boxOf(M.steel, 0.06, 0.06, 1.3, -HW + 1.0, 0.88, -L * 0.44, t2);
+
+  // 실외기 열 · 배관 · 기대둔 입간판 · 폐지 묶음 (전부 통행 한계 ±2.6 밖)
+  for (const [s, az] of [[1, -L * 0.42], [1, -L * 0.58], [-1, -L * 0.55]] as Array<[number, number]>) {
+    boxOf(M.prop, 0.5, 0.42, 0.8, s * (HW - 0.28), 1.9, az, t2);
+  }
+  boxOf(M.steel, 0.16, 4.6, 0.16, HW - 0.2, 2.3, -L * 0.35, t2);      // 세로 배관
+  boxOf(M.steel, 0.12, 0.12, L * 0.4, HW - 0.2, 2.55, -L * 0.55, t2); // 가로 배관
+  const board = boxOf(M.prop, 0.16, 1.0, 0.7, -HW + 0.32, 0.5, -L * 0.24, t2);
+  board.rotation.z = -0.12;                                           // 벽에 기대둔 입간판
+  for (const [pz, h] of [[-L * 0.63, 0.34], [-L * 0.66, 0.28]] as Array<[number, number]>) {
+    boxOf(M.prop, 0.42, h, 0.6, -HW + 0.34, h / 2, pz, t2);           // 묶어둔 폐지
+  }
 
   return {
     group: t2,
