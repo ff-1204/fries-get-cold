@@ -23,6 +23,9 @@ export interface CorridorRefs {
   shopGlow: THREE.PointLight;
   shopSign: THREE.Mesh;
   shopSignMat: THREE.MeshStandardMaterial;
+  /** FF-1204 가게 — 개구부 너머. **마지막 구간(도착)에서만** 보인다 (v0.11.32).
+   *  그 전에는 터널을 숨기면 개구부 너머가 빈 하늘이었다 */
+  shopFront: THREE.Group;
   shopTex: [THREE.CanvasTexture, THREE.CanvasTexture];    // A-012 간판 오탈자
   figure: THREE.Group;           // 전 구간: H-009 그림자 사람 (스폰 앵커 랜덤 — HUM)
 }

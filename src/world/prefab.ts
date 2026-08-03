@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { MAIN_GAP_HALF } from '../config';
 import { type CorridorRefs } from './refs';
 import { box, boxOf, concrete, shopSignTexture, type SharedMats } from './kit';
+import { buildShopFront } from './shop';
 import {
   L, HW, WALL_H, ROAD_Z, ROAD_HALF, TUNNEL_LEN, TUNNEL_H, TUNNEL_IN_HALF,
   TUNNEL_LAMP_AT, TUNNEL_LAMP_COLOR, TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY, FOG_NIGHT,
@@ -249,9 +250,19 @@ export function createCorridor(
   const shopSignMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, map: shopTex[0], emissiveMap: shopTex[0], emissive: 0x000000,
   });
-  const shopSign = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.9, 0.3), shopSignMat);
+  // **글자는 플레이어를 향한 앞면(+Z)에만.** BoxGeometry에 map을 그냥 주면 여섯 면에
+  // 다 발려 아랫면·옆면으로 글자가 비쳤다 (v0.11.32 실측). 면별 재질 배열로 앞면만 준다
+  const signSide = concrete(0x140d05);
+  const shopSign = new THREE.Mesh(
+    new THREE.BoxGeometry(3.4, 0.9, 0.3),
+    [signSide, signSide, signSide, signSide, shopSignMat, signSide],
+  );
   shopSign.position.set(0, 4.6, -L + 0.2); // 끝벽(z=-L~-L-1)보다 앞 — 벽 기둥에 좌우가 가리지 않게
   group.add(shopSign);
+
+  // FF-1204 가게 — 개구부 너머 (마지막 구간에서만 보인다)
+  const shopFront = buildShopFront();
+  group.add(shopFront);
 
   // ---------- 차 — 신호를 어기면 지나간다 (v0.11.7) ----------
   // 정물성 원칙(추격 없음)과 충돌하지 않는다: 쫓아오지 않고, 규칙 위반에 대한 1회성 환경 반응이다
@@ -285,7 +296,7 @@ export function createCorridor(
     refs: {
       group, scene, moon, tunnel, backTunnel, tunnelLights, tunnelLampMat,
       car, carLight, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
-      shopTex, figure,
+      shopTex, shopFront, figure,
     },
     hit: {
       lamp_flicker: [lampPole],

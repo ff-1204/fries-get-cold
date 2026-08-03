@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { type Build, type Theme5Refs } from '../refs';
-import { box, type SharedMats } from '../kit';
+import { box, boxOf, concrete, type SharedMats } from '../kit';
 import { L, HW, SIGN_REST_Y } from '../layout';
 
 type E = 'sign_turn' | 'drag_mark';
@@ -44,17 +44,66 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
   dragMark.visible = false;
   t5.add(dragMark);
 
-  // 구조 차별화 — 현수막·어닝·돌출 간판·쌓인 상자 (먹자골목의 밀도, 단 전부 소등)
-  box(HW * 2 + 0.6, 0.55, 0.05, 0x1f2030, 0, 4.4, -L * 0.12, t5); // 입구 현수막
-  const aw1 = box(0.8, 0.07, 2.2, 0x2b2334, HW - 0.5, 2.6, -L * 0.36, t5);
-  aw1.rotation.z = 0.3;
-  const aw2 = box(0.8, 0.07, 2.0, 0x252134, -HW + 0.5, 2.55, -L * 0.68, t5);
-  aw2.rotation.z = -0.3;
-  box(0.5, 1.7, 0.16, 0x232a3e, HW - 0.45, 3.6, -L * 0.5, t5);  // 돌출 간판
-  box(0.5, 1.7, 0.16, 0x1f2536, -HW + 0.45, 3.4, -L * 0.3, t5);
-  box(0.55, 0.4, 0.55, 0x262c3e, HW - 0.6, 0.2, -L * 0.42, t5); // 쌓인 맥주 상자
-  box(0.5, 0.38, 0.5, 0x232838, HW - 0.62, 0.59, -L * 0.43, t5);
-  box(0.45, 0.45, 0.45, 0x2a3044, -HW + 0.7, 0.22, -L * 0.7, t5);
+  // ---------- 시장 (v0.11.32) ----------
+  // 예전에는 벽에 붙은 납작한 상자 몇 개뿐이라 다섯 구간 중 **가장 비어 있었다** —
+  // 이름이 '먹자골목'인데. 양쪽 벽을 따라 가게 전면을 늘어세워 밀도를 만든다.
+  // **전부 소등**이 이 시각의 정상: 유일하게 켜진 것은 구간 끝의 FF-1204다 (웜 10% 원칙).
+  // 재질은 한 벌만 만들어 공유한다 — box()는 호출마다 재질을 새로 만든다
+  const M = {
+    front: concrete(0x232838),   // 가게 파사드
+    shutter: concrete(0x2a3143), // 닫힌 셔터
+    slat: concrete(0x1f2534),    // 셔터 슬랫
+    awning: concrete(0x2b2334),  // 천막
+    signB: concrete(0x20263a),   // 간판
+    crate: concrete(0x262c3e),   // 상자·통
+    steel: concrete(0x3a4157),   // 기둥·선반
+    wire: concrete(0x11141d),    // 전선
+  };
+
+  // 입구 현수막 — 골목의 시작을 알리는 가로띠
+  boxOf(M.signB, HW * 2 + 0.6, 0.55, 0.05, 0, 4.4, -L * 0.12, t5);
+
+  // 가게 전면 6곳 — 양쪽 벽에 어긋나게 배치 (마주보면 복도처럼 보인다)
+  const shops: Array<[number, number, number]> = [ // [벽(±1), z, 폭]
+    [1, -L * 0.2, 3.0], [-1, -L * 0.33, 3.4], [1, -L * 0.46, 3.2],
+    [-1, -L * 0.58, 3.0], [1, -L * 0.71, 3.4], [-1, -L * 0.83, 3.2],
+  ];
+  shops.forEach(([s, z, w], i) => {
+    const x = s * (HW - 0.1);
+    boxOf(M.front, 0.2, 4.2, w, x, 2.1, z, t5);                       // 파사드
+    boxOf(M.shutter, 0.16, 2.3, w - 0.5, s * (HW - 0.26), 1.15, z, t5); // 셔터 (닫힘)
+    for (let k = 0; k < 4; k++) {                                      // 슬랫 — 셔터의 문법
+      boxOf(M.slat, 0.17, 0.05, w - 0.5, s * (HW - 0.26), 0.5 + k * 0.5, z, t5);
+    }
+    const aw = boxOf(M.awning, 0.95, 0.08, w + 0.2, s * (HW - 0.55), 2.72, z, t5);
+    aw.rotation.z = s * -0.28;                                         // 벽에서 내려오는 천막
+    boxOf(M.signB, 0.14, 0.62, w - 0.8, s * (HW - 0.12), 3.42, z, t5);  // 간판 (소등)
+    // 홀수 가게만 돌출 간판 — 다 달면 리듬이 죽는다
+    if (i % 2 === 1) boxOf(M.signB, 0.5, 1.5, 0.16, s * (HW - 0.45), 3.3, z + 1.1, t5);
+    // 좌판 — 셔터 앞에 접어둔 가판대 (장사 끝난 시장의 흔적).
+    // **통행 한계(x ±2.6) 밖에 둔다** — 폭 0.4를 x=±2.8에 두면 2.6~3.0을 차지한다.
+    // 이 규칙을 어기면 몸으로 프롭을 통과하게 된다 (v0.3.3에서 배운 것)
+    boxOf(M.steel, 0.4, 0.08, w - 1.2, s * (HW - 0.2), 0.78, z, t5);
+    for (const d of [-1, 1]) {
+      boxOf(M.steel, 0.06, 0.78, 0.06, s * (HW - 0.2), 0.39, z + d * (w / 2 - 0.8), t5);
+    }
+  });
+
+  // 바닥 소품 — 쌓인 상자·고무 대야. 역시 통행 한계 밖 (x ±2.8, 한 변 0.44 이하)
+  const props: Array<[number, number, number, number]> = [ // [x, y, z, 크기]
+    [HW - 0.2, 0.18, -L * 0.42, 0.44], [HW - 0.22, 0.53, -L * 0.43, 0.4],
+    [-HW + 0.2, 0.2, -L * 0.7, 0.42], [-HW + 0.22, 0.18, -L * 0.26, 0.44],
+    [HW - 0.24, 0.17, -L * 0.63, 0.4], [-HW + 0.2, 0.54, -L * 0.71, 0.36],
+  ];
+  for (const [x, y, z, sz] of props) boxOf(M.crate, sz, sz * 0.78, sz, x, y, z, t5);
+
+  // 골목을 가로지르는 전구줄 — 시장의 시그니처. 불은 꺼져 있다
+  for (const z of [-L * 0.28, -L * 0.52, -L * 0.76]) {
+    boxOf(M.wire, HW * 2 + 0.4, 0.035, 0.035, 0, 4.05, z, t5);
+    for (let k = -2; k <= 2; k++) {
+      boxOf(M.crate, 0.09, 0.13, 0.09, k * 1.15, 3.95, z, t5);         // 꺼진 전구
+    }
+  }
 
   return {
     group: t5,

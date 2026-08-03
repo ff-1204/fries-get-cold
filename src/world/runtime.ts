@@ -88,11 +88,19 @@ export function setShopNear(refs: SegmentRefs, near: boolean, showSign = true) {
   const morning = !!refs.group.userData.morning;
   // 마지막 구간에서는 터널이 아니라 목적지(가게·집)가 나와야 한다 (v0.11.14)
   refs.tunnel.visible = !near;
-  refs.shopGlow.intensity = morning ? 0 : near ? 30 : 4;
+  // **가게는 간판이 딸린 도착지에만** (퇴근길 끝). 귀갓길의 마지막은 집이라 가게가 아니다.
+  // 이게 없던 시절에는 터널을 숨긴 자리가 그냥 빈 하늘이었다 (v0.11.32)
+  refs.shopFront.visible = near && showSign;
+  // 가게 안을 밝히는 것도 이 등이다 — 광원을 새로 만들지 않는다 (visual-polish §4).
+  // 아침에도 가게 안은 켜져 있어야 한다: 대낮의 켜진 간판이 "왜 24시간을 하지"의 첫 단서
+  refs.shopGlow.intensity = near ? (showSign ? 26 : 30) : morning ? 0 : 4;
   // 간판은 마지막 구간에만 존재 — 다른 구간 끝에서 글자가 어렴풋이 보이면 혼란 (명확성)
   refs.shopSign.visible = near && showSign;
-  // emissiveMap(글자 텍스처) × emissive 색 — 점등 시 글자만 발광한다 (아침엔 소등)
-  refs.shopSignMat.emissive.setHex(near && showSign && !morning ? 0xffffff : 0x000000);
+  // emissiveMap(글자 텍스처) × emissive 색 — 점등 시 글자만 발광한다.
+  // **아침에도 켠다** (v0.11.32): 튜토리얼 마지막 자막이 "간판에 불이 켜져 있다"라고
+  // 말하는데 코드가 아침엔 꺼서 자막이 거짓말이었다. 게다가 대낮에 켜진 24시 간판은
+  // story.md 밤 1의 비트("새 가게가 왜 24시간을 하지")를 그대로 보여주는 첫 단서다
+  refs.shopSignMat.emissive.setHex(near && showSign ? 0xffffff : 0x000000);
 }
 
 const TRAFFIC_RED_ON = 0x8a1616;

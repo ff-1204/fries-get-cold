@@ -158,6 +158,57 @@ export function shopSignTexture(text: string): THREE.CanvasTexture {
   });
 }
 
+/** FF-1204 메뉴판 — 가게 안쪽 벽. 가격표가 있어야 '장사하는 집'으로 읽힌다 */
+export function menuTexture(): THREE.CanvasTexture {
+  return canvasTex(512, 192, (c) => {
+    c.fillStyle = '#140d05';
+    c.fillRect(0, 0, 512, 192);
+    c.strokeStyle = '#3a2a12';
+    c.lineWidth = 6;
+    c.strokeRect(8, 8, 496, 176);
+    c.fillStyle = '#ffd9a0';      // 간판과 같은 웜 — 이 가게의 색
+    c.font = `bold 34px ${KR_FONT}`;
+    c.fillText('감자튀김', 28, 54);
+    c.font = `26px ${KR_FONT}`;
+    const rows: Array<[string, string]> = [
+      ['XXXXL', '9,900'], ['XXL', '6,900'], ['L', '4,900'],
+    ];
+    rows.forEach(([n, p], i) => {
+      const y = 96 + i * 34;
+      c.fillStyle = i === 0 ? '#ffd9a0' : '#9a8a6a'; // XXXXL만 밝게 — 현수막이 부른 그것
+      c.fillText(n, 40, y);
+      c.textAlign = 'right';
+      c.fillText(p, 472, y);
+      c.textAlign = 'left';
+    });
+  });
+}
+
+/** 도장판 — 가게 벽에 붙은 안내. 도장은 보상이 아니라 방문 기록이다 (story.md §2) */
+export function stampBoardTexture(): THREE.CanvasTexture {
+  return canvasTex(256, 320, (c) => {
+    c.fillStyle = '#e8e0cc';
+    c.fillRect(0, 0, 256, 320);
+    c.fillStyle = '#33302a';
+    c.textAlign = 'center';
+    c.font = `bold 30px ${KR_FONT}`;
+    c.fillText('방문 도장', 128, 58);
+    c.font = `20px ${KR_FONT}`;
+    c.fillText('오실 때마다', 128, 96);
+    c.strokeStyle = '#5c5648';
+    c.lineWidth = 3;
+    for (let i = 0; i < 5; i++) {
+      const x = 52 + (i % 3) * 52;
+      const y = 150 + Math.floor(i / 3) * 62;
+      c.beginPath();
+      c.arc(x, y, 21, 0, Math.PI * 2);
+      c.stroke();
+    }
+    c.font = `17px ${KR_FONT}`;
+    c.fillText('다섯 칸', 128, 292);
+  });
+}
+
 export function box(
   w: number, h: number, d: number,
   color: number, x: number, y: number, z: number,
