@@ -41,7 +41,10 @@
       position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%);
       max-width: min(86vw, 640px); text-align: center; white-space: pre-line;
       font-size: clamp(14px, 2vw, 18px); line-height: 1.6;
-      opacity: 0; transition: opacity 0.6s; text-shadow: 0 1px 6px #000;
+      opacity: 0; transition: opacity 0.6s;
+      /* 자막은 **밝은 바닥 위에서도** 읽혀야 한다 — 아침 튜토리얼의 흰 횡단보도 위에서
+         그림자 한 겹(0 1px 6px)으로는 글자가 묻혔다 (v0.11.27 실측). 어둠을 한 겹 더 깐다 */
+      text-shadow: 0 1px 6px #000, 0 0 14px rgba(0, 0, 0, 0.85), 0 0 3px rgba(0, 0, 0, 0.9);
     }
 
     /* ---------- 오버레이 공통 ---------- */
@@ -50,7 +53,13 @@
       align-items: center; justify-content: center; gap: 14px;
       background: #06080f; text-align: center; padding: 24px; z-index: 10;
       transition: opacity 0.8s;
+      /* 한국어는 기본값(word-break: normal)에서 **어절 한가운데도 끊는다** —
+         모바일에서 "감자튀김집."이 "감자튀김 / 집."으로 갈라졌다. keep-all이 한국어 표준 */
+      word-break: keep-all; overflow-wrap: break-word;
     }
+    /* flex 행의 레이블("밝기"·"소리")은 줄이지 않는다 — 좁은 화면에서 두 글자가
+       세로로 쪼개졌다 ("밝 / 기"). 익명 flex 아이템은 스타일이 안 먹어 span으로 감쌌다 */
+    .overlay .lbl { flex-shrink: 0; }
     /* 숨긴 오버레이는 자식(버튼)까지 클릭 차단 — 자식의 pointer-events:auto가
        부모의 none을 다시 켜서, 투명한 버튼이 아래 층 버튼을 가로채는 것 방지 */
     .overlay.hidden, .overlay.hidden * { opacity: 0; pointer-events: none !important; }
@@ -64,6 +73,8 @@
       color: rgba(255, 178, 62, 0.5);
     }
     .overlay .sub { font-size: clamp(12px, 2vw, 15px); opacity: 0.55; line-height: 1.8; }
+    /* 영문 부제 — 한글 제목의 그림자 정도로만. 읽히되 눈길을 끌지 않는다 */
+    .overlay .eng { opacity: 0.28; letter-spacing: 0.06em; }
     .overlay .quote { font-size: clamp(13px, 2vw, 16px); opacity: 0.8; font-style: italic; }
     .overlay button {
       pointer-events: auto; cursor: pointer; margin-top: 10px;
@@ -103,8 +114,16 @@
     }
 
     /* 접이식 설정 (밝기·소리) — 타이틀 첫인상을 해치지 않게 기본 접힘 (visual-polish §1) */
-    #settings-panel { display: none; flex-direction: column; align-items: center; gap: 12px; }
+    #settings-panel { display: none; flex-direction: column; align-items: center; gap: 14px; }
     #settings-panel.open { display: flex; }
+    /* 설정 한 항목 = 조작 줄 + 설명 줄, 둘 다 가운데. 항목 사이는 아주 옅은 실선으로 나눈다 */
+    .set-item { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+    .set-item + .set-item { border-top: 1px solid rgba(42, 49, 72, 0.5); padding-top: 14px; }
+    .set-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .set-help {
+      font-size: clamp(11px, 1.7vw, 13px); opacity: 0.55; line-height: 1.7;
+      max-width: 30em; /* 긴 설명이 화면 폭을 다 쓰면 가운데 정렬이 안 보인다 */
+    }
 
     /* 밝기 미리보기 — 슬라이더를 잡는 동안 시작 화면이 걷혀 실제 골목이 보인다 */
     #start { transition: opacity 0.8s, background-color 0.35s; }
@@ -174,7 +193,7 @@
       .touch-only { display: block; }
     }
   </style>
-  <script type="module" crossorigin src="/fries-get-cold/assets/index-DZt24da-.js"></script>
+  <script type="module" crossorigin src="/fries-get-cold/assets/index-BUjKsDHo.js"></script>
 </head>
 <body>
   <div id="app"></div>
@@ -192,8 +211,12 @@
 
   <div id="start" class="overlay hidden">
     <h1>튀김이 식기 전에</h1>
-    <div class="sub">Before the Fries Get Cold</div>
-    <div class="quote">퇴근길에 현수막을 봤다. FF-1204 — 새로 생긴 감자튀김집.</div>
+    <!-- 영문 부제는 장식이다 — 한글 제목보다 확실히 뒤로 물린다 (v0.11.26) -->
+    <div class="sub eng">Before the Fries Get Cold</div>
+    <!-- 밖에 나온 명분 한 줄. 가게 이름도, 현수막도 말하지 않는다 — 퇴근길에 직접 읽는 것이
+         튜토리얼의 첫 사건이다 (무설명 학습). "그게 다였다"는 회고체 — 뒤에 무엇이 있었는지는
+         설명하지 않는다 (visual-polish §6: 공포를 설명하지 않는다) -->
+    <div class="quote">오늘따라 감자튀김이 먹고 싶었다. 그게 다였다.</div>
     <div class="sub" id="continue-info" style="display:none"></div>
     <!-- 쿠폰 도장 카드 — 재방문(진행 있음)에만 표시: 첫 방문 타이틀은 전제 한 줄만 남긴다 (v0.9.1 타이틀 다이어트) -->
     <div id="coupon" style="display:none">
@@ -202,25 +225,35 @@
       <div class="c-note">밤마다 하나씩</div>
     </div>
     <!-- 문구는 main.ts refreshContinueUi가 상황에 맞게 교체 (첫 방문 = 퇴근길 / 재방문 = 가게에서) -->
-    <button id="start-btn">퇴근길에 나선다</button>
+    <!-- 실제 문구는 main.ts가 상황에 맞게 교체 (첫 방문 / 이어하기) — data.ts startBtn* -->
+    <button id="start-btn">퇴근하기!</button>
     <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
       <button id="settings-btn" class="ghost">⚙ 설정</button>
       <button id="reset-btn" class="ghost" style="display:none">기록 삭제 · 처음부터</button>
     </div>
+    <!-- 설정 — 항목마다 [조작 줄] + [설명 줄]을 세로로 쌓고 둘 다 가운데 정렬.
+         한 줄에 레이블·조작·설명을 좌우로 늘어놓으면 화면 폭마다 들쭉날쭉해진다 (v0.11.25) -->
     <div id="settings-panel">
-      <div class="sub bright-row" style="display:flex;align-items:center;gap:10px;">
-        밝기 <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
-          style="pointer-events:auto;width:150px;accent-color:#ffb23e;" />
-        <span style="opacity:0.7">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</span>
+      <div class="set-item bright-row">
+        <div class="set-row">
+          <span class="lbl">밝기</span>
+          <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
+            style="pointer-events:auto;flex:1 1 130px;max-width:180px;accent-color:#ffb23e;" />
+        </div>
+        <div class="set-help">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</div>
       </div>
-      <div class="sub" style="display:flex;align-items:center;gap:10px;">
-        소리 <button id="sound-btn" aria-label="소리 끄기">🔊</button>
-        <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
+      <div class="set-item">
+        <div class="set-row">
+          <span class="lbl">소리</span>
+          <button id="sound-btn" aria-label="소리 끄기">🔊</button>
+        </div>
+        <div class="set-help">게임 중에는 M 키 (PC) · 🎧 이어폰을 권장합니다</div>
       </div>
-      <div class="sub">🎧 이어폰을 권장합니다</div>
-      <!-- 조작 전체 참조 — 기본 학습은 1일차 인게임 힌트가 담당, 여기는 다시 볼 사람용 -->
-      <div class="sub pc-only">조작 — WASD 이동 · 마우스 시점 · 클릭 = 직시 · M 소리</div>
-      <div class="sub touch-only">조작 — 버튼 홀드 = 걷기 · 드래그 = 시점 · 탭 = 직시</div>
+      <!-- 조작 전체 참조 — 기본 학습은 밤 1 인게임 힌트가 담당, 여기는 다시 볼 사람용 -->
+      <div class="set-item">
+        <div class="set-help pc-only">조작 — WASD 이동 · 마우스 시점 · 클릭 = 직시 · M 소리</div>
+        <div class="set-help touch-only">조작 — 버튼 홀드 = 걷기 · 드래그 = 시점 · 탭 = 직시</div>
+      </div>
     </div>
     <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다.</div>
     <a class="ghost" href="https://github.com/ff-1204/fries-get-cold/blob/main/docs/privacy.md"
