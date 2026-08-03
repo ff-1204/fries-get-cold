@@ -29,7 +29,15 @@ fries-get-cold/
 ├── docs/                     # 개발 문서
 └── src/
     ├── main.ts               # 게임 루프, 밤 상태 머신, 이동/판정
-    ├── world.ts              # 공용 복도 + 구간 테마 5종, 이상현상 effect 핸들러, 터널
+    ├── world/                # 골목 (import 경로는 './world' 그대로)
+    │   ├── index.ts          #   조립 — createWorld()가 복도+테마 5종의 refs·hit을 합친다
+    │   ├── layout.ts         #   치수·좌표·신호 주기 (판정과 공유하는 숫자)
+    │   ├── kit.ts            #   box 프리미티브 · 캔버스 텍스처 · 공용 재질
+    │   ├── refs.ts           #   SegmentRefs (복도 + 테마별 refs 인터페이스)
+    │   ├── prefab.ts         #   공용 복도·앞뒤 터널·가로등·차·그림자 사람
+    │   ├── themes/theme1..5.ts #  테마 지오메트리 (세트피스는 여기에 붙는다)
+    │   ├── effects.ts        #   이상현상 reset/apply 레지스트리
+    │   └── runtime.ts        #   applyDepth·setMorning·updateWorld 등 시간축
     ├── input.ts              # 입력 추상화 (포인터락+WASD / 걷기 버튼+드래그+탭)
     ├── hud.ts                # DOM HUD (구간 카운터·자막·암전·오버레이)
     ├── audio.ts              # 프로시저럴 사운드 (환경음·정적·발소리)
@@ -40,6 +48,10 @@ fries-get-cold/
     ├── data.ts               # 콘텐츠 파사드 — 텍스트(TEXT)·이상현상 타입, CONFIG 재수출
     └── data/anomalies.json   # 이상현상 콘텐츠 (스키마: docs/anomalies.md)
 ```
+
+world/는 **M3가 실제로 키우는 곳을 파일 경계로 잡았다** (2026-08-03 분해, v0.11.20):
+세트피스는 `themes/theme*.ts`, 이상현상 30종+는 `effects.ts`로만 자란다. 조립부(index.ts)의
+`hit` 스프레드가 effect 키를 정확히 요구하므로, 새 effect가 어느 테마에도 없으면 컴파일 에러다.
 
 분리 계획 (M3 착수 전 검토): main.ts가 커지면 systems/(anomaly·rules·night)와 data/*.json으로
 분해한다. 원칙 유지: **콘텐츠는 데이터, 로직은 시스템** — 이상현상 추가에 코드 수정이
@@ -55,13 +67,14 @@ fries-get-cold/
   테마 반복 — 카운터 분자·분모가 함께 늘어 "걸었는데 남은 거리가 안 줄었다"가 표시된다.
 - **판정**: 레이캐스트(intersectObjects) + 관용 반경(NDC 0.12, 45m 이내) 이중 —
   가는 사물·모바일 손가락 오차 대응. 직시는 4.5m 이내 근접에서만 성립(원거리는 무비용 안내).
-  effect별 히트 대상은 world.ts `hit` 맵. 응시(avert) 판정은 시선축 12°·11m·2.2초
+  effect별 히트 대상은 `world/index.ts`가 합치는 `hit` 맵 (원본은 각 테마 파일).
+  응시(avert) 판정은 시선축 12°·11m·2.2초
   (main.ts tryPoint / gazeUpdate — 수치 근거는 game.md 결정 기록, 실측 교정 2회).
-- **이상현상 레지스트리** (world.ts): reset/apply가 effect별 한 항목,
+- **이상현상 레지스트리** (`world/effects.ts`): reset/apply가 effect별 한 항목,
   `Record<AnomalyEffect, …>`가 누락을 컴파일 에러로 잡는다. 새 effect 추가 = data.ts 유니온
   리터럴 1개 + EFFECTS 항목 1개 (+새 사물이면 SegmentRefs 필드). 콘텐츠 퇴역은 코드가 아니라
   JSON 풀에서만 (effect 핸들러 잔존 — Record 완전성 유지).
-- **깊이 시각화**: world.applyDepth — 가로등 감광 사다리(LAMP_LADDER) + 비네트.
+- **깊이 시각화**: `world/runtime.ts` applyDepth — 가로등 감광 사다리(LAMP_LADDER) + 비네트.
   리셋 순서 주의: rollSegment에서 **applyDepth → applyAnomalies** (레지스트리 리셋이
   lampBase를 읽는다). 전역 밝기의 결정 레버는 조명이 아니라 `renderer.toneMappingExposure`.
 - **입력 분기**: PC 포인터락 중 클릭 = 화면 중앙 / 모바일 탭 = 350ms·14px 이내 터치
@@ -70,7 +83,7 @@ fries-get-cold/
 - **포인터락 순서**: 오버레이 표시 시 해제(hud.blackScreen), 버튼 클릭 후 재획득
   (input.activate) — 이 순서를 지키지 않으면 PC에서 커서가 사라져 진행 불가.
   오버레이를 숨길 때는 `blur()`로 포커스도 놓는다 (숨은 버튼이 Space를 먹는 사고 — workflow 배운 것).
-- **스폰 앵커**: world.ts `SPAWN_ANCHORS` 6곳 — 위치 자유형(figure)이 랜덤 배치.
+- **스폰 앵커**: `world/layout.ts` `SPAWN_ANCHORS` 6곳 — 위치 자유형(figure)이 랜덤 배치.
   `?a=` 디버그는 앵커 고정(기본 2) — 스크린샷·E2E 결정성 (랜덤은 실플레이만).
 - **조명/안개**: 앰비언트+달빛+구간 포인트라이트, FogExp2. 규칙은 [visual-polish.md](./visual-polish.md) §4.
 - **스마트폰 UI(M3)**: DOM 오버레이로 구현 예정 — 텍스처보다 가독성·수정 용이성 우선.
@@ -156,8 +169,8 @@ npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
   재미 판단 정보가 여기서만 나온다 (workflow.md '조심할 것')
 - **모바일 실기기 테스트** (responsive-design §7 매트릭스) — 오디오 게이트·발열·제스처는
   에뮬레이터로 판단 불가
-- **createWorld() 분해** — 테마 추가마다 자라는 단일 함수. M3(밤 2~5) 착수 전 테마별 분리
 - **main.ts 분해** — 게임 로직·UI 부트스트랩 혼재. M3에서 systems/ 분해와 함께
+  (`world.ts` 분해는 2026-08-03 완료 — v0.11.20)
 - **밤 6+ 텍스트 클램프** — intros/epilogues 5개 반복. M3 엔딩 구현에서 해소
 - **증식 밀도 체감** — 접힘 반복 구간에서 동시 이상 2~3개가 겹칠 때의 가독성 (실플레이 확인)
 - **밤 2~4 에필로그 재검토** — story.md '마지막 컷' 기반 선작성 상태, 해당 밤 구현 시 대조

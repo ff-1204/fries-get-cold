@@ -47,9 +47,25 @@ async function startGame(page, params = '') {
 
 const state = (page) => page.evaluate(() => globalThis.__fries.state());
 
-/** 본길 통과 — 걸음(done)이 넘어가거나 phase가 바뀔 때까지 전진 (달리기 없음 — v0.11.2) */
+/** 차도(테마 4)를 건너기 전 — **막 초록으로 바뀐 순간**까지 기다린다.
+ *  점멸 끝물에 출발하면 설계대로 정말 치인다 (v0.11.7: "그 판단이 플레이어의 몫").
+ *  검증 주행이 재현해야 하는 것은 '정상 통과'이므로 초록 시작에 맞춰 건넌다 */
+async function waitForFreshGreen(page) {
+  const g = (want) => page.waitForFunction(
+    (w) => globalThis.__fries.state().green === w,
+    { polling: 60, timeout: 20000 },
+    want,
+  );
+  await g(false); // 빨강을 한 번 지나
+  await g(true);  // 초록으로 바뀌는 순간
+}
+
+/** 본길 통과 — 걸음(done)이 넘어가거나 phase가 바뀔 때까지 전진 (달리기 없음 — v0.11.2).
+ *  **접힘은 삼키지 않는다**: phase 변화만 보면 치임·붙잡힘도 '통과'로 읽혀
+ *  같은 구간을 조용히 반복 촬영하게 된다 (2026-08-03 실측으로 발견한 결함) */
 async function passMain(page) {
   const s0 = await state(page);
+  if (s0.theme === 4) await waitForFreshGreen(page); // 차도 — 초록에 출발
   await page.keyboard.down('KeyW');
   await page.waitForFunction(
     (a) => {
@@ -60,6 +76,10 @@ async function passMain(page) {
     s0,
   );
   await page.keyboard.up('KeyW');
+  const s1 = await state(page);
+  if (s1.folds !== s0.folds) {
+    console.warn(`  ⚠ 통과 중 접힘 — theme ${s0.theme}, folds ${s0.folds}→${s1.folds}, depth ${s1.depth}`);
+  }
 }
 
 /** 지적 — ?a= 디버그 한정 검증 훅으로 결정적 재현 (이상 있으면 성공, 없으면 빈 지적) */
@@ -133,6 +153,8 @@ async function shots() {
       const seg = (await state(page)).theme; // 귀갓길은 5→1 역순 — 실제 테마로 라벨링
       await walkTo(page, -9);
       await shot(page, `theme-seg${seg}-front`);
+      // 관찰 지점 -20은 테마 4에서 정지선(-21.1) 코앞이다 — 여기서 곧장 출발하면
+      // 점멸 끝물에 걸려 차에 치인다. passMain의 초록 대기가 그걸 막는다 (위 waitForFreshGreen)
       await walkTo(page, -20);
       await shot(page, `theme-seg${seg}-mid`);
       if (i < 4) await passMain(page);

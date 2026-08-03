@@ -70,13 +70,15 @@
 | H-009 | 등을 돌리고 서 있는 그림자 사람 (앵커 6곳 중 랜덤, 움직임 없음) | `figure` | HUM | **외면** | 2 | ✅ |
 
 위치 자유형은 "어디에 나올지"까지 랜덤이라 자리 학습이 불가능하다. 등장 위치는 스폰 앵커
-목록(`world.ts SPAWN_ANCHORS` — 통행 한계 안쪽·가로등 시야권)에서 고른다.
+목록(`world/layout.ts` `SPAWN_ANCHORS` — 통행 한계 안쪽·가로등 시야권)에서 고른다.
 
 ## 이상현상 추가하는 법 (3단계)
 
 1. **이 문서의 표에 행 추가** — 무엇이 나타나는가, 분류, 통과 규칙(직시/외면), 등장 밤. 아래 원칙 4개를 먼저 통과시킨다.
 2. **`src/data/anomalies.json`에 데이터 추가.** 기존 effect를 재사용하면 여기서 끝.
-   새로운 시각물이 필요하면 `src/world.ts`에 사물 + effect 핸들러(visible 토글) 추가.
+   새로운 시각물이 필요하면 **그 테마 파일**(`src/world/themes/theme{1..5}.ts`)에 사물과
+   `hit` 항목을, `src/world/effects.ts`에 핸들러(대개 `toggle` 한 줄)를 추가한다.
+   테마와 무관한 것(전 구간 공용)이면 `src/world/prefab.ts`.
 3. **`?a=<effect>`로 직접 확인** — 명확성 자가 테스트: "3초 안에 '있어서는 안 되는 것'임을
    아는가?" + 아래 배치 3원칙 점검 + verify.mjs cases에 스크린샷 케이스 추가.
 
@@ -112,7 +114,7 @@
   "segment": 1,             // 배치 구간 1~5 / 0 = 전 구간 (스폰 앵커 랜덤)
   "category": "OBJ",        // OBJ|LGT|TXT|HUM|SPC|SND|MTA (아래 분류 체계)
   "rule": "gaze",           // gaze = 직시해야 사라짐 / avert = 보면 붙잡힘 (v0.11.0 판단 축)
-  "effect": "blood_trail",  // world.ts 핸들러 키 = ?a= 디버그 키
+  "effect": "blood_trail",  // world/effects.ts 핸들러 키 = ?a= 디버그 키
   "reveal": "…바닥의 검붉은 자국은, 원래 없던 것이었다.",  // 접힘 직후 암시 문구 (공정성)
   "outboundOnly": true      // 선택 — 귀갓길에 보이지 않는 사물이면 지정
 }
