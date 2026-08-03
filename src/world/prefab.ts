@@ -9,6 +9,7 @@ import { box, boxOf, concrete, shopSignTexture, type SharedMats } from './kit';
 import {
   L, HW, WALL_H, ROAD_Z, ROAD_HALF, TUNNEL_LEN, TUNNEL_H, TUNNEL_IN_HALF,
   TUNNEL_LAMP_AT, TUNNEL_LAMP_COLOR, TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY, FOG_NIGHT,
+  ROAD_TUNNEL_X, ROAD_TUNNEL_LEN, ROAD_TUNNEL_H,
 } from './layout';
 
 // ---------- 다리 밑 터널 (v0.11.21 마감) ----------
@@ -37,6 +38,10 @@ function tunnelMats() {
   };
 }
 type TunnelMats = ReturnType<typeof tunnelMats>;
+
+/** 골목 터널과 차도 터널이 **같은 콘크리트**를 쓰도록 한 벌만 만들어 공유한다 */
+let sharedMats: TunnelMats | null = null;
+const getTunnelMats = () => (sharedMats ??= tunnelMats());
 
 /** 터널 한 개. **앞뒤가 이 함수 하나로 만들어진다** — 전환은 터널 한가운데의 암흑에서
  *  일어나고, 들어간 깊이 그대로 반대편 터널의 같은 깊이로 옮겨진다. 두 터널의 형태가
@@ -186,7 +191,7 @@ export function createCorridor(
   // 이 동네의 골목들은 다리 밑 터널로 이어져 있다. 어디서 출발하든 뒤에는 지나온 터널이 있다.
   // (v0.11.15까지는 "내가 나온 빌라 현관"이었는데, 퇴근길·가게 앞 어느 출발점과도 맞지 않았다)
   // **두 터널을 같은 함수로 만든다** — 형태가 어긋나면 한가운데의 무봉합 전환이 드러난다
-  const tm = tunnelMats();
+  const tm = getTunnelMats();
   const tunnelLampMat = new THREE.MeshStandardMaterial({
     color: 0x2b3240, emissive: TUNNEL_LAMP_EMISSIVE,
   });
@@ -288,6 +293,63 @@ export function createCorridor(
       figure: [figure],
     },
   };
+}
+
+/** 차도 터널 — **길 양쪽 끝도 다리 밑으로 이어진다** (v0.11.31).
+ *  골목 터널과 같은 재질·같은 문법(갱구 액자 · 옹벽 · 천장 보 · 검은 안개)을 쓰되,
+ *  차가 지나므로 더 넓고(도로 폭 그대로) 높다. 18m 밖에서 보이는 것이라
+ *  신축이음처럼 가까이서만 읽히는 디테일은 넣지 않는다 (메시 수 절약).
+ *  광원도 두지 않는다 — 이 거리에서 기여가 없고 광원 수가 곧 성능이다 (visual-polish §4).
+ *  @param dir +1 = 오른쪽(+x) 끝, -1 = 왼쪽 */
+export function buildRoadTunnel(dir: 1 | -1, parent: THREE.Object3D) {
+  const M = getTunnelMats();
+  const RH = ROAD_HALF;                       // 통로 반폭 = 도로 폭 그대로 (옹벽이 도로 벽과 이어진다)
+  const H = ROAD_TUNNEL_H;
+  const LEN = ROAD_TUNNEL_LEN;
+  const at = (u: number) => dir * (ROAD_TUNNEL_X + u);  // 갱구에서 u미터 들어간 x
+  const mid = at(LEN / 2 + 1);
+
+  for (const s of [-1, 1]) {
+    boxOf(M.wall, LEN + 2, H, 0.9, mid, H / 2, ROAD_Z + s * (RH + 0.45), parent);      // 옹벽
+    boxOf(M.base, LEN + 2, 0.5, 1.0, mid, 0.25, ROAD_Z + s * (RH + 0.43), parent);     // 걸레받이
+  }
+  boxOf(M.deck, LEN + 2, 0.9, RH * 2 + 2, mid, H + 0.45, ROAD_Z, parent);              // 천장(상판)
+  for (const u of [1.4, 4.0]) {
+    boxOf(M.girder, 0.4, 0.3, RH * 2 + 1.2, at(u), H - 0.13, ROAD_Z, parent);          // 천장 보
+  }
+
+  // 갱구 액자 — 골목 터널과 같은 모양. 도로 쪽으로 살짝 내밀어 두께가 읽히게
+  for (const s of [-1, 1]) {
+    boxOf(M.portal, 0.85, H + 0.62, 0.78, at(0.1), (H + 0.62) / 2,
+      ROAD_Z + s * (RH + 0.39), parent);
+  }
+  boxOf(M.portal, 0.9, 0.62, RH * 2 + 1.9, at(0.1), H + 0.31, ROAD_Z, parent);         // 상인방
+  boxOf(M.trim, 1.12, 0.16, RH * 2 + 2.4, at(0.02), H + 0.7, ROAD_Z, parent);          // 물끊기 처마
+
+  // 등기구 — 광원 없이 발광 몸체만. 안개 앞에 하나 걸어 "안에 뭔가 있다"만 남긴다
+  const lampMat = new THREE.MeshStandardMaterial({
+    color: 0x2b3240, emissive: TUNNEL_LAMP_EMISSIVE,
+  });
+  boxOf(M.girder, 0.24, 0.16, 0.5, at(1.5), H - 0.44, ROAD_Z, parent);
+  boxOf(lampMat, 0.17, 0.05, 0.38, at(1.5), H - 0.55, ROAD_Z, parent);
+
+  // 갱구 위 마감 — 터널 천장(5.5)에서 도로 벽 높이(7)까지 막는다.
+  // 이게 없으면 그 틈으로 **안개 판과 저 안쪽 마감벽이 비쳐** 검은 띠가 생긴다 (실측으로 걸렀다)
+  boxOf(M.portal, 1, WALL_H - (H + 0.9), RH * 2 + 2, at(0.5), (H + 0.9 + WALL_H) / 2, ROAD_Z, parent);
+
+  // 검은 안개 — 골목 터널과 같은 판. 법선을 x축으로 돌린다.
+  // 첫 판(1.2m)은 차가 출발하는 지점(±22)보다 바깥이라 **차는 안개 속에서 나온다**.
+  // 크기는 **터널 단면에 맞춘다**(골목 터널과 반대): 골목은 판을 키워 벽에 파묻었지만
+  // 여기는 터널 위·옆을 감싸는 구조가 얇아, 키우면 오히려 삐져나온다
+  [1.2, 2.4, 3.8, 5.4, 7.0].forEach((u, i) => {
+    const card = new THREE.Mesh(new THREE.PlaneGeometry(RH * 2 + 1, H + 0.8), M.fog[i]);
+    card.position.set(at(u), H / 2, ROAD_Z);
+    card.rotation.y = Math.PI / 2;
+    parent.add(card);
+  });
+
+  // 마감 — 안개 너머는 보이지 않지만, 뚫린 채로 두지 않는다
+  boxOf(M.portal, 1, WALL_H, RH * 2 + 2, at(LEN + 2), WALL_H / 2, ROAD_Z, parent);
 }
 
 /** 차도 구멍 메우기 — 벽은 공용이라 뚫려 있다. 테마 4(교차로)만 열어 두고 나머지는 막는다 (v0.11.7) */

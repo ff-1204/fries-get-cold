@@ -69,8 +69,19 @@ async function waitForFreshGreen(page) {
  *  같은 구간을 조용히 반복 촬영하게 된다 (2026-08-03 실측으로 발견한 결함) */
 async function passMain(page) {
   const s0 = await state(page);
-  if (s0.theme === 4) await waitForFreshGreen(page); // 차도 — 초록에 출발
   await page.keyboard.down('KeyW');
+  if (s0.theme === 4) {
+    // 차도 — **정지선 앞까지 간 뒤 거기서** 초록을 기다린다 (v0.11.31).
+    // 구간 시작(36m 앞)에서 기다리면 도로에 닿는 시점의 신호 위상이 우연에 맡겨지고,
+    // 차 주행 시간 같은 상수를 조금만 건드려도 무결점 주행이 뒤집힌다 — 실제로 뒤집혔다.
+    // 사람은 정지선에서 기다린다: 하네스도 그렇게 해야 '정상 통과'를 재현한다
+    await page.waitForFunction(
+      () => globalThis.__fries.state().z <= -20.6, { polling: 30, timeout: 30000 },
+    );
+    await page.keyboard.up('KeyW');
+    await waitForFreshGreen(page);
+    await page.keyboard.down('KeyW');
+  }
   await page.waitForFunction(
     (a) => {
       const s = globalThis.__fries.state();

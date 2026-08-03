@@ -31,8 +31,18 @@ export function isFlashing(t: number): boolean {
   const p = t % TRAFFIC_CYCLE;
   return p >= TRAFFIC_SOLID && p < TRAFFIC_FLASH;
 }
-export const CAR_SPAN = 30;   // 차가 지나는 x 범위 (-15 → +15)
-export const CAR_SEC = 2.6;   // 통과 시간 — 헤드라이트를 보고 물러설 여유를 준다
+// 차는 **길 양쪽 터널의 검은 안개 속에서 나와 반대편 안개로 들어간다** (v0.11.31).
+// 예전 범위(±15)는 터널 입구(±18)보다 안쪽이라 차가 허공에서 생겨났다 —
+// 이제 첫 안개 판(±19.2)보다 깊은 곳에서 출발한다.
+// **속도는 그대로**(약 11.6m/s): 범위를 늘린 만큼 시간도 늘려 치임 판정 창을 보존한다
+export const CAR_SPAN = 44;   // 차가 지나는 x 범위 (-22 → +22, 양 끝은 터널 안)
+export const CAR_SEC = 3.8;   // 통과 시간 — 헤드라이트를 보고 물러설 여유를 준다
+
+// ---------- 차도 터널 (v0.11.31) — 길 양쪽 끝도 다리 밑으로 이어진다 ----------
+/** 갱구의 x (양쪽 대칭). 길 끝 건물 벽이 있던 자리 */
+export const ROAD_TUNNEL_X = 18;
+export const ROAD_TUNNEL_LEN = 9;
+export const ROAD_TUNNEL_H = 4.6;   // 차가 지나므로 골목 터널(3.4)보다 높다
 
 // ---------- 다리 밑 터널 (v0.11.14) — 구간과 구간을 잇는 실제 공간 ----------
 /** 터널 길이. 중간(-L-TUNNEL_LEN/2)에서 짧은 암전과 함께 다음 구간으로 넘어간다 */

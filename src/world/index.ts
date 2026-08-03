@@ -64,5 +64,5 @@ export {
 } from './runtime';
 export {
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, TRAFFIC_CYCLE, isGreen, isFlashing,
-  TUNNEL_LEN, TUNNEL_H, TUNNEL_SWAP_Z, TUNNEL_IN_HALF, SPAWN_ANCHORS,
+  TUNNEL_LEN, TUNNEL_H, TUNNEL_SWAP_Z, TUNNEL_IN_HALF, SPAWN_ANCHORS, CAR_SEC,
 } from './layout';

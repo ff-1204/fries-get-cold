@@ -11,7 +11,7 @@ import {
   createWorld, applyAnomalies, applyDepth, setFoldMark, setShopNear, setSegmentTheme,
   setMorning, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
   setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z, TUNNEL_IN_HALF,
-  ROAD_Z, ROAD_HALF, STOP_LINE_Z, MAIN_GAP_HALF, SPAWN_ANCHORS,
+  ROAD_Z, ROAD_HALF, STOP_LINE_Z, MAIN_GAP_HALF, SPAWN_ANCHORS, CAR_SEC,
 } from './world';
 import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
 
@@ -672,7 +672,7 @@ function updateWalk(dt: number) {
     if (!isGreen(time) && carCycle !== cycle) {
       carCycle = cycle;
       startCar(refs, time, cycle % 2 === 0 ? 1 : -1); // 방향은 주기마다 번갈아
-      audio.carPass(2.6);
+      audio.carPass(CAR_SEC); // 소리는 주행 시간과 같이 — 상수를 손대면 함께 따라온다
       if (walkMode !== 'tutorial' && inRoad) hud.say(TEXT.carComing, 2000);
     }
     // 치임 — 차가 통행부를 지나는데 아직 길 위에 있으면. **낮에도 접힌다** (v0.11.10):

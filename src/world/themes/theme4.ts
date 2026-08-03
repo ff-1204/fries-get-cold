@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { type Build, type Theme4Refs } from '../refs';
 import { box, bannerTexture, type SharedMats } from '../kit';
+import { buildRoadTunnel } from '../prefab';
 import { L, HW, WALL_H, ROAD_Z, ROAD_HALF } from '../layout';
 
 type E = 'traffic_red' | 'bus_figure';
@@ -54,12 +55,14 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   }
 
   // 교차로 — 벽을 뚫었으니 건너편에 실제 길이 있어야 한다 (v0.11.7).
-  // 차가 지나는 통로이자, 구멍 너머로 허공이 보이지 않게 하는 마감
-  box(38, 0.2, ROAD_HALF * 2, 0x1c202c, 0, -0.1, ROAD_Z, t4);            // 교차로 노면
+  // 노면은 **차도 터널 안쪽까지** 깔린다 (터널이 따로 바닥을 갖지 않게 — 겹치면 z-파이팅)
+  box(60, 0.2, ROAD_HALF * 2, 0x1c202c, 0, -0.1, ROAD_Z, t4);            // 교차로 노면
   for (const s of [-1, 1]) {
     box(15, WALL_H, 1, 0x232838, s * 11, WALL_H / 2, ROAD_Z - ROAD_HALF - 0.5, t4); // 건너편 벽
     box(15, WALL_H, 1, 0x20263a, s * 11, WALL_H / 2, ROAD_Z + ROAD_HALF + 0.5, t4);
-    box(1, WALL_H, ROAD_HALF * 2 + 2, 0x262c3e, s * 18.5, WALL_H / 2, ROAD_Z, t4);  // 길 끝 건물
+    // 길 끝은 건물 벽이 아니라 **다리 밑 터널**이다 (v0.11.31) — 골목과 같은 문법.
+    // 차는 이 안의 검은 안개에서 나와 반대편 안개로 들어간다
+    buildRoadTunnel(s as 1 | -1, t4);
   }
 
   // 구조 차별화 — 횡단보도·정지선·볼라드·연석 (다섯 구간 중 여기만 '차도'다)
