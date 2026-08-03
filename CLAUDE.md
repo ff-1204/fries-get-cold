@@ -77,6 +77,9 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 
 - `?a=<effect>` — 이상 강제 (`?a=none` = 항상 정상, 튜토리얼 생략) · `?t=1` — 아침 튜토리얼
   강제, `window.__fries.state()` — 상태 훅
+- **관리자 모드 `Ctrl + Space Space`** (`src/admin.ts`) — 비행 · Esc 스테이지 이동 패널 ·
+  **조준 대상 표시**(이름·크기·색·`-L*0.296` 배수 좌표 → 그대로 grep 가능). 판정은 전부 멈춘다.
+  상세는 [docs/development.md](docs/development.md) '관리자(디버그) 모드'
 - `npm run verify:shots` / `verify:balance` — 헤드리스 스크린샷·밸런스 실측 (scripts/verify.mjs)
 - UI·연출·화면 변경 후에는 **/verify-ui 스킬** — 임시 스크린샷 스크립트 패턴
   (모바일 에뮬레이션·저장 시드·조작 실측·함정 목록)

@@ -15,6 +15,7 @@ import {
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, MAIN_GAP_HALF, SPAWN_ANCHORS, CAR_SEC,
 } from './world';
 import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
+import { Admin } from './admin';
 
 type Phase = 'gate' | 'walk' | 'transition';
 /** 걷기 모드 (v0.11.0) — 첫날 아침 편도(튜토리얼) / 귀갓길(본게임: 모든 밤).
@@ -138,6 +139,48 @@ const DEBUG_NO_AVERT = PARAMS.get('avert') === 'off';   // ?avert=off — 응시
 const DEBUG_ANCHOR = Math.max(0, Math.min(5, Number(PARAMS.get('anchor') ?? 2) || 0));
 // (스크린샷 검증 전용: 사람 형태를 정면에서 찍으려면 붙잡히지 않아야 한다)
 
+/** 관리자 모드 패널이 고른 강제 이상현상 — `?a=`와 같은 자리에서 쓰이고 우선한다 (admin.ts) */
+let adminEffect: string | null = null;
+const forcedEffect = () => adminEffect ?? DEBUG_ANOMALY;
+let adminWasFlying = false;
+
+// ---------- 관리자(디버그) 모드 — Ctrl + Space Space ----------
+// 게임 코드에는 이 블록과 updateWalk 앞머리의 분기, tick의 한 줄만 있다. admin.ts가 나머지 전부다
+const admin = new Admin({
+  camera,
+  scene,
+  segLength: CONFIG.segLength,
+  corridorHalfWidth: CONFIG.corridorHalfWidth,
+  segments: CONFIG.segments,
+  anomalies: ANOMALIES.map((a) => ({
+    id: a.id, effect: a.effect, segment: a.segment,
+    label: `${a.id} ${a.effect} (${a.rule === 'avert' ? '외면' : '직시'})`,
+  })),
+  snapshot: () => ({
+    night, done, total, theme, depth, folds, morning: walkMode === 'tutorial',
+  }),
+  relock: () => input.activate(),
+  jump: (j) => {
+    if (j.effect !== undefined) adminEffect = j.effect;
+    if (j.night !== undefined) night = Math.max(1, Math.floor(j.night));
+    if (j.morning !== undefined) {
+      walkMode = j.morning ? 'tutorial' : 'return';
+      setMorning(refs, j.morning);
+    }
+    resetTrip();
+    if (j.theme !== undefined) theme = Math.max(1, Math.min(CONFIG.segments, j.theme));
+    // 카운터가 거짓말하지 않게 done을 테마에서 되짚는다 —
+    // 귀갓길은 테마 역순(5→1)이므로 done = 구간수 − 테마, 퇴근길은 정순이라 done = 테마 − 1.
+    // setShopNear·setBackScene이 done으로 목적지를 켜므로 이게 맞아야 도착지도 맞는다
+    done = walkMode === 'return' ? CONFIG.segments - theme : theme - 1;
+    if (j.depth !== undefined) depth = Math.max(0, Math.min(CONFIG.depthLimit - 1, j.depth));
+    tutBeat = TEXT.tutBeats.length; // 이동한 자리에서 튜토리얼 자막이 튀어나오지 않게
+    rollSegment();
+    applyPain(depth);
+    phase = 'walk';
+  },
+});
+
 function rollSegment(foldStatus = false) {
   setSegmentTheme(refs, theme); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
   const tutorial = walkMode === 'tutorial';
@@ -152,16 +195,16 @@ function rollSegment(foldStatus = false) {
   // "정상 상태의 학습"이 먼저 (fear-cognition §1: 이상현상 = 학습된 정상의 위반).
   // 어느 밤이 온보딩인지는 stages.json이 정한다 (v0.11.23)
   const onboardingNight = stageOf(night).onboarding;
-  const forceNormal = !DEBUG_ANOMALY && onboardingNight && done === 0;
+  const forceNormal = !forcedEffect() && onboardingNight && done === 0;
   // 막바지까지 이상이 한 번도 없었다면 강제 등장 (문법 학습 보장)
   const forceAnomaly = onboardingNight && tripAnomalies === 0 &&
     (walkMode === 'return' ? theme <= 2 : theme >= CONFIG.segments - 1);
 
   if (tutorial) {
     anomalies = []; // 첫날 아침 — 아무 일도 없다. 표지판만 말이 많다
-  } else if (DEBUG_ANOMALY) {
+  } else if (forcedEffect()) {
     const forced = ANOMALIES.find(
-      (x) => x.effect === DEBUG_ANOMALY && (x.segment === theme || x.segment === 0),
+      (x) => x.effect === forcedEffect() && (x.segment === theme || x.segment === 0),
     );
     anomalies = forced ? [forced] : [];
   } else if (pool.length > 0 && !forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
@@ -179,7 +222,7 @@ function rollSegment(foldStatus = false) {
   // ?a= 디버그는 앵커 고정 — 스크린샷 검증의 결정성 (가로등 시야권 지점)
   if (anomalies.some((a) => a.effect === 'figure')) {
     refs.group.userData.figureAnchor =
-      DEBUG_ANOMALY ? DEBUG_ANCHOR : Math.floor(Math.random() * SPAWN_ANCHORS.length);
+      forcedEffect() ? DEBUG_ANCHOR : Math.floor(Math.random() * SPAWN_ANCHORS.length);
   }
   stopCar(refs);                      // 주행 중이던 차는 구간과 함께 사라진다 (v0.11.19)
   carCycle = -1;                      // 구간이 바뀌면 다시 (접힘 반복에서도 새로 판정)
@@ -539,6 +582,9 @@ function occlusionReport() {
 /** 확인 시도. force는 검증 훅 전용(?a= 디버그 한정) — 히트·거리 테스트를 생략한다 */
 function tryPoint(px: number, py: number, force = false) {
   if (phase !== 'walk' || spotCooldown > 0) return;
+  // 관리자 모드에서는 클릭이 판정에 닿지 않는다 — 날아다니며 짚으면 '빈 지적'으로 깊이가
+  // 쌓여, 보러 들어간 것만으로 상태가 오염된다 (실측에서 깊이 1이 붙어 있었다)
+  if (admin.active) return;
   spotCooldown = CONFIG.spotCooldownSec;
   ndc.set((px / window.innerWidth) * 2 - 1, -(py / window.innerHeight) * 2 + 1);
 
@@ -620,6 +666,38 @@ const HW = CONFIG.corridorHalfWidth;
 const L = CONFIG.segLength;
 
 function updateWalk(dt: number) {
+  // ---------- 관리자 모드 — 걷기 대신 비행 (admin.ts) ----------
+  // **여기서 곧장 빠져나간다**: 경계·구간 전환·붙잡힘·치임·깊이가 전부 이 아래에 있다.
+  // 관찰을 방해하는 판정이 하나도 돌지 않아야 구조를 볼 수 있다
+  if (admin.active) {
+    admin.fly(dt, input.yaw, input.pitch, (c) => input.isDown(c));
+    // 안개·터널 암전은 매 프레임 여기서 정한다 (걷기 갱신이 안 도니까).
+    // '시야 걷기'가 기본 — 구조를 보러 들어왔는데 어둠이 가리면 도구의 의미가 없다
+    const baseFog = walkMode === 'tutorial' ? 0.008 : 0.044;
+    if (admin.clearView) setTunnelDark(refs, 0, 0.004);
+    else {
+      const into = Math.max(
+        done === total - 1 ? 0 : Math.max(0, (-L - camera.position.z) / TUNNEL_LEN),
+        Math.max(0, camera.position.z / TUNNEL_LEN),
+      );
+      setTunnelDark(refs, Math.min(1, into * 2), baseFog);
+    }
+    camera.rotation.set(0, 0, 0);
+    camera.rotateY(input.yaw);
+    camera.rotateX(input.pitch);
+    adminWasFlying = true;
+    return;
+  }
+  // 관리자 모드를 끄면 **날아간 자리에 내린다** — 원래 자리로 튕겨 돌아가면
+  // "여기 좀 보자"고 들어간 의미가 없다. 다만 벽 밖·다음 구간으로는 못 내린다
+  if (adminWasFlying) {
+    adminWasFlying = false;
+    player.x = Math.max(-HW + 0.4, Math.min(HW - 0.4, camera.position.x));
+    player.z = Math.max(-L + 0.6, Math.min(TUNNEL_LEN - 0.7, camera.position.z));
+    stare = 0;
+    stareWarned = false;
+  }
+
   elapsed += dt;
   const move = input.getMove();
   const moving = Math.abs(move.forward) + Math.abs(move.strafe) > 0.1;
@@ -793,6 +871,7 @@ function tick() {
   time += dt;
   if (phase === 'walk') updateWalk(dt);
   hud.setReticle(phase === 'walk'); // 지적 크로스헤어 — 걷는 동안만
+  admin.update();                   // 관리자 HUD (꺼져 있으면 즉시 반환)
   updateWorld(refs, time);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
@@ -960,6 +1039,12 @@ window.addEventListener('resize', () => {
   }),
   // verify.mjs가 좌표·목표치를 여기서 파생시킨다 — 게임 상수를 스크립트에 손으로 복사하지 않기 위함
   config: () => ({ ...CONFIG }),
+  // 관리자 모드 — 비행 중에는 player가 아니라 카메라가 움직인다. 헤드리스 검증이 볼 곳
+  admin: {
+    on: () => admin.active,
+    cam: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z }),
+    toggle: () => admin.toggle(),
+  },
   ...(DEBUG_ANOMALY !== null
     ? {
         debugSpot: () => tryPoint(window.innerWidth / 2, window.innerHeight / 2, true),

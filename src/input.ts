@@ -94,6 +94,11 @@ export class Input {
     if (this.lookTouch && e.pointerId === this.lookTouch.id) this.lookTouch = null;
   }
 
+  /** 눌려 있는가 — 관리자 모드 비행이 자기 키 조합을 직접 읽는다 (admin.ts) */
+  isDown(code: string): boolean {
+    return this.keys.has(code);
+  }
+
   /** forward: +1 전진 / strafe: +1 오른쪽 (달리기 없음 — v0.11.2) */
   getMove(): { forward: number; strafe: number } {
     let forward = 0;

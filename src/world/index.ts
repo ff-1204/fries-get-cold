@@ -38,8 +38,33 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   themes.forEach((t, i) => {
     if (i !== 3) patchRoadWall(t); // 테마 4(교차로)만 벽 구멍을 열어 둔다 (v0.11.7)
     t.visible = false;
+    // 이름은 **관리자 모드 조준 표시**가 읽는다 (admin.ts) — 화면에서 본 것을 소스에서
+    // 찾을 수 있게 하는 유일한 단서다. 붙이는 비용이 0이므로 새 그룹에는 그때그때 붙인다
+    t.name = `테마${i + 1}`;
     corridor.refs.group.add(t);
   });
+
+  // 눈에 띄는 공용 구조물에도 이름을 (관리자 모드 조준 표시용)
+  corridor.refs.group.name = '골목';
+  corridor.refs.tunnel.name = '앞터널';
+  corridor.refs.backTunnel.name = '뒤터널';
+  corridor.refs.shopFront.name = 'FF-1204(앞)';
+  corridor.refs.shopBack.name = 'FF-1204(뒤)';
+  corridor.refs.homeFront.name = '집';
+  corridor.refs.figure.name = '그림자사람';
+  corridor.refs.car.name = '차';
+  corridor.refs.shopSign.name = 'FF-1204 간판';
+  t4.refs.banner.name = '개업 현수막';
+  t4.refs.busFigure.name = '정류장의 형체';
+  t5.refs.sign.name = '입간판';
+  t5.refs.dragMark.name = '끌린 자국';
+  t1.refs.bloodTrail.name = '핏자국';
+  t1.refs.skull.name = '백골';
+  t1.refs.umbrella.name = '우산';
+  t2.refs.handprints.name = '손자국';
+  t3.refs.swingFigure.name = '그네의 형체';
+  t3.refs.eyes.name = '어둠의 눈';
+  t3.refs.ball.name = '공';
 
   // 지적 히트 대상 — effect마다 "짚을 수 있는 사물". 여섯 조각을 합쳐 전 effect를 덮는다:
   // data.ts에 effect를 추가하면 어느 테마에도 없을 때 **여기서 컴파일 에러**가 난다
