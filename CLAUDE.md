@@ -5,47 +5,50 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 ## 프로젝트 개요
 
 「튀김이 식기 전에 (Before the Fries Get Cold)」 — 밤 골목을 걷는 **심리 호러 / 이상현상 관찰**
-브라우저 게임 (Three.js + TypeScript + Vite, 싱글플레이). 신장개업 감자튀김집 FF-1204
-(현수막: XXXXL 감자튀김. 도장 = 방문 기록)에 **첫날 퇴근길에 들르고(튜토리얼 — 밝은 2구간), 그 뒤로는 매일 밤
-귀갓길이 게임**이다. 목적은 하나 — **괴담의 존재들을 피해서 집에 도착하는 것.**
+브라우저 게임 (Three.js + TypeScript + Vite, 싱글플레이).
+
+신장개업 감자튀김집 FF-1204(현수막: XXXXL 감자튀김. 도장 = 방문 기록)에
+**첫날 퇴근길에 들르고(튜토리얼 — 밝은 2구간), 그 뒤로는 매일 밤 귀갓길이 게임**이다.
+목적은 하나 — **괴담의 존재들을 피해서 집에 도착하는 것.**
+
 판정은 2축: **흔적은 직시**해야 사라지고(안 보면 접힘), **사람 형태는 외면**해야 한다
 (마주치면 붙잡힘). 접힘 = 같은 구간 반복 + 남은 거리 +1 + 증식. 깊이 = 꺼져가는 가로등.
-(2026-08-02 컨셉 확정 v0.11.0 — game.md 결정 기록)
 
 - 라이브: https://ff-1204.github.io/fries-get-cold/ (GitHub Pages, `gh-pages` 브랜치 서빙)
 - 원격: https://github.com/ff-1204/fries-get-cold.git
-- 자매 프로젝트: `C:\Users\moon\Project\dori` — 컨벤션을 공유한다. 한쪽에서 좋은 규칙이
-  생기면 다른 쪽 반영을 검토.
+- 자매 프로젝트: `C:\Users\moon\Project\dori` — 컨벤션을 공유한다.
+  한쪽에서 좋은 규칙이 생기면 다른 쪽 반영을 검토
 
 ## ⭐ 설계 최우선 원칙
 
 모든 결정은 [docs/design-principles.md](docs/design-principles.md)를 먼저 통과시킨다.
-충돌하는 기법은 구현 전에 버린다.
+충돌하는 기법은 **구현 전에 버린다.**
 
-- **어포던스·정직한 판정** — 이상현상은 공정하게 보여야 한다 (배치 3원칙: 광원 안쪽·관찰
-  시간 확보·실루엣 대비, [docs/anomalies.md](docs/anomalies.md))
-- **표현 수위는 법적 준수만** — 등급 목표로 제한하지 않는다 (2026-08-02 전환). 유혈 배제·
-  암전 실패·점프스케어 총량제(10% 이하, 밤 4~5)는 등급 제약이 아니라 심리 호러 정체성으로 유지
-- **무설명 학습** — 규칙을 텍스트로 설명하지 않는다. 학습은 온보딩 보장 + 실패 reveal이 담당
+- **어포던스·정직한 판정** — 이상현상은 공정하게 보여야 한다
+  (배치 3원칙: 광원 안쪽·관찰 시간 확보·실루엣 대비, [docs/anomalies.md](docs/anomalies.md))
+- **표현 수위는 법적 준수만** — 유혈 배제·암전 실패·점프스케어 총량제(10% 이하, 밤 4~5)는
+  등급 제약이 아니라 심리 호러 정체성으로 유지
+- **무설명 학습** — 규칙을 텍스트로 설명하지 않는다. 온보딩 보장 + 실패 reveal이 담당
 - **콘텐츠는 데이터, 로직은 시스템** — 콘텐츠 추가에 코드 수정이 필요하면 설계 실패
   (이상현상 `src/data/anomalies.json` · 밤=스테이지 `src/data/stages.json`)
+- **에셋 0** — 프리미티브 + 캔버스 텍스처 + 프로시저럴 사운드뿐
 
 ## 문서 맵 (작업 시 함께 갱신 — 같은 커밋에)
 
 | 바뀐 것 | 문서 |
 |---|---|
-| 시스템·방향 결정 | [docs/game.md](docs/game.md) (로드맵·결정 기록) |
-| 규칙·콘텐츠가 실빌드에 반영 | [docs/spec.md](docs/spec.md) (현재 빌드 명세 — 릴리즈마다 대조) |
-| **밤(=스테이지)별 콘텐츠** | [docs/stages.md](docs/stages.md) (공통/스테이지별 경계·현황판) |
-| 이상현상 추가/수정 | [docs/anomalies.md](docs/anomalies.md) (현황판·스키마) |
-| 구조·환경·도구 | [docs/development.md](docs/development.md) (세션 로그) |
-| 작업 절차 변경 | [docs/workflow.md](docs/workflow.md) |
+| 기획 방향·로드맵 | [docs/game.md](docs/game.md) |
+| 규칙·콘텐츠가 실빌드에 반영 | [docs/spec.md](docs/spec.md) — **릴리즈마다 실빌드와 대조** |
+| **밤(=스테이지)별 콘텐츠·방향** | [docs/stages.md](docs/stages.md) |
+| 이상현상 추가/수정 | [docs/anomalies.md](docs/anomalies.md) |
+| 구조·구현 노트·검증·배포 | [docs/development.md](docs/development.md) |
+| 작업 절차·배운 것 | [docs/workflow.md](docs/workflow.md) |
 | 서드파티 추가 | [docs/licenses.md](docs/licenses.md) — **즉시**, GPL 금지 |
-| 릴리즈 단위 | CHANGELOG.md (vX.Y.Z 절) |
+| 릴리즈 단위 | CHANGELOG.md (vX.Y.Z 절) — **이력의 원본. 지우지 않는다** |
 
-전체 문서 목록과 기획·이론 문서(story, fear-cognition, affective-design 등)는 README 참조.
+전체 목록과 이론 문서(story, fear-cognition, affective-design 등)는 README 참조.
 
-## 협업 방식 (2026-08-03 세션에서 도출 — 상세는 [docs/workflow.md](docs/workflow.md))
+## 협업 방식 (상세는 [docs/workflow.md](docs/workflow.md))
 
 - **확인 질문 대신 결정 후 보고.** 선택지를 늘어놓지 말고 판단해서 진행하고 근거·대가를 함께 말한다.
   먼저 물을 것은 **되돌리기 어려운 것**뿐 (배포·삭제·이름 변경)
@@ -54,12 +57,12 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 - **막고 싶으면 벽보다 연출을 먼저 찾는다.** 보이지 않는 벽은 최후수단
   (되돌아가기 → 골목이 돌려세운다, 순간이동 → 다리 밑 터널)
 - **공간 변경은 세 동작으로 검증**: 뒤돌아보기 · 구간 넘기기 · 되돌아가기.
-  이 세션의 실제 결함이 전부 여기서 나왔다
+  실제 결함이 전부 여기서 나왔다
 - ⚠ **컨셉을 바꾸기 전에 묻는다 — "이 변경이 플레이어의 동사를 바꾸는가?"**
-  하루에 세계관을 다섯 번 바꿔도 상호작용(걷기+클릭)이 그대로면 재미도 그대로다.
+  세계관을 다섯 번 바꿔도 상호작용(걷기+클릭)이 그대로면 재미도 그대로다.
   픽션 교체보다 동사를 바꾸는 변경이 우선순위가 높다
 
-## 커밋 규칙 (요약)
+## 커밋 규칙
 
 - **Conventional Commits + 한국어 제목** (`feat|fix|docs|refactor|chore|polish`)
 - `Co-Authored-By` 트레일러 **넣지 않음**
@@ -69,21 +72,19 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 
 - **Node가 PATH에 없다**: `export PATH="/c/Program Files/nodejs:$PATH"` (bash) 후 npm 사용
 - package.json의 rollup WASM `overrides`는 **지우지 않는다** (Application Control 정책 우회)
-- **GitHub Actions 미사용** (결정 기록). 배포는 pre-push 훅이 자동 실행 —
+- **GitHub Actions 미사용.** 배포는 pre-push 훅이 자동 실행 —
   `git push` = 빌드 + gh-pages 발행. 게임 무관 커밋은 `SKIP_DEPLOY=1 git push`
 - `gh-pages` 브랜치는 훅이 관리 — 직접 건드리지 않는다
 
 ## 검증 도구
 
-- `?a=<effect>` — 이상 강제 (`?a=none` = 항상 정상, 튜토리얼 생략) · `?t=1` — 아침 튜토리얼
-  강제, `window.__fries.state()` — 상태 훅
+- `?a=<effect>` — 이상 강제 (`?a=none` = 항상 정상, 튜토리얼 생략) · `?t=1` — 퇴근길 튜토리얼 강제
+  · `window.__fries.state()` — 상태 훅 · `__fries.occlusion()` — 가림 검사
 - **관리자 모드 `Ctrl + Space Space`** (`src/admin.ts`) — 비행 · Esc 스테이지 이동 패널 ·
-  **조준 대상 표시**(이름·크기·색·`-L*0.296` 배수 좌표 → 그대로 grep 가능). 판정은 전부 멈춘다.
-  상세는 [docs/development.md](docs/development.md) '관리자(디버그) 모드'
-- `npm run verify:shots` / `verify:balance` — 헤드리스 스크린샷·밸런스 실측 (scripts/verify.mjs)
+  **조준 대상 표시**(이름·크기·색·`-L*0.296` 배수 좌표 → 그대로 grep 가능). 판정은 전부 멈춘다
+- `npm run verify:sim`(상시) / `verify:balance`(릴리즈 전) / `verify:shots`(시각 변경 시)
 - UI·연출·화면 변경 후에는 **/verify-ui 스킬** — 임시 스크린샷 스크립트 패턴
-  (모바일 에뮬레이션·저장 시드·조작 실측·함정 목록)
-- 작업 마무리는 **/ship 스킬** (.claude/skills/ship) — 빌드→검증→문서→커밋→배포 체크리스트
+- 작업 마무리는 **/ship 스킬** — 빌드→검증→문서→커밋→배포 체크리스트
 
 ## 상업 안전 (개발 중 상시)
 
