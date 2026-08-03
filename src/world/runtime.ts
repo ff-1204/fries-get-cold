@@ -25,6 +25,15 @@ export function applyDepth(refs: SegmentRefs, depth: number) {
   refs.lampLight.intensity = base;
   refs.ambient.intensity = Math.max(1.1, 2.2 - depth * 0.18);
   refs.group.userData.ambientBase = refs.ambient.intensity; // 터널 어둠이 곱해 쓸 기준값
+  // 부스 형광등은 **가로등보다 둔하게** 잦아든다 — 깊이 게이지는 어디까지나 가로등이고,
+  // 이 등은 H-007의 광원 보장을 겸하므로 깊이 5에서도 남아 있어야 공정하다 (배치 3원칙 ①)
+  setBoothLight(refs, 9 - depth * 0.7);
+}
+
+/** 부스 형광등 — 빛과 발광부를 함께 움직인다 (빛만 끄면 어둠 속에 뜬 관이 남는다) */
+function setBoothLight(refs: SegmentRefs, intensity: number) {
+  refs.boothLight.intensity = Math.max(0, intensity);
+  refs.boothTubeMat.emissive.setHex(intensity > 0.1 ? 0x8fa6c4 : 0x000000);
 }
 
 // ---------- 아침/밤 전환 — 첫날 아침 튜토리얼 (v0.10.0: 1일차 아침 = 학습 스테이지) ----------
@@ -42,6 +51,7 @@ export function setMorning(refs: SegmentRefs, on: boolean) {
   refs.moon.color.setHex(on ? 0xfff3da : 0x8090c0); // 아침 = 해
   refs.moon.intensity = on ? 3.6 : 0.75;
   refs.lampLight.intensity = on ? 0 : LAMP_LADDER[0]; // 아침엔 가로등 소등
+  setBoothLight(refs, on ? 0 : 9);                    // 부스 형광등도 낮에는 꺼져 있다
 }
 
 /** 터널 어둠 — **화면 페이드가 아니라 안개를 검게 올린다** (v0.11.15).
@@ -132,6 +142,28 @@ export function setBackScene(refs: SegmentRefs, shop: boolean) {
 export function setBannerSide(refs: SegmentRefs, ahead: boolean) {
   refs.banner.position.z = ahead ? -L + 0.25 : -0.25;
   refs.banner.rotation.y = ahead ? 0 : Math.PI;
+}
+
+/** 같은 거리를 반대로 걸으면 **좌우가 바뀐다** (v0.11.39).
+ *
+ *  테마 4·5는 두 여정에서 모두 걷는데, 두 번 다 부스도 연석도 오른쪽이라 같은 걸음처럼 읽혔다.
+ *  각 테마에는 **저작된 방향**이 있다 — 테마 4는 퇴근길(정류장 → 횡단보도 → 가게 쪽 출구),
+ *  테마 5는 귀갓길(이상현상이 밤 기준으로 배치돼 있다). 반대 방향일 때만 x를 뒤집는다.
+ *
+ *  **z가 아니라 x만 뒤집는 이유**: 차도 판정(`ROAD_Z`·`STOP_LINE_Z`)이 z 상수이고 차는
+ *  공용 그룹에 있어서, z까지 뒤집으면 그려진 횡단보도와 치임 판정이 어긋난다.
+ *  x 미러는 판정을 하나도 건드리지 않으면서 "반대편을 걷고 있다"는 가장 강한 단서를 준다.
+ *  (프롭의 앞뒤 순서는 그대로다 — stages.md §0에 남은 제약으로 적어 둔다)
+ *
+ *  three는 행렬식이 음수인 오브젝트의 앞면 감기를 자동으로 뒤집으므로 렌더는 정상이다.
+ *  다만 **글자는 같이 뒤집힌다** — 현수막만 되돌려 준다. */
+export function setThemeMirror(refs: SegmentRefs, ret: boolean) {
+  const flip = (g: THREE.Object3D, mirrored: boolean) => {
+    g.scale.x = mirrored ? -1 : 1;
+  };
+  flip(refs.themes[3], ret);    // 테마 4 — 퇴근길 저작 → 귀갓길에서 뒤집는다
+  flip(refs.themes[4], !ret);   // 테마 5 — 귀갓길 저작 → 퇴근길에서 뒤집는다
+  refs.banner.scale.x = ret ? -1 : 1;   // 뒤집힌 그룹 안에서 글자를 되돌린다
 }
 
 const TRAFFIC_RED_ON = 0x8a1616;

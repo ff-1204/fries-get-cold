@@ -20,6 +20,18 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   box(0.08, 2.5, 0.08, 0x2a3142, HW - 0.34, 1.25, -L * 0.35, t4);
   box(0.35, 0.08, 1.8, 0x2a3142, HW - 0.32, 0.55, -L * 0.32, t4);  // 벤치 (무릎 아래)
 
+  // 부스 형광등 — **정류장은 제 빛을 가진다.**
+  // 두 가지를 동시에 푼다: ① 새벽 한 시의 정류장이 실제로 그렇다(장소 정체성)
+  // ② H-007(벤치의 형체)이 **공용 가로등에 의존하지 않게** 된다 — 배치 3원칙 ①'광원 안쪽'을
+  //    부스가 스스로 보장하므로, 아래 미러링으로 부스가 반대쪽에 서도 판정이 공정하다.
+  // 색은 한색(30% 대역) — 웜(#ffb23e)은 안전·목표 전용이라 여기 쓰지 않는다 (visual-polish §3)
+  const boothTube = box(0.62, 0.06, 1.7, 0x2a3142, HW - 0.5, 2.4, -L * 0.32, t4);
+  const boothTubeMat = boothTube.material as THREE.MeshStandardMaterial;
+  boothTubeMat.emissive.setHex(0x8fa6c4);
+  const boothLight = new THREE.PointLight(0xbcd0ea, 9, 8.5, 2);
+  boothLight.position.set(HW - 0.7, 2.2, -L * 0.32);
+  t4.add(boothLight);
+
   // H-007 정류장의 앉은 형체 — 버스는 새벽에 안 다닌다
   const busFigure = new THREE.Group();
   const bfBody = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.6, 0.26), mats.darkFigure);
@@ -95,7 +107,7 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
 
   return {
     group: t4,
-    refs: { trafficRed, trafficGreen, busFigure, banner },
+    refs: { trafficRed, trafficGreen, busFigure, banner, boothLight, boothTubeMat },
     hit: {
       traffic_red: trafficHeads,
       bus_figure: [busFigure],

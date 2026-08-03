@@ -76,6 +76,10 @@ export interface Theme4Refs {
   /** 개업 현수막 — FF-1204를 가리키는 물건이라 **가게가 있는 쪽 갱구**에 건다.
    *  퇴근길은 앞(가게로 간다), 귀갓길은 뒤(가게에서 나왔다) — setBannerSide (v0.11.36) */
   banner: THREE.Mesh;
+  /** 부스 형광등 — 정류장이 가진 제 빛. 낮에는 꺼지고, 깊이에는 가로등보다 둔하게 반응한다
+   *  (깊이 게이지는 어디까지나 가로등이다). H-007의 광원 보장을 겸한다 */
+  boothLight: THREE.PointLight;
+  boothTubeMat: THREE.MeshStandardMaterial;
 }
 
 /** 테마 5: 먹자골목 입구 */

@@ -9,6 +9,7 @@ import { Hud } from './hud';
 import { AudioEngine } from './audio';
 import {
   createWorld, applyAnomalies, applyDepth, setFoldMark, setShopNear, setBackScene, setBannerSide,
+  setThemeMirror,
   setSegmentTheme,
   setMorning, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
   setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z, TUNNEL_IN_HALF,
@@ -242,6 +243,8 @@ function rollSegment(foldStatus = false) {
   // 현수막은 **가게가 있는 쪽**에 건다 — 퇴근길은 가게로 가고, 귀갓길은 가게에서 나온다.
   // 테마 순서는 진작 뒤집혀 있었는데 세계가 안 뒤집혀서, 밤에도 가게 광고가 정면에 있었다
   setBannerSide(refs, walkMode !== 'return');
+  // 같은 거리를 반대로 걸으면 좌우가 바뀐다 — 테마마다 저작된 방향이 있고, 반대일 때만 뒤집는다
+  setThemeMirror(refs, walkMode === 'return');
 
   player.x = 0;
   // 뒤 갱구 바로 앞 — 지나온 터널에서 막 나온 자리. 0이 아니라 -0.5인 이유는
@@ -518,6 +521,25 @@ const aimBox = new THREE.Box3();
 const aimCenter = new THREE.Vector3();
 const camFwd = new THREE.Vector3();
 const toTarget = new THREE.Vector3();
+
+/** 아직 안 짚은 직시(gaze) 대상 중 **가장 가까운 개별 메시**와 그 거리.
+ *  그룹 원점이 아니라 메시로 잡는다 — 핏자국처럼 부품이 흩어진 대상은 그룹 원점이 빈 공간이다.
+ *  자동 플레이 훅(`state().gazeNear` / `gazeAim`) 전용 (검증 도구, 읽기 전용) */
+function nearestGaze(): { obj: THREE.Object3D; dist: number } | null {
+  let best: { obj: THREE.Object3D; dist: number } | null = null;
+  for (const a of anomalies) {
+    if (a.rule !== 'gaze' || checked.has(a.id)) continue;
+    for (const t of refs.hit[a.effect]) {
+      t.traverse((o) => {
+        if (!(o as THREE.Mesh).isMesh) return;
+        o.getWorldPosition(projPos);
+        const d = projPos.distanceTo(camera.position);
+        if (!best || d < best.dist) best = { obj: o, dist: d };
+      });
+    }
+  }
+  return best;
+}
 
 /** 시선축에서 벗어난 각도(도)와 카메라와의 거리 — 둘 다 최솟값 */
 function aimState(targets: THREE.Object3D[]): { dist: number; deg: number } {
@@ -1031,6 +1053,27 @@ window.addEventListener('resize', () => {
     phase, mode: walkMode, night, done, total, theme, depth, folds, swarm,
     active: anomalies.length, checked: checked.size,
     avert: anomalies.filter((a) => a.rule === 'avert').length,
+    // 아직 안 짚은 **직시** 대상까지의 최단 거리 (없으면 null).
+    // 자동 플레이가 "언제 짚어야 하는가"를 알 유일한 방법 — active/checked 차이만 보면
+    // avert 부류가 영원히 checked에 안 들어가서 무한히 헛짚는다 (playthrough.mjs)
+    gazeNear: (() => {
+      const t = nearestGaze();
+      return t ? Math.round(t.dist * 10) / 10 : null;
+    })(),
+    // 그 대상이 화면 어디에 있는가 — 정규화 좌표(0~1, 좌상단 원점).
+    // 자동 플레이가 **조준하고 한 번 짚게** 하려면 필요하다. 이게 없으면 정면만 두들기게 되고,
+    // 바닥의 핏자국처럼 시선 아래 있는 흔적은 영영 못 짚어 빈 지적만 쌓인다 (실측에서 soft fail)
+    gazeAim: (() => {
+      const t = nearestGaze();
+      if (!t) return null;
+      t.obj.getWorldPosition(projPos);
+      projPos.project(camera);
+      if (projPos.z >= 1) return null;                       // 카메라 뒤
+      return {
+        x: Math.round(((projPos.x + 1) / 2) * 1000) / 1000,
+        y: Math.round(((1 - projPos.y) / 2) * 1000) / 1000,
+      };
+    })(),
     stare: Math.round(stare * 100) / 100,
     green: isGreen(time),                                        // 보행 신호 (차도 검증용)
     carX: refs.car.visible ? Math.round(refs.car.position.x * 10) / 10 : null,
