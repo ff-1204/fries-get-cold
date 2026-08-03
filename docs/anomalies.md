@@ -114,6 +114,7 @@
   "segment": 1,             // 배치 구간 1~5 / 0 = 전 구간 (스폰 앵커 랜덤)
   "category": "OBJ",        // OBJ|LGT|TXT|HUM|SPC|SND|MTA (아래 분류 체계)
   "rule": "gaze",           // gaze = 직시해야 사라짐 / avert = 보면 붙잡힘 (v0.11.0 판단 축)
+  // night = 이 이상현상이 등장하기 시작하는 밤(=스테이지). 밤별 해금 현황은 stages.md §2
   "effect": "blood_trail",  // world/effects.ts 핸들러 키 = ?a= 디버그 키
   "reveal": "…바닥의 검붉은 자국은, 원래 없던 것이었다.",  // 접힘 직후 암시 문구 (공정성)
   "outboundOnly": true      // 선택 — 귀갓길에 보이지 않는 사물이면 지정

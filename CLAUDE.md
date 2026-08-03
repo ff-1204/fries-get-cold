@@ -36,6 +36,7 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 |---|---|
 | 시스템·방향 결정 | [docs/game.md](docs/game.md) (로드맵·결정 기록) |
 | 규칙·콘텐츠가 실빌드에 반영 | [docs/spec.md](docs/spec.md) (현재 빌드 명세 — 릴리즈마다 대조) |
+| **밤(=스테이지)별 콘텐츠** | [docs/stages.md](docs/stages.md) (공통/스테이지별 경계·현황판) |
 | 이상현상 추가/수정 | [docs/anomalies.md](docs/anomalies.md) (현황판·스키마) |
 | 구조·환경·도구 | [docs/development.md](docs/development.md) (세션 로그) |
 | 작업 절차 변경 | [docs/workflow.md](docs/workflow.md) |

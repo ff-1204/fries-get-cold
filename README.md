@@ -40,6 +40,7 @@
 | [docs/spec.md](./docs/spec.md) | 현재 빌드 명세 — 규칙·승리 조건·구현 콘텐츠 현황 (실빌드 기준) |
 | [docs/game.md](./docs/game.md) | 기획 총괄 — 컨셉·시스템·다섯 밤 구조·로드맵·결정 기록 (허브 문서) |
 | [docs/story.md](./docs/story.md) | 스토리텔링 — 3막 아치, 다섯 밤 서사, 엔딩 3종, 톤 가이드 |
+| [docs/stages.md](./docs/stages.md) | 스테이지(=밤) 관리 — 공통/스테이지별 경계, 밤별 구현 현황판, 데이터 스키마 |
 | [docs/anomalies.md](./docs/anomalies.md) | 이상현상 설계 — 원칙, 분류, 목록, 데이터 스키마, 구현 현황 |
 
 **설계 원칙** — 왜 그렇게 만드는가
