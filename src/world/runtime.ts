@@ -9,6 +9,9 @@ import {
   TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY,
 } from './layout';
 
+/** 터널 안개가 아침에 향하는 색 — 다리 밑의 어둠 (하늘색이 아니다) */
+const NIGHT_TINT = new THREE.Color(FOG_NIGHT);
+
 /** 현재 구간(1~5)의 테마만 표시 */
 export function setSegmentTheme(refs: SegmentRefs, segment: number) {
   refs.themes.forEach((t, i) => (t.visible = i === segment - 1));
@@ -49,9 +52,23 @@ export function setTunnelDark(refs: SegmentRefs, dark: number, baseDensity: numb
   const d = Math.max(0, Math.min(1, dark));
   // 옹벽이 1.5m 거리라 안개가 아주 짙어야 실제로 캄캄해진다 (density 1.4 → 약 99% 차폐)
   fog.density = baseDensity + d * d * 1.4;
-  const sky = refs.group.userData.morning ? FOG_DAY : FOG_NIGHT;
-  fog.color.setHex(sky).multiplyScalar(1 - d);            // 안개색 자체가 검정으로
-  (refs.scene.background as THREE.Color).setHex(sky).multiplyScalar(1 - d);
+  const morning = !!refs.group.userData.morning;
+  const sky = morning ? FOG_DAY : FOG_NIGHT;
+  // 안개색·배경색을 **검정**으로 몬다 (v0.11.30). 두 가지를 고쳤다:
+  // ① **감마** — Color는 선형 값이라 (1-d)를 그냥 곱하면 화면(sRGB)에서는
+  //    (1-d)^(1/2.2)만큼만 어두워진다. d=0.9에서 체감 밝기가 35%나 남아
+  //    아침 튜토리얼의 암전이 검정이 아니라 회색이었다
+  // ② **아침의 하늘색** — 밝은 색을 그대로 짙게 하면 '흰 안개'가 낀다.
+  //    다리 밑에는 하늘빛이 들지 않으므로 밤 색으로 먼저 당긴다 —
+  //    그래야 아침에도 '검은 안개를 통과한다'가 성립한다
+  const k = Math.pow(1 - d, 2.2);
+  const tint = (c: THREE.Color) => {
+    c.setHex(sky);
+    if (morning && d > 0) c.lerp(NIGHT_TINT, Math.min(1, d * 2.5));
+    c.multiplyScalar(k);
+  };
+  tint(fog.color);
+  tint(refs.scene.background as THREE.Color);
   // 터널 등도 함께 잦아든다 — **발광부(emissive)까지** 꺼야 한다.
   // 빛만 끄면 등기구가 어둠 속에 떠 있는 점으로 남아 이음매를 드러낸다
   for (const l of refs.tunnelLights) l.intensity = TUNNEL_LAMP_INTENSITY * (1 - d);

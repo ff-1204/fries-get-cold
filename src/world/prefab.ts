@@ -27,6 +27,13 @@ function tunnelMats() {
     girder: concrete(0x141922),  // 천장 보
     groove: concrete(0x11151d),  // 신축이음·측구·노면 이음선 (파인 곳)
     road: concrete(0x181c28),    // 노면 = 골목 바닥과 같은 아스팔트
+    // 검은 안개 판 — 겹칠수록 짙어진다 (넷을 합쳐 약 96% 차폐).
+    // 조명을 받지 않고(MeshBasic) 장면 안개도 타지 않아 **밤이든 아침이든 똑같이 검다**.
+    // DoubleSide 필수 — 앞 터널은 판의 뒷면을 보게 된다
+    fog: [0.22, 0.32, 0.45, 0.6, 0.75].map((opacity) => new THREE.MeshBasicMaterial({
+      color: 0x04060a, transparent: true, opacity, depthWrite: false,
+      fog: false, side: THREE.DoubleSide,
+    })),
   };
 }
 type TunnelMats = ReturnType<typeof tunnelMats>;
@@ -107,6 +114,22 @@ function buildTunnel(
   const light = new THREE.PointLight(TUNNEL_LAMP_COLOR, TUNNEL_LAMP_INTENSITY, 11, 2);
   light.position.set(0, TUNNEL_H - 0.7, at(mid));
   t.add(light);
+
+  // ---------- 검은 안개 (v0.11.30) ----------
+  // **밖에서 보면 터널 속이 들여다보이지 않아야 한다.** 장면 안개(FogExp2)는 카메라 기준이라
+  // "저 안이 어둡다"를 만들지 못한다 — 들어가야만 어두워진다. 깊이를 막는 판을 세운다.
+  // 첫 판은 전환 지점(4.5m)보다 **살짝 앞**(4.2m)에 둔다: 그 깊이의 어둠이 이미 93%라
+  // 판을 지나는 순간이 눈에 띄지 않고, **안개를 통과하면 다음 골목**이 된다.
+  // 나머지 셋은 그 너머 — 플레이어는 닿지 않고, 밖에서 볼 때만 겹쳐 짙어진다
+  // 판은 **터널 단면보다 한참 크게**. 단면에 딱 맞추면 가까이서 판의 테두리가 보여
+  // 동심 사각형이 겹친 '검은 액자'로 읽힌다 (실측으로 걸렀다). 크게 만들면 옹벽·천장에
+  // 파묻혀(깊이 테스트로 가려져) **개구부 안쪽만 검게** 남는다 — 테두리가 사라진다
+  // 앞쪽 판일수록 옅게 — 밝은 벽에서 검정으로 넘어가는 경계를 완만하게 (합성 약 97% 차폐)
+  [3.2, 4.2, 5.2, 6.4, 7.8].forEach((u, i) => {
+    const card = new THREE.Mesh(new THREE.PlaneGeometry(14, 11), M.fog[i]);
+    card.position.set(0, TUNNEL_H / 2, at(u));
+    t.add(card);
+  });
 
   // 마감 — 앞 터널은 더 이어지는 것처럼, 뒤 터널은 코앞에서 막는다 (돌아가는 길은 없다)
   boxOf(M.portal, 20, WALL_H, 1, 0, WALL_H / 2, at(TUNNEL_LEN + capDist), t);
