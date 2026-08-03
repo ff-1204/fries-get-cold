@@ -30,7 +30,9 @@ fries-get-cold/
 ├── vite.config.local.ts      # 단일 파일 빌드 (play-local.html)
 ├── play-local.html           # 더블클릭 실행용 산출물 (git 미포함)
 ├── .githooks/pre-push        # main 푸시 = 배포
-├── scripts/verify.mjs        # 헤드리스 검증 (verify:shots / verify:balance)
+├── scripts/
+│   ├── verify.mjs            # 헤드리스 검증 (verify:shots / verify:balance)
+│   └── playthrough.mjs       # 끝에서 끝까지 자동 플레이 (verify:play)
 ├── docs/
 └── src/
     ├── main.ts               # 게임 루프, 밤 상태 머신, 이동/판정
@@ -113,7 +115,16 @@ npm run deploy         # 빌드 후 gh-pages 브랜치로 배포
 npm run verify:sim     # 깊이 모델 시뮬레이션 (node:test, 브라우저 불요, <1초)
 npm run verify:shots   # 헤드리스 스크린샷 (dev 서버 필요)
 npm run verify:balance # E2E 밸런스 실측 6케이스 (dev 서버 필요)
+npm run verify:play    # 끝에서 끝까지 자동 플레이 (dev 서버 필요)
 ```
+
+**`verify:play`가 다른 검증과 다른 점** — `?a=` 없이 **실제 확률로** 돌고, 저장 없는
+첫 방문(타이틀 → 퇴근길 튜토리얼 → 가게 컷 → 밤 1 → 집 → 귀가 연출 → 밤 2)을 통째로 걷는다.
+이상현상에는 **사람처럼 반응한다**: 응시(`stare`)가 쌓이면 눈을 돌리고,
+직시 대상은 `gazeAim`으로 조준해 **한 번만** 짚고, 빨간불에는 정지선에서 기다린다.
+soft fail은 실패가 아니라 정상 경로이므로 하네스가 알아보고 그 밤을 다시 걷는다.
+
+⚠ 이것이 답하는 것은 **"동작하는가"**뿐이다. "재밌는가"는 사람이 직접 걸어야 나온다.
 
 **Node가 PATH에 없다** (`C:\Program Files\nodejs`). bash에서는
 `export PATH="/c/Program Files/nodejs:$PATH"` 후 사용한다.

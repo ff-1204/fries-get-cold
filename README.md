@@ -26,7 +26,10 @@
 
 - **웹에서 바로 플레이**: https://ff-1204.github.io/fries-get-cold/
 - **오프라인 (설치 불요)**: `play-local.html` 더블클릭 — 게임 전체가 든 단일 파일 빌드
-- **개발 모드** (Node.js 18+): `npm install` 후 `npm run dev`
+- **개발 모드** (Node.js 18+): `npm install` 후 `npm run dev`.
+  검증은 `verify:sim`(모델) · `verify:balance`(판정 실측) · `verify:shots`(스크린샷) ·
+  `verify:play`(첫 방문부터 밤 2까지 자동 주파).
+  디버그는 `?a=<effect>` · `?t=1` · **관리자 모드 `Ctrl + Space Space`**(비행·스테이지 이동·조준 표시)
 - **배포**: `git push` (pre-push 훅이 빌드 → `gh-pages` 발행) / `npm run build:local` (단일 파일 재생성)
 
 조작 — PC: 클릭 후 WASD 이동, 마우스 시점, 클릭으로 직시 /

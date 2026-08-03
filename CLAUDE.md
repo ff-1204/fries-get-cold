@@ -82,7 +82,10 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
   · `window.__fries.state()` — 상태 훅 · `__fries.occlusion()` — 가림 검사
 - **관리자 모드 `Ctrl + Space Space`** (`src/admin.ts`) — 비행 · Esc 스테이지 이동 패널 ·
   **조준 대상 표시**(이름·크기·색·`-L*0.296` 배수 좌표 → 그대로 grep 가능). 판정은 전부 멈춘다
-- `npm run verify:sim`(상시) / `verify:balance`(릴리즈 전) / `verify:shots`(시각 변경 시)
+- `npm run verify:sim`(상시) / `verify:balance`(릴리즈 전) / `verify:shots`(시각 변경 시) /
+  **`verify:play`**(흐름·전환 변경 시 — 첫 방문부터 밤 2까지 자동 주파)
+- ⚠ **가림 검사는 '밝기'를 재지 않는다** — 통과해도 스크린샷을 한 장 본다
+  (5/5인데 광원 밖이라 화면엔 안 보인 적이 있다)
 - UI·연출·화면 변경 후에는 **/verify-ui 스킬** — 임시 스크린샷 스크립트 패턴
 - 작업 마무리는 **/ship 스킬** — 빌드→검증→문서→커밋→배포 체크리스트
 
