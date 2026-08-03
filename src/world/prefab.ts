@@ -7,6 +7,7 @@ import { MAIN_GAP_HALF } from '../config';
 import { type CorridorRefs } from './refs';
 import { box, boxOf, concrete, shopSignTexture, type SharedMats } from './kit';
 import { buildShopFront } from './shop';
+import { buildHomeFront } from './home';
 import {
   L, HW, WALL_H, ROAD_Z, ROAD_HALF, TUNNEL_LEN, TUNNEL_H, TUNNEL_IN_HALF,
   TUNNEL_LAMP_AT, TUNNEL_LAMP_COLOR, TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY, FOG_NIGHT,
@@ -260,9 +261,10 @@ export function createCorridor(
   shopSign.position.set(0, 4.6, -L + 0.2); // 끝벽(z=-L~-L-1)보다 앞 — 벽 기둥에 좌우가 가리지 않게
   group.add(shopSign);
 
-  // FF-1204 가게 — 개구부 너머 (마지막 구간에서만 보인다)
-  const shopFront = buildShopFront();
-  group.add(shopFront);
+  // 목적지 둘 — 개구부 너머. 마지막 구간에서 **둘 중 하나만** 켜진다 (setShopNear)
+  const shopFront = buildShopFront();   // 퇴근길 끝 = FF-1204
+  const homeFront = buildHomeFront();   // 귀갓길 끝 = 집
+  group.add(shopFront, homeFront);
 
   // ---------- 차 — 신호를 어기면 지나간다 (v0.11.7) ----------
   // 정물성 원칙(추격 없음)과 충돌하지 않는다: 쫓아오지 않고, 규칙 위반에 대한 1회성 환경 반응이다
@@ -296,7 +298,7 @@ export function createCorridor(
     refs: {
       group, scene, moon, tunnel, backTunnel, tunnelLights, tunnelLampMat,
       car, carLight, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
-      shopTex, shopFront, figure,
+      shopTex, shopFront, homeFront, figure,
     },
     hit: {
       lamp_flicker: [lampPole],

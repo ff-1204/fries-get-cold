@@ -72,7 +72,9 @@ export function buildShopFront(): THREE.Group {
     new THREE.PlaneGeometry(2.7, 1.0),
     new THREE.MeshStandardMaterial({ map: menuTexture(), roughness: 0.9 }),
   );
-  menu.position.set(-1.9, 2.7, backZ + 0.11);
+  // **앞쪽 상인방에 매단다** — 안쪽 벽에 붙이면 후드가 가려 가격이 잘렸다 (v0.11.33 실측).
+  // 카운터 너머로 걸린 메뉴판은 포장마차의 실제 문법이기도 하다
+  menu.position.set(-1.5, 1.92, FRONT_Z - 0.25); // 상인방 아래(2.45)에 딱 걸리게 — 위가 잘리지 않는다
   g.add(menu);
   const stamps = new THREE.Mesh(
     new THREE.PlaneGeometry(0.72, 0.9),

@@ -88,9 +88,10 @@ export function setShopNear(refs: SegmentRefs, near: boolean, showSign = true) {
   const morning = !!refs.group.userData.morning;
   // 마지막 구간에서는 터널이 아니라 목적지(가게·집)가 나와야 한다 (v0.11.14)
   refs.tunnel.visible = !near;
-  // **가게는 간판이 딸린 도착지에만** (퇴근길 끝). 귀갓길의 마지막은 집이라 가게가 아니다.
-  // 이게 없던 시절에는 터널을 숨긴 자리가 그냥 빈 하늘이었다 (v0.11.32)
+  // **목적지는 둘 중 하나** — 퇴근길 끝은 가게(간판 있음), 귀갓길 끝은 집.
+  // 이게 없던 시절에는 터널을 숨긴 자리가 그냥 빈 하늘이었다 (v0.11.32~33)
   refs.shopFront.visible = near && showSign;
+  refs.homeFront.visible = near && !showSign;
   // 가게 안을 밝히는 것도 이 등이다 — 광원을 새로 만들지 않는다 (visual-polish §4).
   // 아침에도 가게 안은 켜져 있어야 한다: 대낮의 켜진 간판이 "왜 24시간을 하지"의 첫 단서
   refs.shopGlow.intensity = near ? (showSign ? 26 : 30) : morning ? 0 : 4;

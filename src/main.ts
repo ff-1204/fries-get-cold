@@ -625,7 +625,11 @@ function updateWalk(dt: number) {
   // 터널 어둠 — 골목 끝(0)에서 터널 한가운데(1)로 갈수록 안개가 검게 차오른다 (v0.11.15).
   // 앞 터널(진입)과 뒤 터널(빠져나옴) 양쪽에서 같은 곡선을 쓰므로, 한가운데의 암흑을 사이에 두고
   // 들어간 만큼 나온다 — 전환은 그 암흑 속에서 일어나고 화면 컷은 없다
-  const intoFront = Math.max(0, (-L - player.z) / TUNNEL_LEN);
+  // **마지막 구간에는 앞 터널이 없다** — 그 자리에 목적지(가게·집)가 서 있다 (v0.11.33).
+  // 어둠 곡선을 그대로 두면 목적지로 다가가는 마지막 4.5m가 새까매져서,
+  // 애써 만든 도착지를 정작 코앞에서 못 본다. 암전은 도착 컷이 알아서 한다
+  const lastSeg = done === total - 1;
+  const intoFront = lastSeg ? 0 : Math.max(0, (-L - player.z) / TUNNEL_LEN);
   const intoBack = Math.max(0, player.z / TUNNEL_LEN);
   setTunnelDark(refs, Math.min(1, Math.max(intoFront, intoBack) * 2), baseFog);
 
