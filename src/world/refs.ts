@@ -47,6 +47,8 @@ export interface Theme1Refs {
   bloodTrail: THREE.Group;                  // H-001 바닥 핏자국
   skull: THREE.Group;                       // H-002 배출장 위 백골
   facePlane: THREE.Mesh;                    // H-003 창문의 창백한 얼굴
+  shoes: THREE.Group;                       // H-010 계단 입구의 신발 한 켤레 (밤 3)
+  bikeFigure: THREE.Group;                  // H-013 오토바이에 걸터앉은 형체 (밤 4)
 }
 
 /** 테마 2: 상가 골목 */
@@ -58,6 +60,11 @@ export interface Theme2Refs {
   realtyMat: THREE.MeshStandardMaterial;    // A-005 (부동산 시세표 — TXT)
   realtyTex: [THREE.CanvasTexture, THREE.CanvasTexture];
   handprints: THREE.Mesh;                   // H-004 셔터의 손자국들
+  /** H-011 셔터 밑으로 새는 빛 (밤 3, LGT) — 발광부와 광원을 **함께** 켠다.
+   *  빛만 켜면 빛나는 자리가 없고, 발광부만 켜면 바닥에 새어 나오지 않는다 */
+  shutterGlowMat: THREE.MeshStandardMaterial;
+  shutterGlowSlitMat: THREE.MeshStandardMaterial;
+  shutterGlowLight: THREE.PointLight;
 }
 
 /** 테마 3: 놀이터 옆길 */
@@ -66,6 +73,7 @@ export interface Theme3Refs {
   ball: THREE.Mesh;                         // A-009
   swingFigure: THREE.Group;                 // H-005 그네에 앉은 형체
   eyes: THREE.Group;                        // H-006 펜스 뒤 어둠의 눈
+  slideFigure: THREE.Group;                 // H-012 미끄럼틀 지붕 위의 형체 (밤 3)
 }
 
 /** 테마 4: 정류장 앞 (차도) */
@@ -80,12 +88,17 @@ export interface Theme4Refs {
    *  (깊이 게이지는 어디까지나 가로등이다). H-007의 광원 보장을 겸한다 */
   boothLight: THREE.PointLight;
   boothTubeMat: THREE.MeshStandardMaterial;
+  acrossFigure: THREE.Group;                // H-014 길 건너 서 있는 형체 (밤 4)
 }
 
 /** 테마 5: 먹자골목 입구 */
 export interface Theme5Refs {
   sign: THREE.Group;                        // A-013
   dragMark: THREE.Group;                    // H-008 끌린 자국
+  /** H-015 반쯤 올라간 셔터 (밤 3). **닫힌 셔터를 숨기고** 이것을 켠다 —
+   *  겹쳐 두면 닫힌 쪽이 그대로 덮는다 (실측에서 아무것도 안 보였다) */
+  openShutter: THREE.Group;
+  closedShutter: THREE.Group;
 }
 
 export interface SegmentRefs

@@ -7,7 +7,7 @@ import { box, bannerTexture, type SharedMats } from '../kit';
 import { buildRoadTunnel } from '../prefab';
 import { L, HW, WALL_H, ROAD_Z, ROAD_HALF } from '../layout';
 
-type E = 'traffic_red' | 'bus_figure';
+type E = 'traffic_red' | 'bus_figure' | 'across_figure';
 
 export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   const t4 = new THREE.Group();
@@ -44,6 +44,20 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   busFigure.position.set(HW - 0.42, 0, -L * 0.32); // 벤치(y0.55) 위
   busFigure.visible = false;
   t4.add(busFigure);
+
+  // ---------- H-014 길 건너 서 있는 형체 (밤 4, 외면) ----------
+  // 건널목 **반대편 인도**에. 이 구간에서만 가능한 배치다 — 신호를 기다리는 동안
+  // 시야에 들어와 있고, 통행을 막지 않으므로 그냥 지나칠 수 있다.
+  // **기다림(자원)과 외면(규칙)이 처음으로 같은 순간에 걸린다**
+  const acrossFigure = new THREE.Group();
+  const afB = new THREE.Mesh(new THREE.BoxGeometry(0.44, 1.2, 0.26), mats.darkFigure);
+  afB.position.y = 0.9;
+  const afH = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), mats.darkFigure);
+  afH.position.y = 1.64;
+  acrossFigure.add(afB, afH);
+  acrossFigure.position.set(-1.1, 0, ROAD_Z - ROAD_HALF - 0.6); // 건너편 인도, 통행선 밖
+  acrossFigure.visible = false;
+  t4.add(acrossFigure);
 
   // 보행신호등 2기 — **건널목 양 끝에 하나씩, 서로 반대를 본다** (v0.11.8: 현실 배치 교정.
   // 이전에는 둘 다 횡단보도 앞쪽에 나란히 서서 같은 쪽을 보고 있었다).
@@ -107,10 +121,11 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
 
   return {
     group: t4,
-    refs: { trafficRed, trafficGreen, busFigure, banner, boothLight, boothTubeMat },
+    refs: { trafficRed, trafficGreen, busFigure, banner, boothLight, boothTubeMat, acrossFigure },
     hit: {
       traffic_red: trafficHeads,
       bus_figure: [busFigure],
+      across_figure: [acrossFigure],
     },
   };
 }

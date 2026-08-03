@@ -79,5 +79,59 @@
     "rule": "avert",
     "effect": "figure",
     "reveal": "…등을 돌리고 서 있던 사람. 다시 봤을 때는, 없었다."
+  },
+  {
+    "id": "H-010",
+    "night": 3,
+    "segment": 1,
+    "category": "OBJ",
+    "rule": "gaze",
+    "effect": "shoes",
+    "reveal": "…계단 앞에 가지런히 놓인 신발은, 누구의 것도 아니었다."
+  },
+  {
+    "id": "H-011",
+    "night": 3,
+    "segment": 2,
+    "category": "LGT",
+    "rule": "gaze",
+    "effect": "shutter_glow",
+    "reveal": "…닫힌 셔터 밑에서 새어 나오던 빛은, 안에서 켠 것이었다."
+  },
+  {
+    "id": "H-012",
+    "night": 3,
+    "segment": 3,
+    "category": "HUM",
+    "rule": "avert",
+    "effect": "slide_figure",
+    "reveal": "…미끄럼틀 지붕 위에 서 있던 것은, 올라갈 수 없는 자리에 있었다."
+  },
+  {
+    "id": "H-015",
+    "night": 3,
+    "segment": 5,
+    "category": "OBJ",
+    "rule": "gaze",
+    "effect": "open_shutter",
+    "reveal": "…반쯤 올라간 셔터 안은, 불도 사람도 없었다."
+  },
+  {
+    "id": "H-013",
+    "night": 4,
+    "segment": 1,
+    "category": "HUM",
+    "rule": "avert",
+    "effect": "bike_figure",
+    "reveal": "…오토바이에 걸터앉아 있던 것은, 내가 지나갈 때까지 그대로였다."
+  },
+  {
+    "id": "H-014",
+    "night": 4,
+    "segment": 4,
+    "category": "HUM",
+    "rule": "avert",
+    "effect": "across_figure",
+    "reveal": "…길 건너에 서 있던 것은, 신호가 바뀌어도 건너지 않았다."
   }
 ]

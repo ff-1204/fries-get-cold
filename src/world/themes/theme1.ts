@@ -7,7 +7,7 @@ import { box, boxOf, concrete, flyerTexture, faceTexture, type SharedMats } from
 import { L, HW } from '../layout';
 
 type E = 'umbrella' | 'sensor_on' | 'window_red' | 'flyer_digits'
-  | 'blood_trail' | 'skull' | 'face_window';
+  | 'blood_trail' | 'skull' | 'face_window' | 'shoes' | 'bike_figure';
 
 export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   const t1 = new THREE.Group();
@@ -160,11 +160,38 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
     boxOf(M.paper, 0.02, 0.34, 0.24, s * (HW - 0.02), fy, fz, t1);  // 벽에 붙은 전단지
   }
 
+  // ---------- H-010 계단 입구의 신발 한 켤레 (밤 3, 직시) ----------
+  // 두 번째 빌라 계단 입구(-L*0.86) 앞. 가지런히 놓여 있다 — 정물성 그대로,
+  // "누가 여기서 신발을 벗었나"만 남는다. 실루엣 대비: 어두운 문틀 앞의 밝은 것
+  const shoes = new THREE.Group();
+  for (const sx of [-0.11, 0.11]) {
+    const shoe = boxOf(concrete(0xd8d4c8), 0.24, 0.11, 0.34, 0, 0.055, 0, shoes);
+    shoe.position.x = sx;
+  }
+  shoes.position.set(HW - 0.55, 0, -L * 0.86 + 0.15);
+  shoes.visible = false;
+  t1.add(shoes);
+
+  // ---------- H-013 오토바이에 걸터앉은 형체 (밤 4, 외면) ----------
+  // 이미 거기 있던 오토바이(-L*0.66) 위에. **정상 사물이 자리를 내준다** —
+  // 새 물건이 나타나는 것보다, 늘 있던 것 위에 있는 편이 더 어긋난다
+  const bikeFigure = new THREE.Group();
+  const bfB = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.72, 0.26), mats.darkFigure);
+  bfB.position.y = 1.24;
+  const bfH = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), mats.darkFigure);
+  bfH.position.set(0, 1.74, 0.02);
+  const bfL = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.5), mats.darkFigure);
+  bfL.position.set(0, 0.78, 0.24);            // 다리를 앞으로 내려놓았다
+  bikeFigure.add(bfB, bfH, bfL);
+  bikeFigure.position.set(HW - 0.42, 0, -L * 0.655);
+  bikeFigure.visible = false;
+  t1.add(bikeFigure);
+
   return {
     group: t1,
     refs: {
       umbrella, sensorMat, sensorLight, windowMat, flyerMat, flyerTex,
-      bloodTrail, skull, facePlane,
+      bloodTrail, skull, facePlane, shoes, bikeFigure,
     },
     hit: {
       umbrella: [umbrella],
@@ -174,6 +201,8 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
       blood_trail: [bloodTrail],
       skull: [skull],
       face_window: [facePlane],
+      shoes: [shoes],
+      bike_figure: [bikeFigure],
     },
   };
 }

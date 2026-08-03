@@ -5,7 +5,7 @@ import { type Build, type Theme3Refs } from '../refs';
 import { box, boxOf, concrete, type SharedMats } from '../kit';
 import { L, HW, WALL_H, BALL_HOME } from '../layout';
 
-type E = 'swing' | 'ball_out' | 'swing_figure' | 'eyes';
+type E = 'swing' | 'ball_out' | 'swing_figure' | 'eyes' | 'slide_figure';
 
 export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   const t3 = new THREE.Group();
@@ -89,6 +89,21 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   boxOf(M.gear, 1.9, 0.12, 0.9, -HW - 2.9, WALL_H + 1.7, -L * 0.34, t3);    // 미끄럼틀 지붕
   const slide = boxOf(M.gear, 2.6, 0.1, 0.7, -HW - 3.4, WALL_H + 0.5, -L * 0.34, t3);
   slide.rotation.z = 0.5;                                                    // 미끄럼판
+  // ---------- H-012 담 위에 서 있는 형체 (밤 3, 외면) ----------
+  // **담 너머가 아니라 담 위**다. 놀이기구 위에 세워 봤더니 담이 시선을 정확히 막았다
+  // (카메라 1.65m → 담 높이 7m를 넘겨 보려면 훨씬 더 높아야 한다 — 실측).
+  // 담 위는 그 문제가 없다: 가릴 것이 없고 **밤하늘이 곧 배경**이라 실루엣 대비가 최대다.
+  // 올라갈 수 없는 자리에 서 있다는 것이 이 존재의 전부 — 움직이지 않는다
+  const slideFigure = new THREE.Group();
+  const lfB = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.2, 0.26), mats.darkFigure);
+  lfB.position.y = 0.6;
+  const lfH = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), mats.darkFigure);
+  lfH.position.y = 1.35;
+  slideFigure.add(lfB, lfH);
+  slideFigure.position.set(-HW + 0.15, WALL_H, -L * 0.36);   // 왼쪽 담 위, 골목 쪽 모서리
+  slideFigure.visible = false;
+  t3.add(slideFigure);
+
   for (const gz of [-L * 0.62, -L * 0.7]) {                                  // 정글짐 격자
     boxOf(M.gear, 0.09, 1.8, 0.09, -HW - 2.0, WALL_H + 0.3, gz, t3);
     boxOf(M.gear, 0.09, 1.8, 0.09, -HW - 3.4, WALL_H + 0.3, gz, t3);
@@ -125,12 +140,13 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
 
   return {
     group: t3,
-    refs: { swingPivot, ball, swingFigure, eyes },
+    refs: { swingPivot, ball, swingFigure, eyes, slideFigure },
     hit: {
       swing: [swingPivot],
       ball_out: [ball],
       swing_figure: [swingFigure],
       eyes: [eyes],
+      slide_figure: [slideFigure],
     },
   };
 }

@@ -6,7 +6,7 @@ import { type Build, type Theme5Refs } from '../refs';
 import { box, boxOf, concrete, type SharedMats } from '../kit';
 import { L, HW, SIGN_REST_Y } from '../layout';
 
-type E = 'sign_turn' | 'drag_mark';
+type E = 'sign_turn' | 'drag_mark' | 'open_shutter';
 
 export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
   const t5 = new THREE.Group();
@@ -68,12 +68,22 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
     [1, -L * 0.2, 3.0], [-1, -L * 0.33, 3.4], [1, -L * 0.46, 3.2],
     [-1, -L * 0.58, 3.0], [1, -L * 0.71, 3.4], [-1, -L * 0.83, 3.2],
   ];
+  // H-015가 열어젖힐 가게 하나(다섯 번째, 오른쪽 -L*0.71)의 닫힌 셔터는 **따로 담아 둔다** —
+  // 이상 시 이것을 숨기고 열린 셔터를 대신 켠다. 겹쳐 두면 닫힌 셔터가 그대로 덮는다
+  // ⚠ 처음에는 다섯 번째 가게(-L*0.71)를 열었다. 가림 검사는 5/5로 통과했지만
+  //   **가로등(-L*0.45)에서 9m 밖이라 화면에서는 아무것도 안 보였다** — 레이캐스트는
+  //   '가려짐'을 재지 '밝기'를 재지 않는다. 배치 3원칙 ①(광원 안쪽)은 눈으로 확인해야 한다
+  const OPEN_I = 2;   // 세 번째 가게 (오른쪽 -L*0.46) — 가로등 바로 옆
+  const closedShutter = new THREE.Group();
+  t5.add(closedShutter);
+
   shops.forEach(([s, z, w], i) => {
     const x = s * (HW - 0.1);
+    const into = i === OPEN_I ? closedShutter : t5;
     boxOf(M.front, 0.2, 4.2, w, x, 2.1, z, t5);                       // 파사드
-    boxOf(M.shutter, 0.16, 2.3, w - 0.5, s * (HW - 0.26), 1.15, z, t5); // 셔터 (닫힘)
+    boxOf(M.shutter, 0.16, 2.3, w - 0.5, s * (HW - 0.26), 1.15, z, into); // 셔터 (닫힘)
     for (let k = 0; k < 4; k++) {                                      // 슬랫 — 셔터의 문법
-      boxOf(M.slat, 0.17, 0.05, w - 0.5, s * (HW - 0.26), 0.5 + k * 0.5, z, t5);
+      boxOf(M.slat, 0.17, 0.05, w - 0.5, s * (HW - 0.26), 0.5 + k * 0.5, z, into);
     }
     const aw = boxOf(M.awning, 0.95, 0.08, w + 0.2, s * (HW - 0.55), 2.72, z, t5);
     aw.rotation.z = s * -0.28;                                         // 벽에서 내려오는 천막
@@ -105,12 +115,31 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
     }
   }
 
+  // ---------- H-015 반쯤 올라간 셔터 (밤 3, 직시) ----------
+  // 시장의 정상은 **전부 소등·전부 닫힘**이다. 그 반복 여섯 개 사이에서 하나만 반쯤 올라가 있고,
+  // 그 아래는 불이 꺼진 채 **검다** — 열려 있는데 아무도 없다. 정물성 그대로.
+  // **가로등이 비추는 파사드 한가운데의 검은 구멍**이라 실루엣 대비가 최대다 (배치 3원칙 ③)
+  const [, OPEN_Z, OPEN_W] = shops[OPEN_I];
+  const IW = OPEN_W - 0.5;
+  const openShutter = new THREE.Group();
+  // 올라간 셔터 (짧아진 채 위에 걸려 있다)
+  boxOf(M.shutter, 0.16, 0.95, IW, HW - 0.26, 1.83, OPEN_Z, openShutter);
+  for (let k = 0; k < 2; k++) {
+    boxOf(M.slat, 0.17, 0.05, IW, HW - 0.26, 1.55 + k * 0.4, OPEN_Z, openShutter);
+  }
+  // 드러난 안쪽 — 아무 빛도 없다. **어둠 자체가 이 이상현상의 몸**이다.
+  // 살짝 앞으로 내밀어 파사드에 묻히지 않게 한다
+  boxOf(concrete(0x04060a), 0.06, 1.35, IW, HW - 0.36, 0.68, OPEN_Z, openShutter);
+  openShutter.visible = false;
+  t5.add(openShutter);
+
   return {
     group: t5,
-    refs: { sign, dragMark },
+    refs: { sign, dragMark, openShutter, closedShutter },
     hit: {
       sign_turn: [sign],
       drag_mark: [dragMark],
+      open_shutter: [openShutter],
     },
   };
 }

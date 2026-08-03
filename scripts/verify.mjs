@@ -139,14 +139,20 @@ async function shots() {
   const cases = [
     // [디버그 파라미터, 태그, 통과할 구간 수, 관찰 z]
     ['a=drag_mark', 'seg5-dragmark-anomaly', 0, -14],
+    ['a=open_shutter', 'seg5-openshutter-anomaly', 0, -9],
     ['a=none', 'seg5-normal', 0, -14],
     ['a=bus_figure&avert=off', 'seg4-busfigure-anomaly', 1, -7],
+    ['a=across_figure&avert=off', 'seg4-acrossfigure-anomaly', 1, -18],
     ['a=swing_figure&avert=off', 'seg3-swingfigure-anomaly', 2, -10],
     ['a=eyes&avert=off', 'seg3-eyes-anomaly', 2, -15],
+    ['a=slide_figure&avert=off', 'seg3-slidefigure-anomaly', 2, -8],
     ['a=handprints', 'seg2-handprints-anomaly', 3, -10],
+    ['a=shutter_glow', 'seg2-shutterglow-anomaly', 3, -20],
     ['a=none', 'seg2-normal', 3, -10],
     ['a=blood_trail', 'seg1-blood-anomaly', 4, -8],
     ['a=skull', 'seg1-skull-anomaly', 4, -4],
+    ['a=shoes', 'seg1-shoes-anomaly', 4, -28],
+    ['a=bike_figure&avert=off', 'seg1-bikefigure-anomaly', 4, -21],
     ['a=face_window&avert=off', 'seg1-face-anomaly', 4, -19],
     ['a=none', 'seg1-normal', 4, -8],
     // 그림자 사람 (H-009) — 어느 구간에나. 디버그 앵커 고정(z=-17.6)

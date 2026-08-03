@@ -6,7 +6,7 @@ import { type Build, type Theme2Refs } from '../refs';
 import { box, boxOf, concrete, realtyTexture, handprintsTexture } from '../kit';
 import { L, HW } from '../layout';
 
-type E = 'laundry_open' | 'sign_lit' | 'realty_urgent' | 'handprints';
+type E = 'laundry_open' | 'sign_lit' | 'realty_urgent' | 'handprints' | 'shutter_glow';
 
 export function createTheme2(): Build<Theme2Refs, E> {
   const t2 = new THREE.Group();
@@ -67,6 +67,29 @@ export function createTheme2(): Build<Theme2Refs, E> {
     awning.rotation.z = s * 0.3;                                   // 벽에서 내려오는 처마
     boxOf(M.sign, 0.14, 0.5, 2.0, s * (HW - 0.12), 3.05, sz, t2);  // 가게 간판 (소등)
   }
+  // ---------- H-011 셔터 밑으로 새는 빛 (밤 3, 직시 — 새 분류 LGT) ----------
+  // 이 구간의 정상은 **닫혀 있음**이다. 닫힌 셔터 다섯이 그 정상을 학습시키고,
+  // 그중 하나의 **밑에서만** 빛이 샌다 — 형체도 사물도 아닌, 안에 무언가 켜져 있다는 사실.
+  // 왼쪽 -L*0.68 셔터. 가로등(-L*0.45) 사거리 밖이라 자체 발광이 곧 실루엣 대비다
+  // ⚠ **판정 대상은 바닥에 깔린 빛이다.** 셔터면·보도 단차 사이에 얇은 띠를 끼우려다 두 번
+  // 파묻혔다 (가림 검사 0/5 ×2). 벽 쪽 좁은 틈은 프롭이 이미 꽉 차 있어 새 물건이 들어갈
+  // 자리가 아니다 — **통행부 바닥은 언제나 비어 있고**, 새어 나온 빛이 거기 퍼지는 것이
+  // 그림으로도 맞다. 어두운 바닥에 뜬 웜 패치라 실루엣 대비도 최대다
+  const glowZ = -L * 0.68;
+  const shutterGlowMat = new THREE.MeshStandardMaterial({ color: 0x11141c, roughness: 1 });
+  const shutterGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 2.0), shutterGlowMat);
+  shutterGlow.rotation.x = -Math.PI / 2;
+  shutterGlow.position.set(-(HW - 1.55), 0.02, glowZ);  // 단차 바깥 = 통행부 바닥
+  t2.add(shutterGlow);
+  // 셔터 밑의 틈 자체 — **여기만 발광한다.** 빛의 출처가 보여야 바닥의 밝음이 설명된다
+  const shutterGlowSlitMat = new THREE.MeshStandardMaterial({ color: 0x11141c });
+  const shutterGlowSlit = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 2.1), shutterGlowSlitMat);
+  shutterGlowSlit.position.set(-(HW - 0.3), 0.18, glowZ);
+  t2.add(shutterGlowSlit);
+  const shutterGlowLight = new THREE.PointLight(0xffe0a8, 0, 6.5, 2);
+  shutterGlowLight.position.set(-(HW - 0.9), 0.5, glowZ);
+  t2.add(shutterGlowLight);
+
   boxOf(M.curb, 0.55, 0.14, L * 0.92, -HW + 0.28, 0.07, -L / 2, t2); // 보도 단차
   boxOf(M.curb, 0.55, 0.14, L * 0.92, HW - 0.28, 0.07, -L / 2, t2);
 
@@ -93,12 +116,14 @@ export function createTheme2(): Build<Theme2Refs, E> {
     group: t2,
     refs: {
       laundryShutter, laundryMat, laundryLight, storeSignMat, realtyMat, realtyTex, handprints,
+      shutterGlowMat, shutterGlowSlitMat, shutterGlowLight,
     },
     hit: {
       laundry_open: [laundryShutter, laundryInterior],
       sign_lit: [storeSign],
       realty_urgent: [realty],
       handprints: [handprints],
+      shutter_glow: [shutterGlow, shutterGlowSlit],
     },
   };
 }

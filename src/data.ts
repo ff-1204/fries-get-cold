@@ -14,6 +14,12 @@ export type AnomalyEffect =
   | 'bus_figure'                                               // 구간 4 정류장 앞
   | 'drag_mark'                                                // 구간 5 먹자골목 입구
   | 'figure'                                                   // 전 구간 — 스폰 포인트 랜덤 (HUM)
+  // ---- 밤 3~4 해금 (포화를 깨는 두 번째 묶음) ----
+  | 'shoes' | 'bike_figure'                                    // 구간 1 원룸 골목
+  | 'shutter_glow'                                             // 구간 2 상가 골목 (LGT)
+  | 'slide_figure'                                             // 구간 3 놀이터 옆길
+  | 'across_figure'                                            // 구간 4 정류장 앞
+  | 'open_shutter'                                             // 구간 5 먹자골목 입구
   // ---- 퇴역 (구 일상 어긋남 문법 — 풀에서 제외, 핸들러는 유지) ----
   | 'umbrella' | 'sensor_on' | 'window_red' | 'flyer_digits'
   | 'laundry_open' | 'sign_lit' | 'realty_urgent'

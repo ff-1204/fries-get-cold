@@ -25,6 +25,32 @@ function toggle(pick: (r: SegmentRefs) => { visible: boolean }): EffectHandler {
 }
 
 const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
+  // ---- 밤 3~4 해금 ----
+  shoes: toggle((r) => r.shoes),
+  bike_figure: toggle((r) => r.bikeFigure),
+  slide_figure: toggle((r) => r.slideFigure),
+  across_figure: toggle((r) => r.acrossFigure),
+  // 닫힌 셔터를 **치우고** 열린 셔터를 세운다 — 겹치면 닫힌 쪽이 그대로 덮는다
+  open_shutter: {
+    reset: (r) => { r.openShutter.visible = false; r.closedShutter.visible = true; },
+    apply: (r) => { r.openShutter.visible = true; r.closedShutter.visible = false; },
+  },
+  // 셔터 밑의 빛 — **바닥은 발광시키지 않는다.** 발광을 걸면 균일하게 빛나는 납작한
+  // 슬래브가 되어 '빛'이 아니라 '칠한 사각형'으로 읽힌다 (실측). 바닥은 밝은 색으로만
+  // 바꾸고 **광원이 실제로 비추게** 두면 감쇠가 생겨 새어 나온 빛처럼 보인다.
+  // 발광은 틈(slit)만 — 거기가 광원의 출처다
+  shutter_glow: {
+    reset: (r) => {
+      r.shutterGlowMat.color.setHex(0x11141c);
+      r.shutterGlowSlitMat.emissive.setHex(0x000000);
+      r.shutterGlowLight.intensity = 0;
+    },
+    apply: (r) => {
+      r.shutterGlowMat.color.setHex(0x8a8272);
+      r.shutterGlowSlitMat.emissive.setHex(0xffcf8a);
+      r.shutterGlowLight.intensity = 5.5;
+    },
+  },
   umbrella: toggle((r) => r.umbrella),
   sensor_on: {
     reset: (r) => { r.sensorMat.emissive.setHex(0x000000); r.sensorLight.intensity = 0; },
