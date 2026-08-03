@@ -191,7 +191,10 @@ function rollSegment(foldStatus = false) {
   setShopNear(refs, done === total - 1, walkMode !== 'return');
 
   player.x = 0;
-  player.z = 0;
+  // 뒤 갱구 바로 앞 — 지나온 터널에서 막 나온 자리. 0이 아니라 -0.5인 이유는
+  // 뒤 끝벽(z 0~1)과 갱구 기둥에 카메라가 닿지 않게 하기 위함이고, 앞 끝벽 쪽
+  // 통과 방지 거리(0.5m)와 대칭이다 — 시작하자마자 옆으로 걸어도 튀지 않는다 (v0.11.22)
+  player.z = -0.5;
   input.yaw = 0;
   input.pitch = 0;
 
@@ -744,10 +747,8 @@ function updateWalk(dt: number) {
   }
   // 끝벽 통과 방지 (개구부 밖) — 0.5m 앞에서 멈춘다: 갱구 기둥이 끝벽보다 0.3m 나와 있다
   if (player.z < -L + 0.5 && Math.abs(player.x) >= MAIN_GAP_HALF) player.z = -L + 0.5;
-  // 뒤 갱구도 같은 규칙 — 개구부 밖으로는 지나온 터널에 들어갈 수 없다
-  // (v0.11.21: 뒤에는 이 규칙이 없어서 옹벽 옆으로 걸어 들어갈 수 있었다.
-  //  구조물이 갱구 안쪽에서 시작하므로 갱구 면에서 막으면 되고, 시작 지점에서 튀지 않는다)
-  if (player.z > -0.05 && Math.abs(player.x) >= MAIN_GAP_HALF) player.z = -0.05;
+  // 뒤 끝벽도 **같은 규칙·같은 거리** — 앞뒤 갱구가 대칭이므로 판정도 대칭이다 (v0.11.22)
+  if (player.z > -0.5 && Math.abs(player.x) >= MAIN_GAP_HALF) player.z = -0.5;
   // 터널 안에서는 폭이 옹벽 안쪽면(TUNNEL_IN_HALF)보다 좁아야 한다 —
   // 기존 한계(1.65)는 옹벽 안쪽면(1.5)보다 넓어서 카메라가 콘크리트에 0.15m 박혔다 (v0.11.21).
   // 개구부(1.4)로만 들어올 수 있으므로 여기서 좁혀도 튀는 이동이 없다

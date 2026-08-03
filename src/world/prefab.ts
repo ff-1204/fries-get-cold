@@ -37,7 +37,7 @@ type TunnelMats = ReturnType<typeof tunnelMats>;
  *  @param mouthZ 갱구의 z  @param s 안쪽 방향 (+1/-1)  @param capDist 터널 끝에서 마감벽까지
  */
 function buildTunnel(
-  mouthZ: number, s: 1 | -1, capDist: number, portalU: number,
+  mouthZ: number, s: 1 | -1, capDist: number,
   M: TunnelMats, lampMat: THREE.Material,
 ): { group: THREE.Group; light: THREE.PointLight } {
   const t = new THREE.Group();
@@ -77,8 +77,9 @@ function buildTunnel(
 
   // 갱구(액자) — 골목 벽에서 터널로 넘어가는 두께. 종이처럼 뚫린 구멍이 가장 싸 보인다.
   // 안쪽면은 옹벽과 나란히(IH) — 통로를 좁히지 않는다.
-  // portalU: 앞 터널은 끝벽보다 살짝 나와야 골목에서 보이고(끝벽이 가리므로),
-  // 뒤 터널은 가리는 것이 없어 안쪽에 둔다 — **골목 통행 구역을 침범하지 않게** (v0.11.21)
+  // 끝벽(z ∓0.5)보다 0.3m 내밀어 골목에서 액자가 보이게 하되, 통과 방지선(0.5m 앞)보다는
+  // 안쪽이라 카메라가 닿지 않는다. **앞뒤가 같은 값** — 터널은 완전한 거울상이다
+  const portalU = 0.125;
   for (const side of [-1, 1]) {
     boxOf(M.portal, 0.78, TUNNEL_H + 0.62, 0.85, side * (IH + 0.39), (TUNNEL_H + 0.62) / 2, at(portalU), t);
   }
@@ -148,10 +149,15 @@ export function createCorridor(
     box(1, WALL_H, farLen, color, wx, WALL_H / 2, ROAD_Z - ROAD_HALF - farLen / 2, group);
   }
 
-  // 끝 벽 — 개구부(중앙)를 남기고 2조각
+  // 끝 벽 — 개구부(중앙)를 남기고 2조각. **골목 양 끝에 같은 것이 하나씩** (v0.11.22):
+  // 뒤에는 이게 없어서 골목 벽이 z=0에서 그냥 끊겼고, 돌아보면 터널 옆구리 너머로
+  // 바깥(빈 공간)이 그대로 보였다. 터널이 대칭이면 그것을 감싸는 벽도 대칭이어야 한다
   const endWallW = HW - MAIN_GAP_HALF + 1;
-  box(endWallW, WALL_H, 1, 0x232838, -(MAIN_GAP_HALF + endWallW / 2), WALL_H / 2, -L - 0.5, group);
-  box(endWallW, WALL_H, 1, 0x232838, MAIN_GAP_HALF + endWallW / 2, WALL_H / 2, -L - 0.5, group);
+  for (const ez of [-L - 0.5, 0.5]) {
+    for (const s of [-1, 1]) {
+      box(endWallW, WALL_H, 1, 0x232838, s * (MAIN_GAP_HALF + endWallW / 2), WALL_H / 2, ez, group);
+    }
+  }
 
   // ---------- 앞뒤 터널 (v0.11.16 구조 / v0.11.21 마감) ----------
   // 이 동네의 골목들은 다리 밑 터널로 이어져 있다. 어디서 출발하든 뒤에는 지나온 터널이 있다.
@@ -162,12 +168,11 @@ export function createCorridor(
     color: 0x2b3240, emissive: TUNNEL_LAMP_EMISSIVE,
   });
   // 앞 — 구간과 구간을 잇는다. 마지막 구간(도착)에서는 숨긴다: 그때는 가게·집이 나와야 한다.
-  // 마감벽을 멀리(4m) 둬서 갱구 너머가 더 이어지는 것처럼 보인다.
-  // 갱구는 끝벽(z=-L-0.5)이 가리므로 0.3m 앞으로 내민다 — 골목에서 액자가 보여야 한다
-  const front = buildTunnel(-L, -1, 4, 0.125, tm, tunnelLampMat);
-  // 뒤 — 지나온 터널. 끝은 코앞에서 막혀 있다: **돌아가는 길은 없다**.
-  // 이쪽은 가리는 끝벽이 없어 갱구를 안쪽에 둔다 (골목 통행 구역을 비워 둔다)
-  const back = buildTunnel(0, 1, 0.6, 0.575, tm, tunnelLampMat);
+  // 마감벽을 멀리(4m) 둬서 갱구 너머가 더 이어지는 것처럼 보인다
+  const front = buildTunnel(-L, -1, 4, tm, tunnelLampMat);
+  // 뒤 — 지나온 터널. **형태는 앞과 완전히 같고**, 다른 것은 마감벽 거리 하나뿐이다:
+  // 끝이 코앞에서 막혀 있다 — 돌아가는 길은 없다
+  const back = buildTunnel(0, 1, 0.6, tm, tunnelLampMat);
   const tunnel = front.group;
   const backTunnel = back.group;
   group.add(backTunnel);
