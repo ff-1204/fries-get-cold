@@ -11,8 +11,10 @@ export interface CorridorRefs {
   moon: THREE.DirectionalLight;  // 밤: 달빛 / 아침: 해 (setMorning이 색·강도 전환)
   tunnel: THREE.Group;           // 다리 밑 터널(앞) — 구간 사이를 잇는다 (마지막 구간엔 숨김)
   backTunnel: THREE.Group;       // 뒤 — 지나온 터널 (끝은 막혀 있다: 돌아가는 길은 없다)
-  tunnelLight: THREE.PointLight;
-  backTunnelLight: THREE.PointLight;
+  /** 터널 등 (앞·뒤 하나씩) — setTunnelDark가 어둠 곡선대로 함께 잦아들게 한다 */
+  tunnelLights: THREE.PointLight[];
+  /** 등기구 발광부 — 앞뒤 터널이 공유한다. **빛과 같은 곡선으로 꺼져야** 한가운데가 암흑이 된다 */
+  tunnelLampMat: THREE.MeshStandardMaterial;
   car: THREE.Group;              // 차도(테마 4) — 신호 위반 시 지나간다 (startCar/updateWorld)
   carLight: THREE.PointLight;
   ambient: THREE.AmbientLight;   // 깊이 사다리 대상 (applyDepth)

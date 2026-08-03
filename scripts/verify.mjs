@@ -50,7 +50,10 @@ const state = (page) => page.evaluate(() => globalThis.__fries.state());
 /** 차도(테마 4)를 건너기 전 — **막 초록으로 바뀐 순간**까지 기다린다.
  *  점멸 끝물에 출발하면 설계대로 정말 치인다 (v0.11.7: "그 판단이 플레이어의 몫").
  *  검증 주행이 재현해야 하는 것은 '정상 통과'이므로 초록 시작에 맞춰 건넌다 */
+/** 신호를 기다린 시간의 합 — 완주 시간에서 떼어 내기 위해 잰다 (아래 주석) */
+let greenWaitMs = 0;
 async function waitForFreshGreen(page) {
+  const t0 = Date.now();
   const g = (want) => page.waitForFunction(
     (w) => globalThis.__fries.state().green === w,
     { polling: 60, timeout: 20000 },
@@ -58,6 +61,7 @@ async function waitForFreshGreen(page) {
   );
   await g(false); // 빨강을 한 번 지나
   await g(true);  // 초록으로 바뀌는 순간
+  greenWaitMs += Date.now() - t0;
 }
 
 /** 본길 통과 — 걸음(done)이 넘어가거나 phase가 바뀔 때까지 전진 (달리기 없음 — v0.11.2).
@@ -181,8 +185,13 @@ async function balance() {
     const { browser, page } = await launch();
     await startGame(page, 'a=none');
     const t0 = Date.now();
+    greenWaitMs = 0;
     for (let i = 0; i < 5; i++) await passMain(page);
-    const sec = ((Date.now() - t0) / 1000).toFixed(1);
+    // **걸은 시간과 기다린 시간을 나눠 찍는다.** 신호 대기는 주기(9초) 안에서 매번 달라
+    // 합계만 보면 완주 시간이 4~9초씩 흔들린다 — 템포 예산과 대조할 값은 '걸은 시간'이다.
+    // (기다림 자체는 설계된 비용이므로 없애지 않고 따로 표시한다 — v0.11.7)
+    const walkSec = ((Date.now() - t0 - greenWaitMs) / 1000).toFixed(1);
+    const sec = `${((Date.now() - t0) / 1000).toFixed(1)}s (걸음 ${walkSec}s + 신호 대기 ${(greenWaitMs / 1000).toFixed(1)}s)`;
     await clickOverlayButton(page); // 집 도착 컷 — 문을 열고 들어간다
     await page.waitForFunction(
       (sel) => [...document.querySelectorAll(`${sel} .sub`)].some((e) => e.textContent.includes('🏠')),
@@ -193,7 +202,7 @@ async function balance() {
       (sel) => [...document.querySelectorAll(`${sel} .sub`)].at(-1).textContent, DYN);
     const quote = await page.evaluate(
       (sel) => [...document.querySelectorAll(`${sel} .quote`)].at(-1).textContent, DYN);
-    console.log(`[무결점] ${gauge} | ${quote.split('\n')[0]} | 귀갓길 ${sec}s`);
+    console.log(`[무결점] ${gauge} | ${quote.split('\n')[0]} | 귀갓길 ${sec}`);
     await clickOverlayButton(page); // 신발을 벗는다
     await sleep(600);
     await clickOverlayButton(page); // 불을 끄고 눕는다

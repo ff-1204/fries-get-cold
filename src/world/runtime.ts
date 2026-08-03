@@ -6,6 +6,7 @@ import { type AnomalyEffect } from '../data';
 import { type SegmentRefs } from './refs';
 import {
   HW, ROAD_Z, CAR_SPAN, CAR_SEC, LAMP_LADDER, FOG_NIGHT, FOG_DAY, isGreen, isFlashing,
+  TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY,
 } from './layout';
 
 /** 현재 구간(1~5)의 테마만 표시 */
@@ -51,8 +52,10 @@ export function setTunnelDark(refs: SegmentRefs, dark: number, baseDensity: numb
   const sky = refs.group.userData.morning ? FOG_DAY : FOG_NIGHT;
   fog.color.setHex(sky).multiplyScalar(1 - d);            // 안개색 자체가 검정으로
   (refs.scene.background as THREE.Color).setHex(sky).multiplyScalar(1 - d);
-  refs.tunnelLight.intensity = 3.2 * (1 - d);             // 터널 등도 함께 잦아든다
-  refs.backTunnelLight.intensity = 3.2 * (1 - d);
+  // 터널 등도 함께 잦아든다 — **발광부(emissive)까지** 꺼야 한다.
+  // 빛만 끄면 등기구가 어둠 속에 떠 있는 점으로 남아 이음매를 드러낸다
+  for (const l of refs.tunnelLights) l.intensity = TUNNEL_LAMP_INTENSITY * (1 - d);
+  refs.tunnelLampMat.emissive.setHex(TUNNEL_LAMP_EMISSIVE).multiplyScalar(1 - d);
   const ab = (refs.group.userData.ambientBase as number) ?? 2.2;
   refs.ambient.intensity = ab * (1 - d * 0.92);
 }

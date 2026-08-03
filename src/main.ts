@@ -10,7 +10,7 @@ import { AudioEngine } from './audio';
 import {
   createWorld, applyAnomalies, applyDepth, setFoldMark, setShopNear, setSegmentTheme,
   setMorning, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
-  setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z,
+  setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z, TUNNEL_IN_HALF,
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, MAIN_GAP_HALF, SPAWN_ANCHORS,
 } from './world';
 import { save, persist, resetSave, hasProgress, type TasteResult } from './save';
@@ -742,11 +742,17 @@ function updateWalk(dt: number) {
     void passSegment();
     return;
   }
-  // 끝벽 통과 방지 (개구부 밖)
-  if (player.z < -L + 0.4 && Math.abs(player.x) >= MAIN_GAP_HALF) player.z = -L + 0.4;
-  // 터널 안에서는 폭이 개구부만큼 좁다 (옹벽에 부딪히지 않게)
-  if (player.z < -L) {
-    const half = MAIN_GAP_HALF + 0.25;
+  // 끝벽 통과 방지 (개구부 밖) — 0.5m 앞에서 멈춘다: 갱구 기둥이 끝벽보다 0.3m 나와 있다
+  if (player.z < -L + 0.5 && Math.abs(player.x) >= MAIN_GAP_HALF) player.z = -L + 0.5;
+  // 뒤 갱구도 같은 규칙 — 개구부 밖으로는 지나온 터널에 들어갈 수 없다
+  // (v0.11.21: 뒤에는 이 규칙이 없어서 옹벽 옆으로 걸어 들어갈 수 있었다.
+  //  구조물이 갱구 안쪽에서 시작하므로 갱구 면에서 막으면 되고, 시작 지점에서 튀지 않는다)
+  if (player.z > -0.05 && Math.abs(player.x) >= MAIN_GAP_HALF) player.z = -0.05;
+  // 터널 안에서는 폭이 옹벽 안쪽면(TUNNEL_IN_HALF)보다 좁아야 한다 —
+  // 기존 한계(1.65)는 옹벽 안쪽면(1.5)보다 넓어서 카메라가 콘크리트에 0.15m 박혔다 (v0.11.21).
+  // 개구부(1.4)로만 들어올 수 있으므로 여기서 좁혀도 튀는 이동이 없다
+  if (player.z < -L || player.z > 0) {
+    const half = TUNNEL_IN_HALF - 0.25;
     player.x = Math.max(-half, Math.min(half, player.x));
   }
 

@@ -172,6 +172,24 @@ export function box(
   return m;
 }
 
+/** 같은 재질을 여러 조각이 나눠 쓰는 박스 — 반복 디테일(이음·기둥·거더)용.
+ *  `box()`는 호출마다 재질을 새로 만든다: 수십 개를 찍을 때는 이쪽을 쓴다 */
+export function boxOf(
+  mat: THREE.Material,
+  w: number, h: number, d: number,
+  x: number, y: number, z: number,
+  parent: THREE.Object3D,
+): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  parent.add(m);
+  return m;
+}
+
+/** 콘크리트 한 톤 — 로우폴리 + 안개 + 포인트라이트 노선 유지 (텍스처 없음) */
+export const concrete = (color: number) =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.95 });
+
 /** 테마들이 나눠 쓰는 재질 — 한 번만 만들어 넘긴다 (색이 갈라지면 시그널이 흐려진다) */
 export interface SharedMats {
   /** 핏자국 공용 재질 — 저채도 적 (팔레트: 이상 시그널 전용색. 야하게 빛나지 않는다) */

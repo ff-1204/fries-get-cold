@@ -38,8 +38,22 @@ export const CAR_SEC = 2.6;   // 통과 시간 — 헤드라이트를 보고 물
 /** 터널 길이. 중간(-L-TUNNEL_LEN/2)에서 짧은 암전과 함께 다음 구간으로 넘어간다 */
 export const TUNNEL_LEN = 9;
 export const TUNNEL_H = 3.4;   // 낮은 천장 — 다리 밑이라 답답하다
+/** 옹벽 안쪽면 — 통로 반폭. 플레이어 x 한계(main.ts)는 이보다 좁아야 카메라가 벽에 박히지 않는다 */
+export const TUNNEL_IN_HALF = 1.5;
 /** 전환이 일어나는 z (터널 한가운데) */
 export const TUNNEL_SWAP_Z = -CONFIG.segLength - TUNNEL_LEN / 2;
+/** 터널 등 위치 — 갱구에서 들어간 거리(m).
+ *  **실제 광원은 가운데 하나뿐**이고 나머지는 발광 몸체만이다 (광원 수가 곧 성능이자
+ *  스타일 — visual-polish §4). 멀어지는 등의 열이 공짜로 깊이를 만든다.
+ *  어둠 곡선상 4.5m에서 dark=1이므로 그보다 깊은 등은 어차피 보이지 않는다 */
+export const TUNNEL_LAMP_AT = [1.8, TUNNEL_LEN / 2];
+/** 광원 색 — 한색(불안). 웜은 안전·목표 전용이라 터널에는 쓰지 않는다 (visual-polish §3) */
+export const TUNNEL_LAMP_COLOR = 0xbcc6d8;
+/** 등기구 발광부 — **광원 색보다 어둡다.** 같은 값을 쓰면 하얗게 날아 프레임에서
+ *  제일 밝은 물건이 된다 (절제된 팔레트가 무너진다) */
+export const TUNNEL_LAMP_EMISSIVE = 0x7c869c;
+/** 터널 등의 기준 광량 — setTunnelDark가 (1-dark)를 곱한다 */
+export const TUNNEL_LAMP_INTENSITY = 3.2;
 
 // 입간판 방향 — 정상은 벽과 평행(옆면), 이상은 플레이어 정면 (실루엣 차이 = 명확성)
 export const SIGN_REST_Y = Math.PI / 2;

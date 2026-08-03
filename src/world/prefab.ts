@@ -5,10 +5,113 @@
 import * as THREE from 'three';
 import { MAIN_GAP_HALF } from '../config';
 import { type CorridorRefs } from './refs';
-import { box, shopSignTexture, type SharedMats } from './kit';
+import { box, boxOf, concrete, shopSignTexture, type SharedMats } from './kit';
 import {
-  L, HW, WALL_H, ROAD_Z, ROAD_HALF, TUNNEL_LEN, TUNNEL_H, FOG_NIGHT,
+  L, HW, WALL_H, ROAD_Z, ROAD_HALF, TUNNEL_LEN, TUNNEL_H, TUNNEL_IN_HALF,
+  TUNNEL_LAMP_AT, TUNNEL_LAMP_COLOR, TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY, FOG_NIGHT,
 } from './layout';
+
+// ---------- 다리 밑 터널 (v0.11.21 마감) ----------
+// **콘크리트는 골목 벽과 같은 것을 쓴다** — 옹벽은 왼쪽 벽(0x20263a), 갱구·다리 옆면은
+// 오른쪽 벽(0x232838). 터널이 따로 노는 물건이 아니라 이 동네가 이어진 것으로 읽히게.
+// 텍스처는 쓰지 않는다 (에셋 0 · 로우폴리 + 안개 + 포인트라이트 노선 — visual-polish §5).
+// 싼티는 재질이 아니라 **형태의 결여**에서 온다: 갱구의 두께, 벽의 세로 리듬,
+// 천장의 보, 하늘에 걸리는 난간 실루엣 — 그림자가 걸릴 면을 만들어 주는 것이 전부다.
+function tunnelMats() {
+  return {
+    wall: concrete(0x20263a),    // 옹벽 = 골목 왼쪽 벽과 같은 콘크리트
+    portal: concrete(0x232838),  // 갱구(액자)·다리 옆면 = 골목 오른쪽 벽과 같은 콘크리트
+    deck: concrete(0x1a1f2b),    // 상판(다리 바닥)
+    base: concrete(0x161b25),    // 걸레받이 — 때가 타는 아랫단
+    trim: concrete(0x252c3d),    // 물끊기 띠·난간 — 빛을 받는 윗단
+    girder: concrete(0x141922),  // 천장 보
+    groove: concrete(0x11151d),  // 신축이음·측구·노면 이음선 (파인 곳)
+    road: concrete(0x181c28),    // 노면 = 골목 바닥과 같은 아스팔트
+  };
+}
+type TunnelMats = ReturnType<typeof tunnelMats>;
+
+/** 터널 한 개. **앞뒤가 이 함수 하나로 만들어진다** — 전환은 터널 한가운데의 암흑에서
+ *  일어나고, 들어간 깊이 그대로 반대편 터널의 같은 깊이로 옮겨진다. 두 터널의 형태가
+ *  어긋나면 그 순간 이음매가 드러난다 (v0.11.16 무봉합의 전제).
+ *  @param mouthZ 갱구의 z  @param s 안쪽 방향 (+1/-1)  @param capDist 터널 끝에서 마감벽까지
+ */
+function buildTunnel(
+  mouthZ: number, s: 1 | -1, capDist: number, portalU: number,
+  M: TunnelMats, lampMat: THREE.Material,
+): { group: THREE.Group; light: THREE.PointLight } {
+  const t = new THREE.Group();
+  const at = (u: number) => mouthZ + s * u;   // 갱구에서 u미터 들어간 지점
+  const IH = TUNNEL_IN_HALF;
+  const mid = TUNNEL_LEN / 2;
+  // 옹벽·천장은 **갱구(u=0)에서 시작한다**. 예전에는 u=-1까지 나와 있어서 골목 쪽
+  // 통행 구역(|x| 1.5~2.4)을 침범했고, 벽에 붙어 걸으면 카메라가 콘크리트에 들어갔다
+  const bodyLen = TUNNEL_LEN + 2;
+  const bodyAt = at(mid + 1);
+
+  // 노면 — 골목 바닥과 같은 아스팔트가 그대로 이어진다 (바닥은 넉넉히: 이음매를 감춘다)
+  boxOf(M.road, 20, 0.2, TUNNEL_LEN + 6, 0, -0.1, at(mid), t);
+  // 노면 이음선 — 통짜 바닥이 가장 싸 보인다. 가로 줄 두 개면 길이가 읽힌다
+  for (const u of [2.2, 4.4]) boxOf(M.groove, IH * 2 + 0.6, 0.04, 0.08, 0, 0.02, at(u), t);
+
+  for (const side of [-1, 1]) {
+    const x = side * (IH + 0.45);            // 옹벽 두께 0.9 — 안쪽면이 IH
+    boxOf(M.wall, 0.9, TUNNEL_H, bodyLen, x, TUNNEL_H / 2, bodyAt, t);
+    // 걸레받이 — 0.07 안쪽으로 더 나온 아랫단 (물때가 지는 자리)
+    boxOf(M.base, 1.0, 0.5, bodyLen, side * (IH + 0.43), 0.25, bodyAt, t);
+    // 물끊기 띠 — 천장 바로 아래, 빛을 받아 벽의 윗선을 그린다
+    boxOf(M.trim, 1.0, 0.14, bodyLen, side * (IH + 0.43), TUNNEL_H - 0.3, bodyAt, t);
+    // 신축이음 — 세로 홈. 이게 없으면 옹벽이 그냥 판때기다
+    for (const u of [1.2, 2.6, 4.0, 5.4]) {
+      boxOf(M.groove, 0.07, TUNNEL_H - 1.0, 0.09, side * (IH - 0.02), (TUNNEL_H + 0.5) / 2, at(u), t);
+    }
+    // 측구 — 벽 밑을 따라가는 배수 홈
+    boxOf(M.groove, 0.34, 0.06, bodyLen, side * (IH - 0.17), 0.035, bodyAt, t);
+  }
+
+  // 천장(상판) + 보 — 고개를 들면 다리 바닥이 있다
+  boxOf(M.deck, IH * 2 + 2, 0.9, bodyLen, 0, TUNNEL_H + 0.45, bodyAt, t);
+  for (const u of [1.0, 3.0, 5.0, 7.0]) {
+    boxOf(M.girder, IH * 2 + 1.2, 0.3, 0.4, 0, TUNNEL_H - 0.13, at(u), t);
+  }
+
+  // 갱구(액자) — 골목 벽에서 터널로 넘어가는 두께. 종이처럼 뚫린 구멍이 가장 싸 보인다.
+  // 안쪽면은 옹벽과 나란히(IH) — 통로를 좁히지 않는다.
+  // portalU: 앞 터널은 끝벽보다 살짝 나와야 골목에서 보이고(끝벽이 가리므로),
+  // 뒤 터널은 가리는 것이 없어 안쪽에 둔다 — **골목 통행 구역을 침범하지 않게** (v0.11.21)
+  for (const side of [-1, 1]) {
+    boxOf(M.portal, 0.78, TUNNEL_H + 0.62, 0.85, side * (IH + 0.39), (TUNNEL_H + 0.62) / 2, at(portalU), t);
+  }
+  boxOf(M.portal, IH * 2 + 1.9, 0.62, 0.9, 0, TUNNEL_H + 0.31, at(portalU), t);          // 상인방
+  boxOf(M.trim, IH * 2 + 2.4, 0.16, 1.12, 0, TUNNEL_H + 0.7, at(portalU - 0.08), t);     // 물끊기 처마
+
+  // 다리 옆면 + 난간 — 골목에서 보면 이 실루엣이 "다리 밑"을 말해준다.
+  // 하늘(배경색)에 걸리는 기둥 열이 핵심 — 통짜 벽은 그냥 벽으로 읽힌다
+  for (const u of [0.1, TUNNEL_LEN - 0.1]) {
+    boxOf(M.portal, 20, 0.62, 0.62, 0, TUNNEL_H + 1.0, at(u), t);   // 상판 가장자리 보
+    boxOf(M.portal, 20, 1.15, 0.44, 0, TUNNEL_H + 1.89, at(u), t);  // 난간 벽
+  }
+  for (let bx = -3.6; bx <= 3.61; bx += 0.9) {                       // 난간 기둥 (개구부 너비만큼)
+    boxOf(M.trim, 0.16, 0.6, 0.3, bx, TUNNEL_H + 2.76, at(0.1), t);
+  }
+  boxOf(M.trim, 20, 0.16, 0.38, 0, TUNNEL_H + 3.14, at(0.1), t);     // 난간 상부 가로대
+
+  // 전등 — 천장에 매달린 등기구. 발광부는 갓 안쪽으로 물려 테두리가 그림자를 만든다
+  // (판을 그냥 붙이면 빛나는 종이짝으로 보인다). 발광은 setTunnelDark가 함께 끈다
+  for (const u of TUNNEL_LAMP_AT) {
+    boxOf(M.girder, 0.44, 0.16, 0.24, 0, TUNNEL_H - 0.44, at(u), t);  // 갓
+    boxOf(lampMat, 0.3, 0.05, 0.15, 0, TUNNEL_H - 0.545, at(u), t);   // 발광부
+  }
+  // 실제 광원은 하나 — 가운데 등기구 아래
+  const light = new THREE.PointLight(TUNNEL_LAMP_COLOR, TUNNEL_LAMP_INTENSITY, 11, 2);
+  light.position.set(0, TUNNEL_H - 0.7, at(mid));
+  t.add(light);
+
+  // 마감 — 앞 터널은 더 이어지는 것처럼, 뒤 터널은 코앞에서 막는다 (돌아가는 길은 없다)
+  boxOf(M.portal, 20, WALL_H, 1, 0, WALL_H / 2, at(TUNNEL_LEN + capDist), t);
+
+  return { group: t, light };
+}
 
 /** 복도가 담당하는 지적 대상 — 가로등·간판·그림자 사람은 테마와 무관하게 늘 있다 */
 type CorridorEffect = 'lamp_flicker' | 'shop_typo' | 'figure';
@@ -50,44 +153,26 @@ export function createCorridor(
   box(endWallW, WALL_H, 1, 0x232838, -(MAIN_GAP_HALF + endWallW / 2), WALL_H / 2, -L - 0.5, group);
   box(endWallW, WALL_H, 1, 0x232838, MAIN_GAP_HALF + endWallW / 2, WALL_H / 2, -L - 0.5, group);
 
-  // ---------- 뒤 — 지나온 터널 (v0.11.16) ----------
+  // ---------- 앞뒤 터널 (v0.11.16 구조 / v0.11.21 마감) ----------
   // 이 동네의 골목들은 다리 밑 터널로 이어져 있다. 어디서 출발하든 뒤에는 지나온 터널이 있다.
   // (v0.11.15까지는 "내가 나온 빌라 현관"이었는데, 퇴근길·가게 앞 어느 출발점과도 맞지 않았다)
-  // 지나온 터널 (뒤) — 앞 터널의 거울상. 끝은 막혀 있다: 돌아가는 길은 없다
-  const backTunnel = new THREE.Group();
+  // **두 터널을 같은 함수로 만든다** — 형태가 어긋나면 한가운데의 무봉합 전환이 드러난다
+  const tm = tunnelMats();
+  const tunnelLampMat = new THREE.MeshStandardMaterial({
+    color: 0x2b3240, emissive: TUNNEL_LAMP_EMISSIVE,
+  });
+  // 앞 — 구간과 구간을 잇는다. 마지막 구간(도착)에서는 숨긴다: 그때는 가게·집이 나와야 한다.
+  // 마감벽을 멀리(4m) 둬서 갱구 너머가 더 이어지는 것처럼 보인다.
+  // 갱구는 끝벽(z=-L-0.5)이 가리므로 0.3m 앞으로 내민다 — 골목에서 액자가 보여야 한다
+  const front = buildTunnel(-L, -1, 4, 0.125, tm, tunnelLampMat);
+  // 뒤 — 지나온 터널. 끝은 코앞에서 막혀 있다: **돌아가는 길은 없다**.
+  // 이쪽은 가리는 끝벽이 없어 갱구를 안쪽에 둔다 (골목 통행 구역을 비워 둔다)
+  const back = buildTunnel(0, 1, 0.6, 0.575, tm, tunnelLampMat);
+  const tunnel = front.group;
+  const backTunnel = back.group;
   group.add(backTunnel);
-  box(20, 0.2, TUNNEL_LEN + 6, 0x181c28, 0, -0.1, TUNNEL_LEN / 2, backTunnel);
-  for (const s of [-1, 1]) {
-    box(0.9, TUNNEL_H, TUNNEL_LEN + 2, 0x1b202c,
-      s * (MAIN_GAP_HALF + 0.55), TUNNEL_H / 2, TUNNEL_LEN / 2, backTunnel);
-  }
-  box(MAIN_GAP_HALF * 2 + 2, 0.9, TUNNEL_LEN + 2, 0x141922,
-    0, TUNNEL_H + 0.45, TUNNEL_LEN / 2, backTunnel);
-  box(20, 2.2, 1.4, 0x232838, 0, TUNNEL_H + 2.0, 0.7, backTunnel);
-  box(20, WALL_H, 1, 0x232838, 0, WALL_H / 2, TUNNEL_LEN + 0.6, backTunnel); // 막힌 끝
-  const backTunnelLight = new THREE.PointLight(0xbcc6d8, 3.2, 11, 2);
-  backTunnelLight.position.set(0, TUNNEL_H - 0.35, TUNNEL_LEN / 2);
-  backTunnel.add(backTunnelLight);
-
-  // ---------- 앞 — 다리 밑 터널 (v0.11.14: 순간이동 대신 실제로 지나가는 공간) ----------
-  // 구간과 구간은 이 터널로 이어진다. 좁고(개구부 폭) 낮고 어둡다 — 전환은 그 안에서 일어난다.
-  // 마지막 구간(도착)에서는 숨긴다: 그때는 터널이 아니라 가게/집이 나와야 한다
-  const tunnel = new THREE.Group();
-  box(20, 0.2, TUNNEL_LEN + 6, 0x181c28, 0, -0.1, -L - TUNNEL_LEN / 2, tunnel); // 노면
-  for (const s of [-1, 1]) {
-    box(0.9, TUNNEL_H, TUNNEL_LEN + 2, 0x1b202c,
-      s * (MAIN_GAP_HALF + 0.55), TUNNEL_H / 2, -L - TUNNEL_LEN / 2, tunnel);   // 옹벽
-  }
-  box(MAIN_GAP_HALF * 2 + 2, 0.9, TUNNEL_LEN + 2, 0x141922,
-    0, TUNNEL_H + 0.45, -L - TUNNEL_LEN / 2, tunnel);                            // 상판(다리 바닥)
-  box(20, 2.2, 1.4, 0x232838, 0, TUNNEL_H + 2.0, -L - 0.7, tunnel);              // 다리 난간 쪽 벽
-  box(20, 2.2, 1.4, 0x232838, 0, TUNNEL_H + 2.0, -L - TUNNEL_LEN - 0.7, tunnel);
-  box(20, WALL_H, 1, 0x232838, 0, WALL_H / 2, -L - TUNNEL_LEN - 4, tunnel);      // 터널 너머 마감
-  // 터널 안의 유일한 빛 — 반쯤 죽은 등 (전환이 일어나는 지점을 어렴풋이 비춘다)
-  const tunnelLight = new THREE.PointLight(0xbcc6d8, 3.2, 11, 2);
-  tunnelLight.position.set(0, TUNNEL_H - 0.35, -L - TUNNEL_LEN / 2);
-  tunnel.add(tunnelLight);
   group.add(tunnel);
+  const tunnelLights = [front.light, back.light];
 
   // 가로등 (구간 중반) — 모든 구간 공용, A-008 깜빡임 타깃
   const lampZ = -L * 0.45;
@@ -165,7 +250,7 @@ export function createCorridor(
 
   return {
     refs: {
-      group, scene, moon, tunnel, backTunnel, tunnelLight, backTunnelLight,
+      group, scene, moon, tunnel, backTunnel, tunnelLights, tunnelLampMat,
       car, carLight, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
       shopTex, figure,
     },
