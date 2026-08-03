@@ -86,12 +86,16 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   // 높이는 **다리 난간**(y 4.7~5.8). 갱구 바로 위(y4.5)로 내려봤더니 두 가지가 나빠졌다:
   // ① 낮을수록 근접에서 프레임에 오래 남아 HUD를 더 가린다 ② 갱구 상인방(y 3.4~4.0)과
   // y가 겹쳐 아랫줄 글자가 상한다. 난간 높이에서는 상인방과 y가 안 겹쳐 가려지지 않는다
+  // ⚠ **어느 쪽 갱구에 거느냐는 진행 방향이 정한다** (v0.11.36, setBannerSide).
+  //   현수막은 FF-1204를 가리키는 물건이다. 퇴근길은 가게로 **가는** 길이라 앞(-L)이 맞지만,
+  //   귀갓길은 가게에서 **나오는** 길이다 — 그런데 밤에도 앞에 걸려 있어서,
+  //   집 쪽을 향해 걷는 내내 가게 광고가 정면에 있었다. 앞뒤 터널은 거울상이라 뒤 난간도 같다
   banner.position.set(0, 5.25, -L + 0.25);
   t4.add(banner);
 
   return {
     group: t4,
-    refs: { trafficRed, trafficGreen, busFigure },
+    refs: { trafficRed, trafficGreen, busFigure, banner },
     hit: {
       traffic_red: trafficHeads,
       bus_figure: [busFigure],

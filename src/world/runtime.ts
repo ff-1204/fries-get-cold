@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { type AnomalyEffect } from '../data';
 import { type SegmentRefs } from './refs';
 import {
-  HW, ROAD_Z, CAR_SPAN, CAR_SEC, LAMP_LADDER, FOG_NIGHT, FOG_DAY, isGreen, isFlashing,
+  L, HW, ROAD_Z, CAR_SPAN, CAR_SEC, LAMP_LADDER, FOG_NIGHT, FOG_DAY, isGreen, isFlashing,
   TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY,
 } from './layout';
 
@@ -116,6 +116,22 @@ export function setShopNear(refs: SegmentRefs, near: boolean, showSign = true) {
 export function setBackScene(refs: SegmentRefs, shop: boolean) {
   refs.backTunnel.visible = !shop;
   refs.shopBack.visible = shop;
+}
+
+/** 개업 현수막을 **가게가 있는 쪽 갱구**에 건다 (v0.11.36).
+ *
+ *  테마 순서는 진작 뒤집혀 있었다 (퇴근길 4→5, 귀갓길 5→4→3→2→1). 그런데 **세계는 안 뒤집혀서**
+ *  정류장 앞의 두 끝이 두 여정에서 같은 것을 주장했다 — 특히 FF-1204 현수막이 밤에도 정면에
+ *  걸려, 가게를 등지고 집으로 걷는 내내 가게 광고를 보고 걸었다.
+ *  `ahead=false`면 뒤 갱구 난간으로 옮기고 180° 돌려 플레이어를 향하게 한다:
+ *  돌아보면 "가게는 저 뒤"가 보인다 — 밤 첫 구간의 shopBack과 같은 문법 (v0.11.35).
+ *
+ *  ⚠ 이것으로 방향 문제가 다 풀리는 것은 아니다. 부스·횡단보도·연석의 **순서와 좌우는
+ *  여전히 고정**이고, 그것을 뒤집으려면 차도 판정(ROAD_Z·STOP_LINE_Z)과 공용 그룹의 차까지
+ *  같이 뒤집어야 한다 — spec.md '방향' 항목에 알려진 제약으로 적어 둔다 */
+export function setBannerSide(refs: SegmentRefs, ahead: boolean) {
+  refs.banner.position.z = ahead ? -L + 0.25 : -0.25;
+  refs.banner.rotation.y = ahead ? 0 : Math.PI;
 }
 
 const TRAFFIC_RED_ON = 0x8a1616;

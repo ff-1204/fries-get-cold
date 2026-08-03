@@ -8,7 +8,8 @@ import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
 import {
-  createWorld, applyAnomalies, applyDepth, setFoldMark, setShopNear, setBackScene, setSegmentTheme,
+  createWorld, applyAnomalies, applyDepth, setFoldMark, setShopNear, setBackScene, setBannerSide,
+  setSegmentTheme,
   setMorning, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
   setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z, TUNNEL_IN_HALF,
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, MAIN_GAP_HALF, SPAWN_ANCHORS, CAR_SEC,
@@ -195,6 +196,9 @@ function rollSegment(foldStatus = false) {
   // 인트로 "튀김을 먹고 나왔다"와 뒤가 어긋나던 유일한 지점이었다. 접힘도 done을 올리므로
   // 두 번째 구간부터는 실제로 터널을 지나온 게 맞다
   setBackScene(refs, walkMode === 'return' && done === 0);
+  // 현수막은 **가게가 있는 쪽**에 건다 — 퇴근길은 가게로 가고, 귀갓길은 가게에서 나온다.
+  // 테마 순서는 진작 뒤집혀 있었는데 세계가 안 뒤집혀서, 밤에도 가게 광고가 정면에 있었다
+  setBannerSide(refs, walkMode !== 'return');
 
   player.x = 0;
   // 뒤 갱구 바로 앞 — 지나온 터널에서 막 나온 자리. 0이 아니라 -0.5인 이유는

@@ -73,6 +73,9 @@ export interface Theme4Refs {
   trafficRed: THREE.MeshStandardMaterial[]; // A-011 (양쪽 빨간등)
   trafficGreen: THREE.MeshStandardMaterial[];
   busFigure: THREE.Group;                   // H-007 정류장의 앉은 형체
+  /** 개업 현수막 — FF-1204를 가리키는 물건이라 **가게가 있는 쪽 갱구**에 건다.
+   *  퇴근길은 앞(가게로 간다), 귀갓길은 뒤(가게에서 나왔다) — setBannerSide (v0.11.36) */
+  banner: THREE.Mesh;
 }
 
 /** 테마 5: 먹자골목 입구 */
