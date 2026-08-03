@@ -109,8 +109,16 @@
     }
 
     /* 접이식 설정 (밝기·소리) — 타이틀 첫인상을 해치지 않게 기본 접힘 (visual-polish §1) */
-    #settings-panel { display: none; flex-direction: column; align-items: center; gap: 12px; }
+    #settings-panel { display: none; flex-direction: column; align-items: center; gap: 14px; }
     #settings-panel.open { display: flex; }
+    /* 설정 한 항목 = 조작 줄 + 설명 줄, 둘 다 가운데. 항목 사이는 아주 옅은 실선으로 나눈다 */
+    .set-item { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+    .set-item + .set-item { border-top: 1px solid rgba(42, 49, 72, 0.5); padding-top: 14px; }
+    .set-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .set-help {
+      font-size: clamp(11px, 1.7vw, 13px); opacity: 0.55; line-height: 1.7;
+      max-width: 30em; /* 긴 설명이 화면 폭을 다 쓰면 가운데 정렬이 안 보인다 */
+    }
 
     /* 밝기 미리보기 — 슬라이더를 잡는 동안 시작 화면이 걷혀 실제 골목이 보인다 */
     #start { transition: opacity 0.8s, background-color 0.35s; }
@@ -198,7 +206,9 @@
   <div id="start" class="overlay hidden">
     <h1>튀김이 식기 전에</h1>
     <div class="sub">Before the Fries Get Cold</div>
-    <div class="quote">퇴근길에 현수막을 봤다. FF-1204 — 새로 생긴 감자튀김집.</div>
+    <!-- 가게 이름은 말하지 않는다 — 퇴근길에 현수막을 직접 읽는 것이 튜토리얼의 첫 사건이다
+         (무설명 학습: 타이틀이 먼저 말해버리면 그 발견이 김빠진다) -->
+    <div class="quote">퇴근길에 현수막을 봤다…</div>
     <div class="sub" id="continue-info" style="display:none"></div>
     <!-- 쿠폰 도장 카드 — 재방문(진행 있음)에만 표시: 첫 방문 타이틀은 전제 한 줄만 남긴다 (v0.9.1 타이틀 다이어트) -->
     <div id="coupon" style="display:none">
@@ -212,20 +222,29 @@
       <button id="settings-btn" class="ghost">⚙ 설정</button>
       <button id="reset-btn" class="ghost" style="display:none">기록 삭제 · 처음부터</button>
     </div>
+    <!-- 설정 — 항목마다 [조작 줄] + [설명 줄]을 세로로 쌓고 둘 다 가운데 정렬.
+         한 줄에 레이블·조작·설명을 좌우로 늘어놓으면 화면 폭마다 들쭉날쭉해진다 (v0.11.25) -->
     <div id="settings-panel">
-      <div class="sub bright-row" style="display:flex;align-items:center;gap:10px;">
-        <span class="lbl">밝기</span> <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
-          style="pointer-events:auto;flex:1 1 110px;max-width:150px;accent-color:#ffb23e;" />
-        <span style="opacity:0.7">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</span>
+      <div class="set-item bright-row">
+        <div class="set-row">
+          <span class="lbl">밝기</span>
+          <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
+            style="pointer-events:auto;flex:1 1 130px;max-width:180px;accent-color:#ffb23e;" />
+        </div>
+        <div class="set-help">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</div>
       </div>
-      <div class="sub" style="display:flex;align-items:center;gap:10px;">
-        <span class="lbl">소리</span> <button id="sound-btn" aria-label="소리 끄기">🔊</button>
-        <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
+      <div class="set-item">
+        <div class="set-row">
+          <span class="lbl">소리</span>
+          <button id="sound-btn" aria-label="소리 끄기">🔊</button>
+        </div>
+        <div class="set-help">게임 중에는 M 키 (PC) · 🎧 이어폰을 권장합니다</div>
       </div>
-      <div class="sub">🎧 이어폰을 권장합니다</div>
-      <!-- 조작 전체 참조 — 기본 학습은 1일차 인게임 힌트가 담당, 여기는 다시 볼 사람용 -->
-      <div class="sub pc-only">조작 — WASD 이동 · 마우스 시점 · 클릭 = 직시 · M 소리</div>
-      <div class="sub touch-only">조작 — 버튼 홀드 = 걷기 · 드래그 = 시점 · 탭 = 직시</div>
+      <!-- 조작 전체 참조 — 기본 학습은 밤 1 인게임 힌트가 담당, 여기는 다시 볼 사람용 -->
+      <div class="set-item">
+        <div class="set-help pc-only">조작 — WASD 이동 · 마우스 시점 · 클릭 = 직시 · M 소리</div>
+        <div class="set-help touch-only">조작 — 버튼 홀드 = 걷기 · 드래그 = 시점 · 탭 = 직시</div>
+      </div>
     </div>
     <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다.</div>
     <a class="ghost" href="https://github.com/ff-1204/fries-get-cold/blob/main/docs/privacy.md"
