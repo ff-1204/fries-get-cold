@@ -212,7 +212,11 @@ function rollSegment(foldStatus = false) {
 // ---------- 온보딩 — 조작은 타이틀이 아니라 골목 안에서 배운다 (v0.9.1) ----------
 // 걷기 힌트: 시작 직후 표시, 실제로 몇 걸음 걸으면 사라진다 (해보면 배운 것).
 // 직시 힌트: 첫 흔적에 다가가는 순간 한 번만. 규칙 학습은 첫날 아침 표지판이 담당.
-const onboard = { move: false, gaze: false, avert: false };
+// 온보딩 힌트 1회 표시 상태. hintZ = 걷기 힌트를 띄운 지점 —
+// **해제는 절대 좌표가 아니라 '그 지점에서 얼마나 걸었는가'로 판정한다** (v0.11.27).
+// 절대 좌표(z < -6)로 재던 시절, 퇴근길 튜토리얼은 z=-8.64에서 시작하는 탓에
+// 첫 프레임에 조건이 이미 참이라 **힌트가 뜨자마자 사라졌다** — 가르쳐야 할 구간에서만 안 보였다
+const onboard = { move: false, gaze: false, avert: false, hintZ: 0 };
 const usesTouch = () => input.usesTouch || 'ontouchstart' in window;
 
 function resetTrip() {
@@ -246,7 +250,10 @@ async function startTutorial() {
   player.z = -CONFIG.segLength * 0.24; // 부스(z=-L*0.32)가 2~3m 앞 오른쪽에 들어오는 자리
   phase = 'walk';
   tutBeat = 0; // 자막은 걸음에 맞춰 하나씩 (updateWalk가 위치로 터뜨린다)
-  if (!onboard.move) hud.showHint(usesTouch() ? TEXT.hintMoveTouch : TEXT.hintMovePc);
+  if (!onboard.move) {
+    onboard.hintZ = player.z; // 여기서부터 6m를 걸으면 해제한다 (절대 좌표로 재지 않는다)
+    hud.showHint(usesTouch() ? TEXT.hintMoveTouch : TEXT.hintMovePc);
+  }
 }
 
 /** 귀갓길 — 본게임 (v0.11.0: 모든 밤). 상회를 나와 테마 역순으로 집까지.
@@ -260,6 +267,7 @@ async function startNight() {
   phase = 'walk';
   hud.say(stageOf(night).intro, 4200);
   if (stageOf(night).onboarding && !onboard.move) {
+    onboard.hintZ = player.z;
     hud.showHint(usesTouch() ? TEXT.hintMoveTouch : TEXT.hintMovePc);
   }
 }
@@ -710,8 +718,8 @@ function updateWalk(dt: number) {
 
   // 온보딩 힌트 — 걷기 힌트는 몇 걸음 걸으면 해제, 직시 힌트는 첫 흔적 접근 시 한 번
   if (stageOf(night).onboarding) {
-    if (!onboard.move && player.z < -6) {
-      onboard.move = true;
+    if (!onboard.move && onboard.hintZ - player.z > 6) {
+      onboard.move = true;   // 6m를 직접 걸어보면 조작을 익힌 것으로 본다
       hud.hideHint();
     }
     if (onboard.move && !onboard.gaze) {

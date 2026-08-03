@@ -41,7 +41,10 @@
       position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%);
       max-width: min(86vw, 640px); text-align: center; white-space: pre-line;
       font-size: clamp(14px, 2vw, 18px); line-height: 1.6;
-      opacity: 0; transition: opacity 0.6s; text-shadow: 0 1px 6px #000;
+      opacity: 0; transition: opacity 0.6s;
+      /* 자막은 **밝은 바닥 위에서도** 읽혀야 한다 — 아침 튜토리얼의 흰 횡단보도 위에서
+         그림자 한 겹(0 1px 6px)으로는 글자가 묻혔다 (v0.11.27 실측). 어둠을 한 겹 더 깐다 */
+      text-shadow: 0 1px 6px #000, 0 0 14px rgba(0, 0, 0, 0.85), 0 0 3px rgba(0, 0, 0, 0.9);
     }
 
     /* ---------- 오버레이 공통 ---------- */

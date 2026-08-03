@@ -56,8 +56,15 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
     reset: (r) => { r.swingPivot.rotation.x = 0; }, // 흔들림 자체는 updateWorld
   },
   lamp_flicker: {
-    // 깜빡임 자체는 updateWorld. 기준 밝기는 깊이 사다리를 따른다 (applyDepth가 먼저 실행)
-    reset: (r) => { r.lampLight.intensity = (r.group.userData.lampBase as number) ?? LAMP_LADDER[0]; },
+    // 깜빡임 자체는 updateWorld. 기준 밝기는 깊이 사다리를 따른다 (applyDepth가 먼저 실행).
+    // **아침에는 소등**(v0.11.27): 아침이면 applyDepth가 일찍 반환해 lampBase가 없고,
+    // 그대로 두면 이 리셋이 밤 밝기로 되돌려 **대낮에 가로등이 켜졌다**.
+    // setMorning의 소등을 rollSegment가 매번 덮어쓰고 있었다 (퇴근길 튜토리얼 전 구간)
+    reset: (r) => {
+      r.lampLight.intensity = r.group.userData.morning
+        ? 0
+        : ((r.group.userData.lampBase as number) ?? LAMP_LADDER[0]);
+    },
   },
   traffic_red: {
     reset: () => {}, // 신호등 등화는 테마 4 표시 중 updateWorld가 매 프레임 재계산
