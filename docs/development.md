@@ -45,8 +45,10 @@ fries-get-cold/
     ├── config.ts             # 수치·레이아웃 상수 (JSON·three 의존 없음 — Node가 직접 읽는다)
     ├── balance.ts            # 깊이·접힘 판정 순수 로직 + 밤 시뮬레이션 (게임·테스트 공유)
     ├── balance.test.ts       # 밸런스 시뮬레이션 테스트 (node:test — npm run verify:sim)
-    ├── data.ts               # 콘텐츠 파사드 — 텍스트(TEXT)·이상현상 타입, CONFIG 재수출
-    └── data/anomalies.json   # 이상현상 콘텐츠 (스키마: docs/anomalies.md)
+    ├── data.ts               # 콘텐츠 파사드 — TEXT·이상현상 타입·스테이지 접근자, CONFIG 재수출
+    └── data/
+        ├── anomalies.json    # 이상현상 콘텐츠 (스키마: docs/anomalies.md)
+        └── stages.json       # 밤(=스테이지) 콘텐츠 (스키마: docs/stages.md §4)
 ```
 
 world/는 **M3가 실제로 키우는 곳을 파일 경계로 잡았다** (2026-08-03 분해, v0.11.20):
@@ -174,10 +176,8 @@ npm run deploy   # = npm run build (타입 검사 포함) && gh-pages -d dist
 - **모바일 실기기 테스트** (responsive-design §7 매트릭스) — 오디오 게이트·발열·제스처는
   에뮬레이터로 판단 불가
 - **main.ts 분해** — 게임 로직·UI 부트스트랩 혼재. M3에서 systems/ 분해와 함께
-  (`world.ts` 분해는 2026-08-03 완료 — v0.11.20)
-- **밤 분기 하드코딩 10곳 → 스테이지 데이터로** — 밤 3·4를 채우는 데 코드 수정이 필요한 상태.
-  전수 목록과 목표 스키마는 [stages.md](./stages.md) §3–4 (M3 착수 전)
-- **밤 6+ 텍스트 클램프** — intros/epilogues 5개 반복. M3 엔딩 구현에서 해소
+  (`world.ts` 분해 v0.11.20, 밤 분기 → `stages.json` 이관 v0.11.23 — 둘 다 완료)
+- **밤 6+ 텍스트 클램프** — `stageOf()`가 마지막 스테이지를 재사용한다. M3 엔딩 구현에서 해소
 - **증식 밀도 체감** — 접힘 반복 구간에서 동시 이상 2~3개가 겹칠 때의 가독성 (실플레이 확인)
 - **밤 2~4 에필로그 재검토** — story.md '마지막 컷' 기반 선작성 상태, 해당 밤 구현 시 대조
 

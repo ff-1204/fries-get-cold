@@ -1,8 +1,10 @@
-// 콘텐츠 데이터 파사드 — 이상현상 콘텐츠는 data/anomalies.json (docs/anomalies.md 스키마).
-// 원칙: 콘텐츠는 데이터, 로직은 시스템 — 이상현상 추가에 코드 수정이 필요하면 설계 실패
-// (단, 새 '시각 효과'가 필요한 경우만 world.ts에 effect 핸들러 추가)
+// 콘텐츠 데이터 파사드 — 이상현상은 data/anomalies.json (docs/anomalies.md 스키마),
+// 밤(=스테이지)은 data/stages.json (docs/stages.md 스키마).
+// 원칙: 콘텐츠는 데이터, 로직은 시스템 — 콘텐츠 추가에 코드 수정이 필요하면 설계 실패
+// (단, 새 '시각 효과'가 필요한 경우만 world/ 에 effect 핸들러 추가)
 
 import anomaliesJson from './data/anomalies.json';
+import stagesJson from './data/stages.json';
 
 export type AnomalyEffect =
   // ---- 괴담의 존재 (밤의 골목에만 있는 것 — OBJ는 직시, HUM은 외면) ----
@@ -41,6 +43,35 @@ export interface AnomalyDef {
 
 export const ANOMALIES = anomaliesJson as AnomalyDef[];
 
+// ---------- 스테이지 = 밤 N (docs/stages.md) ----------
+// 밤마다 달라지는 것만 여기 있다. 모든 밤에 같은 것(코어 규칙·판정 임계값·확률식·공간·
+// 등급)은 config.ts와 spec.md의 몫 — 어느 쪽인지는 stages.md §1 경계표가 정한다.
+
+export interface StageDef {
+  night: number;
+  /** 온보딩 보장 — 퇴근길 튜토리얼 · 첫 구간 강제 정상 · 무이상 방지 · 조작 힌트를
+   *  한 묶음으로 켠다. 규칙을 텍스트로 설명하지 않는 대신 첫 밤의 **구조**가 가르친다
+   *  (design-principles '무설명 학습', game-design-theory §6) */
+  onboarding: boolean;
+  /** 가게를 나서며 — 그 밤의 목적을 한 번 말한다 */
+  intro: string;
+  /** 집에 도착해서 — 그 밤의 마지막 컷 (Peak-End의 End, story.md §5) */
+  epilogue: string;
+}
+
+export const STAGES = stagesJson as StageDef[];
+
+/** 기획된 밤의 수 = **방문 도장 칸 수**. 이 수를 넘기면 도장은 칸 밖에 찍힌다
+ *  (story.md §2 — 다섯 밤의 디제틱 표시). 칸 수를 바꾸려면 stages.json에 밤을 더한다 */
+export const STAGE_COUNT = STAGES.length;
+
+/** 밤 N의 스테이지. **배열을 넘어가면 마지막 스테이지를 재사용한다** —
+ *  밤 6+는 엔딩 전 무한 모드이고, 그 반복 규칙은 데이터가 아니라 시스템의 것이다
+ *  (stages.md §4). 엔딩이 구현되면 이 클램프는 사라진다 */
+export function stageOf(night: number): StageDef {
+  return STAGES[Math.min(Math.max(night, 1), STAGE_COUNT) - 1];
+}
+
 // 수치 상수는 config.ts로 분리 (JSON 의존이 없어 Node 시뮬레이션 테스트가 직접 읽는다)
 // — 기존 import 경로 유지를 위한 파사드 재수출
 export { CONFIG } from './config';
@@ -53,14 +84,7 @@ export const TEXT = {
   /** cur/total — 접히면 total이 늘어난다. 카운터는 절대 거짓말하지 않는다 (game.md 정직한 판정) */
   segLabel: (cur: number, total: number, theme: number) =>
     `${cur}/${total} — ${TEXT.segNames[theme - 1]}`,
-  /** 밤별 인트로 — 상회를 나서며. 목적은 하나뿐: 집에 도착하는 것 (v0.11.0 귀갓길 구조) */
-  intros: [
-    '튀김을 먹고 나왔다. 배가 부르다.\n집까지 걸어가면 된다. 그것뿐이다.',
-    '두 번째 밤. 어제 걸었던 길이다.\n…어제 걸었던 길이어야 한다.',
-    '사장님이 "조심히 들어가세요" 했다.\n…뭘 조심하라는 거지.',
-    '오늘은 안 오려고 했는데.\n정신을 차려 보니 다 먹고 있었다. 이제, 집에 간다.',
-    '마지막 도장을 찍었다.\n이제 집에 가기만 하면 된다. 가기만 하면.',
-  ],
+  // 밤별 인트로·에필로그는 data/stages.json으로 내려갔다 (v0.11.23) — stageOf(night)
   /** 첫날 퇴근길 (튜토리얼 — 정류장 4/5에서 시작하는 두 구간). 밝고, 안전하고, 아무 일도 없다.
    *  역할은 정상 상태의 학습 + 조작 익히기뿐이라 짧게 끝낸다 (v0.11.5).
    *  **자막은 한꺼번에 쏟지 않고 걸음에 맞춰 하나씩** — 본 것을 본 자리에서 말한다 (v0.11.11).
@@ -137,14 +161,7 @@ export const TEXT = {
   softFail:
     '…여기가 어디지.\n\n정신을 차려 보니, 가게 앞이다.\n걸어온 길이, 하나도 기억나지 않는다.',
   softFailBtn: '…다시 걷는다',
-  /** 밤별 마무리 모놀로그 (story.md §5 각 밤의 '마지막 컷'. Peak-End의 End) */
-  epilogues: [
-    '문을 잠갔다. 두 번 잠갔다.\n…새로 생긴 가게가, 왜 24시간을 하지.',
-    '사장님이 "또 오셨네요" 했다.\n두 번째인데, "또"라니.',
-    '도장 세 개.\n…내가 안 간 날짜에, 하나 더 찍혀 있는 것 같다.',
-    '주머니에 영수증이 두 장 들어 있다.\n한 장은 오늘 날짜. 한 장은, 내일 날짜.',
-    '도장을 다 채웠다. 칸이 꽉 찼다.\n…이제, 안 가도 되는 거겠지.',
-  ],
-  /** 방문 도장 카드 밤 6+ — 칸 밖 도장 (다섯 밤의 디제틱 표시, story.md §2) */
+  /** 방문 도장 카드 — 기획된 밤 수를 넘겼을 때. 칸 밖 도장 (story.md §2).
+   *  ⚠ "여섯 번째"는 STAGE_COUNT=5를 전제한 문구다 — stages.json에 밤을 더하면 함께 고친다 */
   couponOverflow: '…여섯 번째 도장은, 칸 밖에 찍혀 있다.',
 };

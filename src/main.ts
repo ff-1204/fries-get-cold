@@ -2,7 +2,7 @@
 // 직진 + 확인(무섭지만 다가가서 짚어야 한다) + 접힘(지나침=연장+증식) + 깊이(가로등 소등·soft fail)
 
 import * as THREE from 'three';
-import { ANOMALIES, CONFIG, TEXT, type AnomalyDef } from './data';
+import { ANOMALIES, CONFIG, TEXT, STAGE_COUNT, stageOf, type AnomalyDef } from './data';
 import { tasteFromFolds, activeCount } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
@@ -147,11 +147,13 @@ function rollSegment(foldStatus = false) {
     (a) => (a.segment === theme || a.segment === 0) && a.night <= night && !lastIds.has(a.id),
   );
 
-  // 온보딩 보장 (game-design-theory §6): 밤 1 첫 구간은 반드시 정상 —
-  // "정상 상태의 학습"이 먼저 (fear-cognition §1: 이상현상 = 학습된 정상의 위반)
-  const forceNormal = !DEBUG_ANOMALY && night === 1 && done === 0;
-  // 밤 1 막바지까지 이상이 한 번도 없었다면 강제 등장 (문법 학습 보장)
-  const forceAnomaly = night === 1 && tripAnomalies === 0 &&
+  // 온보딩 보장 (game-design-theory §6): 온보딩 밤의 첫 구간은 반드시 정상 —
+  // "정상 상태의 학습"이 먼저 (fear-cognition §1: 이상현상 = 학습된 정상의 위반).
+  // 어느 밤이 온보딩인지는 stages.json이 정한다 (v0.11.23)
+  const onboardingNight = stageOf(night).onboarding;
+  const forceNormal = !DEBUG_ANOMALY && onboardingNight && done === 0;
+  // 막바지까지 이상이 한 번도 없었다면 강제 등장 (문법 학습 보장)
+  const forceAnomaly = onboardingNight && tripAnomalies === 0 &&
     (walkMode === 'return' ? theme <= 2 : theme >= CONFIG.segments - 1);
 
   if (tutorial) {
@@ -256,8 +258,8 @@ async function startNight() {
   setMorning(refs, false);
   rollSegment();
   phase = 'walk';
-  hud.say(TEXT.intros[Math.min(night - 1, TEXT.intros.length - 1)], 4200);
-  if (night === 1 && !onboard.move) {
+  hud.say(stageOf(night).intro, 4200);
+  if (stageOf(night).onboarding && !onboard.move) {
     hud.showHint(usesTouch() ? TEXT.hintMoveTouch : TEXT.hintMovePc);
   }
 }
@@ -265,7 +267,7 @@ async function startNight() {
 /** 시작/재개 분기 — 첫날 아침(미완료 시)만 튜토리얼, 그 외에는 곧장 귀갓길.
  *  ?a= 디버그는 튜토리얼을 생략한다 (verify.mjs E2E 결정성) */
 async function startDay() {
-  if (night === 1 && !DEBUG_ANOMALY && (DEBUG_TUT || !save.tut)) await startTutorial();
+  if (stageOf(night).onboarding && !DEBUG_ANOMALY && (DEBUG_TUT || !save.tut)) await startTutorial();
   else await startNight();
 }
 
@@ -306,15 +308,16 @@ async function reachHome() {
   persist();
   // 귀가 — 매 밤의 End이므로 가장 정성스러운 순간이어야 한다 (affective §1-4 Peak-End)
   await hud.blackScreen(TEXT.homeArrive, TEXT.homeOpen);
-  // 도장 진행 — 상단 한 줄 (방문 도장 5칸. 밤 6+는 칸이 없다 — 조용한 어긋남)
+  // 도장 진행 — 상단 한 줄. 칸 수 = 기획된 밤 수(stages.json)이고, 그걸 넘기면
+  // 찍을 칸이 없다 — 조용한 어긋남 (story.md §2)
   const stampLine =
-    night > 5
+    night > STAGE_COUNT
       ? '…도장 찍을 칸이, 이제 없다'
-      : `도장 ${'●'.repeat(night)}${'○'.repeat(5 - night)}`;
+      : `도장 ${'●'.repeat(night)}${'○'.repeat(STAGE_COUNT - night)}`;
   await hud.arrivalScene({
     gauge: `${TEXT.homeGauge[taste]} · ${stampLine}`,
     result,
-    epilogue: TEXT.epilogues[Math.min(night - 1, TEXT.epilogues.length - 1)],
+    epilogue: stageOf(night).epilogue,
     steps: [TEXT.homeSit, TEXT.homeEnd],
     endLabel: TEXT.homeEnd,
     // 무사 귀가 = 긍정·저각성 → 웜 틴트, 헤맸으면 한랭 (affective §1-2)
@@ -705,8 +708,8 @@ function updateWalk(dt: number) {
     }
   }
 
-  // 밤 1 온보딩 힌트 — 걷기 힌트는 몇 걸음 걸으면 해제, 직시 힌트는 첫 흔적 접근 시 한 번
-  if (night === 1) {
+  // 온보딩 힌트 — 걷기 힌트는 몇 걸음 걸으면 해제, 직시 힌트는 첫 흔적 접근 시 한 번
+  if (stageOf(night).onboarding) {
     if (!onboard.move && player.z < -6) {
       onboard.move = true;
       hud.hideHint();
@@ -827,12 +830,12 @@ function refreshCoupon() {
   if (!couponEl || !stampsEl || !noteEl) return;
   couponEl.style.display = save.night > 1 ? 'flex' : 'none';
   const got = save.night - 1;
-  const filled = Math.min(got, 5);
+  const filled = Math.min(got, STAGE_COUNT);
   stampsEl.innerHTML =
     '●'.repeat(filled) +
-    `<span class="empty">${'○'.repeat(5 - filled)}</span>` +
-    (got > 5 ? ' ●' : ''); // 여섯 번째 — 칸 밖
-  noteEl.textContent = got > 5 ? TEXT.couponOverflow : '밤마다 하나씩';
+    `<span class="empty">${'○'.repeat(STAGE_COUNT - filled)}</span>` +
+    (got > STAGE_COUNT ? ' ●' : ''); // 칸 밖 도장
+  noteEl.textContent = got > STAGE_COUNT ? TEXT.couponOverflow : '밤마다 하나씩';
 }
 
 let resetArmed = false;
