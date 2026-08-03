@@ -70,6 +70,8 @@
       color: rgba(255, 178, 62, 0.5);
     }
     .overlay .sub { font-size: clamp(12px, 2vw, 15px); opacity: 0.55; line-height: 1.8; }
+    /* 영문 부제 — 한글 제목의 그림자 정도로만. 읽히되 눈길을 끌지 않는다 */
+    .overlay .eng { opacity: 0.28; letter-spacing: 0.06em; }
     .overlay .quote { font-size: clamp(13px, 2vw, 16px); opacity: 0.8; font-style: italic; }
     .overlay button {
       pointer-events: auto; cursor: pointer; margin-top: 10px;
@@ -205,10 +207,12 @@
 
   <div id="start" class="overlay hidden">
     <h1>튀김이 식기 전에</h1>
-    <div class="sub">Before the Fries Get Cold</div>
-    <!-- 가게 이름은 말하지 않는다 — 퇴근길에 현수막을 직접 읽는 것이 튜토리얼의 첫 사건이다
-         (무설명 학습: 타이틀이 먼저 말해버리면 그 발견이 김빠진다) -->
-    <div class="quote">퇴근길에 현수막을 봤다…</div>
+    <!-- 영문 부제는 장식이다 — 한글 제목보다 확실히 뒤로 물린다 (v0.11.26) -->
+    <div class="sub eng">Before the Fries Get Cold</div>
+    <!-- 밖에 나온 명분 한 줄. 가게 이름도, 현수막도 말하지 않는다 — 퇴근길에 직접 읽는 것이
+         튜토리얼의 첫 사건이다 (무설명 학습). "그게 다였다"는 회고체 — 뒤에 무엇이 있었는지는
+         설명하지 않는다 (visual-polish §6: 공포를 설명하지 않는다) -->
+    <div class="quote">오늘따라 감자튀김이 먹고 싶었다. 그게 다였다.</div>
     <div class="sub" id="continue-info" style="display:none"></div>
     <!-- 쿠폰 도장 카드 — 재방문(진행 있음)에만 표시: 첫 방문 타이틀은 전제 한 줄만 남긴다 (v0.9.1 타이틀 다이어트) -->
     <div id="coupon" style="display:none">
@@ -217,7 +221,8 @@
       <div class="c-note">밤마다 하나씩</div>
     </div>
     <!-- 문구는 main.ts refreshContinueUi가 상황에 맞게 교체 (첫 방문 = 퇴근길 / 재방문 = 가게에서) -->
-    <button id="start-btn">퇴근길에 나선다</button>
+    <!-- 실제 문구는 main.ts가 상황에 맞게 교체 (첫 방문 / 이어하기) — data.ts startBtn* -->
+    <button id="start-btn">퇴근하기!</button>
     <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
       <button id="settings-btn" class="ghost">⚙ 설정</button>
       <button id="reset-btn" class="ghost" style="display:none">기록 삭제 · 처음부터</button>
