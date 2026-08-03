@@ -104,6 +104,20 @@ export function setShopNear(refs: SegmentRefs, near: boolean, showSign = true) {
   refs.shopSignMat.emissive.setHex(near && showSign ? 0xffffff : 0x000000);
 }
 
+/** 뒤에 무엇이 있는가 — 지나온 터널 / 방금 나온 FF-1204 (v0.11.35).
+ *
+ *  v0.11.16이 뒤를 늘 터널로 통일한 건 **그때 가게가 없었기 때문**이고, 이제 있다 (shop.ts).
+ *  밤의 인트로는 "튀김을 먹고 나왔다"인데 뒤가 터널이면 그 문장이 거짓말이 된다.
+ *  그 외에는 전부 터널이 맞다 — 접힘이든 다음 구간이든 **실제로 터널을 지나왔다**.
+ *  `done === 0`이 이 둘을 정확히 가른다 (접힘도 done을 올리므로 두 번째부터는 터널).
+ *
+ *  뒤로 걸으면 여느 때처럼 어두워지다 돌려세워진다 — 어둠 곡선은 건드리지 않는다.
+ *  가게가 어둠에 잠기며 멀어지는 편이 "돌아갈 수 없다"를 더 잘 말한다 */
+export function setBackScene(refs: SegmentRefs, shop: boolean) {
+  refs.backTunnel.visible = !shop;
+  refs.shopBack.visible = shop;
+}
+
 const TRAFFIC_RED_ON = 0x8a1616;
 const TRAFFIC_GREEN_ON = 0x2f7a4a;
 

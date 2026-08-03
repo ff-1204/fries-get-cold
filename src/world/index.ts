@@ -60,7 +60,7 @@ export type { SegmentRefs };
 export { applyAnomalies } from './effects';
 export {
   setSegmentTheme, applyDepth, setMorning, setTunnelDark, setFoldMark, setShopNear,
-  updateWorld, startCar, stopCar, carInCorridor,
+  setBackScene, updateWorld, startCar, stopCar, carInCorridor,
 } from './runtime';
 export {
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, TRAFFIC_CYCLE, isGreen, isFlashing,

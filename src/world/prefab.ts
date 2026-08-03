@@ -266,6 +266,15 @@ export function createCorridor(
   const homeFront = buildHomeFront();   // 귀갓길 끝 = 집
   group.add(shopFront, homeFront);
 
+  // 뒤의 FF-1204 — **밤의 출발점에서 돌아보면 방금 나온 가게가 있어야 한다** (v0.11.35).
+  // 인트로가 "튀김을 먹고 나왔다"인데 뒤에는 터널이 있었다. v0.11.16이 뒤를 터널로 통일한 건
+  // 그때 가게가 없었기 때문이고, 이제 있다 — 같은 가게를 180° 돌려 세운다.
+  // 앞 인스턴스(z −42.6)를 y축으로 뒤집고 −36 옮기면 카운터가 z +7.1에 온다
+  const shopBack = buildShopFront(true);
+  shopBack.rotation.y = Math.PI;
+  shopBack.position.z = -L;
+  group.add(shopBack);
+
   // ---------- 차 — 신호를 어기면 지나간다 (v0.11.7) ----------
   // 정물성 원칙(추격 없음)과 충돌하지 않는다: 쫓아오지 않고, 규칙 위반에 대한 1회성 환경 반응이다
   const car = new THREE.Group();
@@ -298,7 +307,7 @@ export function createCorridor(
     refs: {
       group, scene, moon, tunnel, backTunnel, tunnelLights, tunnelLampMat,
       car, carLight, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
-      shopTex, shopFront, homeFront, figure,
+      shopTex, shopFront, homeFront, shopBack, figure,
     },
     hit: {
       lamp_flicker: [lampPole],

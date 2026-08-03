@@ -10,14 +10,17 @@
 // setShopNear가 near일 때 30으로 올린다 — 그 자리가 정확히 가게 안이다 (visual-polish §4).
 
 import * as THREE from 'three';
-import { boxOf, concrete, menuTexture, stampBoardTexture } from './kit';
+import { boxOf, concrete, menuTexture, stampBoardTexture, shopSignTexture } from './kit';
 import { L } from './layout';
 
 /** 가게 전면(카운터)의 z. 구간 통과 판정이 -40.5에서 걸리므로 그 2m 뒤 —
  *  걸음이 멈추는 자리에서 카운터가 정면에 온다 */
 const FRONT_Z = -L - 6.6;
 
-export function buildShopFront(): THREE.Group {
+/** @param standalone 간판과 등을 **제 안에** 갖는다. 앞(퇴근길 도착) 인스턴스는 골목이 가진
+ *  `shopSign`·`shopGlow`를 빌려 쓰지만, 뒤(밤의 출발점) 인스턴스는 그럴 게 없다.
+ *  그룹 안에 넣으면 숨겼을 때 three가 서브트리째 건너뛰므로 **안 보이는 동안 광원 비용이 0**이다 */
+export function buildShopFront(standalone = false): THREE.Group {
   const g = new THREE.Group();
   const M = {
     road: concrete(0x181c28),      // 가게 앞 바닥 — 골목과 같은 아스팔트
@@ -106,6 +109,27 @@ export function buildShopFront(): THREE.Group {
     boxOf(M.dark, 1.3, 1.0, 0.1, wx, 5.2, FRONT_Z - 0.2, g);
   }
 
+  // ---------- 뒤 인스턴스 전용: 제 간판과 제 등 ----------
+  if (standalone) {
+    // 밤의 출발점에서 돌아보면 **이게 켜져 있어야** 한다 — 방금 나온 곳이라는 증거
+    const tex = shopSignTexture('FF-1204 24시');
+    const signMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, map: tex, emissiveMap: tex, emissive: 0xffffff,
+    });
+    const side = concrete(0x140d05);
+    const sign = new THREE.Mesh(
+      new THREE.BoxGeometry(3.4, 0.9, 0.3),
+      [side, side, side, side, signMat, side],   // 글자는 앞면(+Z)에만
+    );
+    sign.position.set(0, 4.3, FRONT_Z + 0.55);
+    g.add(sign);
+
+    // shopGlow와 같은 자리·같은 색. 강도만 한 단 낮다 —
+    // 여기는 **두고 온 곳**이지 목표가 아니다 (웜 10%: 도착지가 더 밝아야 한다, §3)
+    const glow = new THREE.PointLight(0xffb23e, 20, 26, 2);
+    glow.position.set(0, 3, FRONT_Z + 0.6);
+    g.add(glow);
+  }
 
   g.visible = false;
   return g;

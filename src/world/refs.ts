@@ -29,6 +29,9 @@ export interface CorridorRefs {
   /** 집(빌라 현관) — **귀갓길 도착에서만**. 같은 결함이 여기도 있었다 (v0.11.33).
    *  가게는 튜토리얼에서 한 번 보지만 집은 밤마다 본다 */
   homeFront: THREE.Group;
+  /** 뒤의 FF-1204 — **밤의 첫 구간에서만** 뒤 터널 대신 선다 (v0.11.35).
+   *  "튀김을 먹고 나왔다"는 인트로와 뒤에 있는 것을 맞춘다 (setBackScene) */
+  shopBack: THREE.Group;
   shopTex: [THREE.CanvasTexture, THREE.CanvasTexture];    // A-012 간판 오탈자
   figure: THREE.Group;           // 전 구간: H-009 그림자 사람 (스폰 앵커 랜덤 — HUM)
 }
