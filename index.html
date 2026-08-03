@@ -50,7 +50,13 @@
       align-items: center; justify-content: center; gap: 14px;
       background: #06080f; text-align: center; padding: 24px; z-index: 10;
       transition: opacity 0.8s;
+      /* 한국어는 기본값(word-break: normal)에서 **어절 한가운데도 끊는다** —
+         모바일에서 "감자튀김집."이 "감자튀김 / 집."으로 갈라졌다. keep-all이 한국어 표준 */
+      word-break: keep-all; overflow-wrap: break-word;
     }
+    /* flex 행의 레이블("밝기"·"소리")은 줄이지 않는다 — 좁은 화면에서 두 글자가
+       세로로 쪼개졌다 ("밝 / 기"). 익명 flex 아이템은 스타일이 안 먹어 span으로 감쌌다 */
+    .overlay .lbl { flex-shrink: 0; }
     /* 숨긴 오버레이는 자식(버튼)까지 클릭 차단 — 자식의 pointer-events:auto가
        부모의 none을 다시 켜서, 투명한 버튼이 아래 층 버튼을 가로채는 것 방지 */
     .overlay.hidden, .overlay.hidden * { opacity: 0; pointer-events: none !important; }
@@ -208,12 +214,12 @@
     </div>
     <div id="settings-panel">
       <div class="sub bright-row" style="display:flex;align-items:center;gap:10px;">
-        밝기 <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
-          style="pointer-events:auto;width:150px;accent-color:#ffb23e;" />
+        <span class="lbl">밝기</span> <input id="bright" type="range" min="0.6" max="1.9" step="0.05" value="1.0"
+          style="pointer-events:auto;flex:1 1 110px;max-width:150px;accent-color:#ffb23e;" />
         <span style="opacity:0.7">움직이는 동안 골목이 보여요 — 겨우 보일 정도가 적당</span>
       </div>
       <div class="sub" style="display:flex;align-items:center;gap:10px;">
-        소리 <button id="sound-btn" aria-label="소리 끄기">🔊</button>
+        <span class="lbl">소리</span> <button id="sound-btn" aria-label="소리 끄기">🔊</button>
         <span style="opacity:0.7">게임 중에는 M 키 (PC)</span>
       </div>
       <div class="sub">🎧 이어폰을 권장합니다</div>
