@@ -1,5 +1,5 @@
 // 공용 복도 — 어느 구간에나 있는 것. 테마는 이 위에 얹힌다.
-// 바닥·양쪽 벽·끝벽(중앙 개구부) · 앞뒤 다리 밑 터널 · 가로등 · 접힘 분필 자국 ·
+// 바닥·양쪽 벽·끝벽(중앙 개구부) · 앞뒤 다리 밑 터널 · 가로등 · 늘어남 분필 자국 ·
 // FF-1204 간판 · 그림자 사람(전 구간 공용 HUM) · 차.
 
 import * as THREE from 'three';
@@ -232,16 +232,16 @@ export function createCorridor(
   figure.visible = false;
   group.add(figure);
 
-  // 접힘 흔적 — 반복 구간 입구 바닥의 분필 원 ("누가 여기 표시를 해뒀다").
-  // 같은 곳을 다시 걷고 있음을 공간이 말해준다 (game.md 접힘 인지 4요소 ④)
-  const foldMark = new THREE.Mesh(
+  // 늘어남 흔적 — 반복 구간 입구 바닥의 분필 원 ("누가 여기 표시를 해뒀다").
+  // 같은 곳을 다시 걷고 있음을 공간이 말해준다 (game.md 늘어남 인지 4요소 ④)
+  const stretchMark = new THREE.Mesh(
     new THREE.RingGeometry(0.42, 0.5, 24),
     new THREE.MeshBasicMaterial({ color: 0x8b90a8, transparent: true, opacity: 0.32 }),
   );
-  foldMark.rotation.x = -Math.PI / 2;
-  foldMark.position.set(0.9, 0.03, -5.5); // 스폰 직후 자연 시야 — 광원(가로등) 이전이라도 근거리라 식별됨
-  foldMark.visible = false;
-  group.add(foldMark);
+  stretchMark.rotation.x = -Math.PI / 2;
+  stretchMark.position.set(0.9, 0.03, -5.5); // 스폰 직후 자연 시야 — 광원(가로등) 이전이라도 근거리라 식별됨
+  stretchMark.visible = false;
+  group.add(stretchMark);
 
   // FF-1204 간판(개구부 위) — 마지막 구간에서만 점등. 글자는 캔버스 텍스처 (A-012 오탈자 타깃)
   const shopTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
@@ -306,7 +306,7 @@ export function createCorridor(
   return {
     refs: {
       group, scene, moon, tunnel, backTunnel, tunnelLights, tunnelLampMat,
-      car, carLight, ambient, foldMark, lampLight, shopGlow, shopSign, shopSignMat,
+      car, carLight, ambient, stretchMark, lampLight, shopGlow, shopSign, shopSignMat,
       shopTex, shopFront, homeFront, shopBack, figure,
     },
     hit: {

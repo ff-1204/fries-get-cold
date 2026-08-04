@@ -1,14 +1,14 @@
-// 튀김이 식기 전에 — 접히는 골목 (docs/game.md 판정)
-// 직진 + 확인(무섭지만 다가가서 짚어야 한다) + 접힘(지나침=연장+증식) + 깊이(가로등 소등·soft fail)
+// 튀김이 식기 전에 — 늘어나는 골목 (docs/game.md 판정)
+// 직진 + 확인(무섭지만 다가가서 짚어야 한다) + 늘어남(지나침=연장+증식) + 깊이(가로등 소등·soft fail)
 
 import * as THREE from 'three';
 import { ANOMALIES, CONFIG, TEXT, STAGE_COUNT, stageOf, type AnomalyDef } from './data';
-import { tasteFromFolds, activeCount } from './balance';
+import { tasteFromStretches, activeCount } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
 import { AudioEngine } from './audio';
 import {
-  createWorld, applyAnomalies, applyDepth, setFoldMark, setShopNear, setBackScene, setBannerSide,
+  createWorld, applyAnomalies, applyDepth, setStretchMark, setShopNear, setBackScene, setBannerSide,
   setThemeMirror,
   setSegmentTheme,
   setMorning, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
@@ -105,12 +105,12 @@ let walkMode: WalkMode = 'return';
 let started = false;
 let pausing = false;
 let night = save.night; // 이어하기 — 기기 내 저장에서 복원 (docs/privacy.md)
-let done = 0;               // 이 밤에 지나온 걸음(구간) 수 — 접힘도 걸음은 소비한다
-let total = CONFIG.segments; // 이 밤의 총 구간 수 — 접힐 때마다 +1 (카운터는 정직하다)
-let theme = 1;              // 현재 걷는 구간 테마 1..5 — 접힘은 테마를 반복시킨다
+let done = 0;               // 이 밤에 지나온 걸음(구간) 수 — 늘어남도 걸음은 소비한다
+let total = CONFIG.segments; // 이 밤의 총 구간 수 — 늘어날 때마다 +1 (카운터는 정직하다)
+let theme = 1;              // 현재 걷는 구간 테마 1..5 — 늘어남은 테마를 반복시킨다
 let depth = 0;              // 골목이 나를 붙잡은 정도 — 가로등이 게이지 (config.depthLimit)
-let folds = 0;              // 이 밤의 접힘 횟수 — 시식 서사·노미스 추적
-let foldRepeat = false;     // 지금 구간이 접힘 반복인가 (분필 자국 표시)
+let stretches = 0;              // 이 밤의 늘어남 횟수 — 시식 서사·노미스 추적
+let stretchRepeat = false;     // 지금 구간이 늘어남 반복인가 (분필 자국 표시)
 let swarm = 0;              // 증식 — 확인 없이 지나칠 때마다 +1, 동시 이상 = 1+swarm (balance.ts)
 let spotCooldown = 0;       // 지적 연타 방지 (config.spotCooldownSec)
 let stare = 0;              // avert — 사람 형태를 화면에 담고 있는 누적 시간 (붙잡힘까지)
@@ -158,7 +158,7 @@ const admin = new Admin({
     label: `${a.id} ${a.effect} (${a.rule === 'avert' ? '외면' : '직시'})`,
   })),
   snapshot: () => ({
-    night, done, total, theme, depth, folds, morning: walkMode === 'tutorial',
+    night, done, total, theme, depth, stretches, morning: walkMode === 'tutorial',
   }),
   relock: () => input.activate(),
   jump: (j) => {
@@ -182,12 +182,12 @@ const admin = new Admin({
   },
 });
 
-function rollSegment(foldStatus = false) {
+function rollSegment(stretchStatus = false) {
   setSegmentTheme(refs, theme); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
   const tutorial = walkMode === 'tutorial';
 
   // 이 테마·이 밤에 가능한 풀 — 테마 사물 고정형 + 스폰 포인트 랜덤형(segment 0)
-  // 같은 이상현상 연속 등장 방지 (공정성 — 접힘 반복 구간에서 특히 중요)
+  // 같은 이상현상 연속 등장 방지 (공정성 — 늘어남 반복 구간에서 특히 중요)
   const pool = ANOMALIES.filter(
     (a) => (a.segment === theme || a.segment === 0) && a.night <= night && !lastIds.has(a.id),
   );
@@ -226,18 +226,18 @@ function rollSegment(foldStatus = false) {
       forcedEffect() ? DEBUG_ANCHOR : Math.floor(Math.random() * SPAWN_ANCHORS.length);
   }
   stopCar(refs);                      // 주행 중이던 차는 구간과 함께 사라진다 (v0.11.19)
-  carCycle = -1;                      // 구간이 바뀌면 다시 (접힘 반복에서도 새로 판정)
+  carCycle = -1;                      // 구간이 바뀌면 다시 (늘어남 반복에서도 새로 판정)
   applyDepth(refs, depth);            // 꺼져가는 빛 — 이상 리셋보다 먼저 (lampBase 기준 제공)
   applyPain(depth);                   // 통증 비네트 동기화
   applyAnomalies(refs, anomalies.map((a) => a.effect));
-  // 접힘 반복 구간 — 바닥 분필 자국 (인지 4요소 ④). 낮에는 표시하지 않는다 (괴담 누출 방지)
-  setFoldMark(refs, foldRepeat && !tutorial);
+  // 늘어남 반복 구간 — 바닥 분필 자국 (인지 4요소 ④). 낮에는 표시하지 않는다 (괴담 누출 방지)
+  setStretchMark(refs, stretchRepeat && !tutorial);
   // '정적' — 이상 구간에서 환경음이 잦아든다 (fear-cognition §8, 시각 단서의 청각 병행)
   audio.duck(anomalies.length > 0);
   // 마지막 걸음에서만 목적지 연출 — 편도: FF-1204 간판·불빛 / 귀갓길: 간판 없이 불빛만 (집)
   setShopNear(refs, done === total - 1, walkMode !== 'return');
   // 뒤에 있는 것 — 밤의 **첫** 구간에서만 방금 나온 FF-1204, 그 외에는 지나온 터널 (v0.11.35).
-  // 인트로 "튀김을 먹고 나왔다"와 뒤가 어긋나던 유일한 지점이었다. 접힘도 done을 올리므로
+  // 인트로 "튀김을 먹고 나왔다"와 뒤가 어긋나던 유일한 지점이었다. 늘어남도 done을 올리므로
   // 두 번째 구간부터는 실제로 터널을 지나온 게 맞다
   setBackScene(refs, walkMode === 'return' && done === 0);
   // 현수막은 **가게가 있는 쪽**에 건다 — 퇴근길은 가게로 가고, 귀갓길은 가게에서 나온다.
@@ -259,7 +259,7 @@ function rollSegment(foldStatus = false) {
     : walkMode === 'return'
       ? `${TEXT.nightLabel(night)} — 돌아가는 길 ${TEXT.segLabel(done + 1, total, theme)}`
       : `${TEXT.nightLabel(night)} — ${TEXT.segLabel(done + 1, total, theme)}`;
-  if (foldStatus) hud.setStatusFold(label); // 접힘 — 카운터 강조 교체 (인지 4요소 ①)
+  if (stretchStatus) hud.setStatusStretch(label); // 늘어남 — 카운터 강조 교체 (인지 4요소 ①)
   else hud.setStatus(label);
 }
 
@@ -278,9 +278,9 @@ function resetTrip() {
   total = CONFIG.segments;
   theme = 1;
   depth = 0;
-  folds = 0;
+  stretches = 0;
   swarm = 0;
-  foldRepeat = false;
+  stretchRepeat = false;
   elapsed = 0;
   lastIds = new Set();
   tripAnomalies = 0;
@@ -356,11 +356,11 @@ async function reachTutorialShop() {
   await hud.fadeIn(1100);
 }
 
-/** 집 도착 = 밤의 끝 (v0.11.0). 등급은 접힘 횟수 — 얼마나 붙잡혔는가 (balance.ts 재사용) */
+/** 집 도착 = 밤의 끝 (v0.11.0). 등급은 늘어남 횟수 — 얼마나 붙잡혔는가 (balance.ts 재사용) */
 async function reachHome() {
   phase = 'transition';
   await hud.fadeOut(800);
-  const taste: TasteResult = tasteFromFolds(folds);
+  const taste: TasteResult = tasteFromStretches(stretches);
   const result =
     taste === 'crispy' ? TEXT.homeCrispy :
     taste === 'lukewarm' ? TEXT.homeLukewarm :
@@ -411,7 +411,7 @@ async function turnedAround() {
   phase = 'walk';
 }
 
-/** 차에 치임 — 죽음 묘사 없음. 암전 뒤 접힘과 같은 결과 (v0.11.7).
+/** 차에 치임 — 죽음 묘사 없음. 암전 뒤 늘어남과 같은 결과 (v0.11.7).
  *  새벽 한 시에 차가 어디서 왔는지는 설명하지 않는다 */
 async function hitByCar() {
   if (phase !== 'walk') return;
@@ -419,15 +419,15 @@ async function hitByCar() {
   await grabbed(walkMode === 'tutorial' ? TEXT.carHitDay : TEXT.carHit);
 }
 
-/** avert — 눈이 마주쳤다. 결과는 접힘과 같다: 골목이 나를 놓아주지 않는다 (v0.11.0) */
+/** avert — 눈이 마주쳤다. 결과는 늘어남과 같다: 골목이 나를 놓아주지 않는다 (v0.11.0) */
 async function grabbed(reason: string) {
   if (phase !== 'walk') return;
   phase = 'transition';
   stare = 0;
   stareWarned = false;
-  folds += 1;
+  stretches += 1;
   total += 1;
-  depth += CONFIG.foldDepthCost;
+  depth += CONFIG.stretchDepthCost;
   swarm = Math.min(CONFIG.swarmMax, swarm + 1);
   save.misses += 1;
   persist();
@@ -438,10 +438,10 @@ async function grabbed(reason: string) {
     await softFail();
     return;
   }
-  foldRepeat = true;      // 같은 구간을 다시 (분필 자국 — 인지 4요소 ④)
+  stretchRepeat = true;      // 같은 구간을 다시 (분필 자국 — 인지 4요소 ④)
   rollSegment(true);
   // 낮에는 '골목이 접혔다'는 자각 문구를 붙이지 않는다 — 튜토리얼에 괴담을 새지 않게
-  hud.say(walkMode === 'tutorial' ? reason : `${reason}\n${TEXT.foldNotice}`, 3800);
+  hud.say(walkMode === 'tutorial' ? reason : `${reason}\n${TEXT.stretchNotice}`, 3800);
   phase = 'walk';
   await hud.fadeIn(700);
 }
@@ -449,19 +449,19 @@ async function grabbed(reason: string) {
 /** 구간 통과 처리 — 출구는 하나뿐. 판정은 이미 걷는 동안 끝났다(전부 확인했는가) */
 async function passSegment() {
   let repeat = false;
-  // avert(사람 형태)는 지나치는 것이 정답 — 접힘 대상이 아니다. 흔적(gaze)만 확인 의무 (v0.11.0)
+  // avert(사람 형태)는 지나치는 것이 정답 — 늘어남 대상이 아니다. 흔적(gaze)만 확인 의무 (v0.11.0)
   const missed = anomalies.filter((a) => a.rule === 'gaze' && !checked.has(a.id));
 
   if (missed.length > 0) {
-    // 접힘 — 확인 없이 지나침은 죽음이 아니라 연장 + 증식 (game.md 판정)
-    folds += 1;
+    // 늘어남 — 확인 없이 지나침은 죽음이 아니라 연장 + 증식 (game.md 판정)
+    stretches += 1;
     total += 1;
-    depth += CONFIG.foldDepthCost;
+    depth += CONFIG.stretchDepthCost;
     swarm = Math.min(CONFIG.swarmMax, swarm + 1); // 지나칠수록 골목의 어긋남이 늘어난다
-    save.misses += 1; // 노미스(히든 엔딩) 추적 — 접힘 = 미스
+    save.misses += 1; // 노미스(히든 엔딩) 추적 — 늘어남 = 미스
     persist();
     repeat = true;
-    hud.say(`${missed[0].reveal}\n${TEXT.foldNotice}`, 3800); // reveal 암시 (인지 4요소 ②)
+    hud.say(`${missed[0].reveal}\n${TEXT.stretchNotice}`, 3800); // reveal 암시 (인지 4요소 ②)
     audio.duck(true); // 정적 — 사운드 드랍 (인지 4요소 ③, rollSegment가 이어받는다)
   }
 
@@ -475,8 +475,8 @@ async function passSegment() {
     else await reachHome();
     return;
   }
-  foldRepeat = repeat;
-  // 접힘은 같은 테마를 반복. 귀갓길은 테마 역순 (먹자골목 → 원룸), 아침 편도는 정순
+  stretchRepeat = repeat;
+  // 늘어남은 같은 테마를 반복. 귀갓길은 테마 역순 (먹자골목 → 원룸), 아침 편도는 정순
   if (!repeat) {
     theme = walkMode === 'return'
       ? Math.max(theme - 1, 1)
@@ -813,7 +813,7 @@ function updateWalk(dt: number) {
       audio.carPass(CAR_SEC); // 소리는 주행 시간과 같이 — 상수를 손대면 함께 따라온다
       if (walkMode !== 'tutorial' && inRoad) hud.say(TEXT.carComing, 2000);
     }
-    // 치임 — 차가 통행부를 지나는데 아직 길 위에 있으면. **낮에도 접힌다** (v0.11.10):
+    // 치임 — 차가 통행부를 지나는데 아직 길 위에 있으면. **낮에도 늘어난다** (v0.11.10):
     // 튜토리얼이 안전지대인 것은 '괴담'에 한해서고, 차는 낮에도 차다
     if (inRoad && carInCorridor(refs) && Math.abs(player.z - refs.car.position.z) < 2.4) {
       void hitByCar();
@@ -1076,7 +1076,7 @@ window.addEventListener('resize', () => {
 // 예외: debugSpot은 ?a= 디버그 모드 한정의 검증용 조작 훅 (지적을 결정적으로 재현)
 (window as unknown as Record<string, unknown>).__fries = {
   state: () => ({
-    phase, mode: walkMode, night, done, total, theme, depth, folds, swarm,
+    phase, mode: walkMode, night, done, total, theme, depth, stretches, swarm,
     active: anomalies.length, checked: checked.size,
     avert: anomalies.filter((a) => a.rule === 'avert').length,
     // 아직 안 짚은 **직시** 대상까지의 최단 거리 (없으면 null).

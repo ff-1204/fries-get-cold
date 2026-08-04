@@ -21,8 +21,8 @@ export class Hud {
     this.status.textContent = text;
   }
 
-  /** 접힘 — 카운터 교체를 놓칠 수 없게 (팝 금지: 페이드 아웃 → 교체 → 페이드 인, visual-polish §7) */
-  setStatusFold(text: string) {
+  /** 늘어남 — 카운터 교체를 놓칠 수 없게 (팝 금지: 페이드 아웃 → 교체 → 페이드 인, visual-polish §7) */
+  setStatusStretch(text: string) {
     this.status.style.opacity = '0';
     setTimeout(() => {
       this.status.textContent = text;

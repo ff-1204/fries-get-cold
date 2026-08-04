@@ -84,7 +84,7 @@ export { MAIN_GAP_HALF }; // 기존 import 경로(main.ts) 유지
 export type { SegmentRefs };
 export { applyAnomalies } from './effects';
 export {
-  setSegmentTheme, applyDepth, setMorning, setTunnelDark, setFoldMark, setShopNear,
+  setSegmentTheme, applyDepth, setMorning, setTunnelDark, setStretchMark, setShopNear,
   setBackScene, setBannerSide, setThemeMirror, updateWorld, startCar, stopCar, carInCorridor,
 } from './runtime';
 export {

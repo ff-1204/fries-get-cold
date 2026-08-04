@@ -18,7 +18,7 @@ export interface CorridorRefs {
   car: THREE.Group;              // 차도(테마 4) — 신호 위반 시 지나간다 (startCar/updateWorld)
   carLight: THREE.PointLight;
   ambient: THREE.AmbientLight;   // 깊이 사다리 대상 (applyDepth)
-  foldMark: THREE.Mesh;          // 접힘 반복 구간의 바닥 분필 자국 (인지 보장 4요소 ④)
+  stretchMark: THREE.Mesh;          // 늘어남 반복 구간의 바닥 분필 자국 (인지 보장 4요소 ④)
   lampLight: THREE.PointLight;
   shopGlow: THREE.PointLight;
   shopSign: THREE.Mesh;

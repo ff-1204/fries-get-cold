@@ -218,7 +218,7 @@ await shot('05-home-arrival');
 const homeMsg = await msg();
 say(`      도착 자막: ${JSON.stringify(homeMsg)}`);
 s = await st();
-say(`      밤 1 결과: 접힘 ${s.folds}회 · 깊이 ${s.depth} · 총 ${s.total}구간`);
+say(`      밤 1 결과: 늘어남 ${s.stretches}회 · 깊이 ${s.depth} · 총 ${s.total}구간`);
 
 // ---------- 귀가 연출 → 밤 2 ----------
 // ⚠ 버튼이 사라지는 것이 끝이 아니다 — 도착 연출은 마지막 박자에서 버튼을 **비활성화한 채**

@@ -16,7 +16,7 @@ export interface AdminSnapshot {
   total: number;
   theme: number;
   depth: number;
-  folds: number;
+  stretches: number;
   morning: boolean;
 }
 
@@ -201,7 +201,7 @@ export class Admin {
       `<span class="k">시선</span> yaw ${num(yawDeg, 1)}°  pitch ${num(pitchDeg, 1)}°` +
       `   <span class="k">속도</span> ${num(this.speed, 1)}\n` +
       `<span class="k">상태</span> ${s.morning ? '아침(퇴근길)' : `밤 ${s.night}`}` +
-      `  구간 ${s.done + 1}/${s.total}  테마 ${s.theme}  깊이 ${s.depth}  접힘 ${s.folds}\n` +
+      `  구간 ${s.done + 1}/${s.total}  테마 ${s.theme}  깊이 ${s.depth}  늘어남 ${s.stretches}\n` +
       `<span class="k">조준</span> ${look}`;
   }
 
@@ -285,7 +285,7 @@ export class Admin {
       <div class="row"><button id="adm-off" class="warn">관리자 모드 끄기</button></div>
       <div class="help">비행 WASD · Space 상승 · Shift 하강 · Alt 가속 · 휠 속도<br>
         C 좌표+조준 대상 복사 · Esc 이 창 · Ctrl+Space Space 모드 전환<br>
-        관리자 모드에서는 붙잡힘·치임·접힘·구간 전환이 전부 멈춘다</div>`;
+        관리자 모드에서는 붙잡힘·치임·늘어남·구간 전환이 전부 멈춘다</div>`;
     document.body.appendChild(el);
     this.panel = el;
 

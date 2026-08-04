@@ -2,7 +2,7 @@
 //
 // 준비: npm run dev -- --port 5199 --strictPort  (별도 터미널)
 // 사용: npm run verify:shots    — 이상현상 정상/이상 비교 + 구간 테마 스크린샷 → verify-shots/
-//       npm run verify:balance  — 무결점 밤·접힘→입구 리셋·정당 우회 실측 (접히는 골목 판정)
+//       npm run verify:balance  — 무결점 밤·늘어남→입구 리셋·정당 우회 실측 (늘어나는 골목 판정)
 //
 // 원리: main.ts의 읽기 전용 훅 window.__fries.state()로 위치·상태를 읽으며
 // page.keyboard로 주파한다 (WASD 리스너는 포인터락과 무관).
@@ -65,7 +65,7 @@ async function waitForFreshGreen(page) {
 }
 
 /** 본길 통과 — 걸음(done)이 넘어가거나 phase가 바뀔 때까지 전진 (달리기 없음 — v0.11.2).
- *  **접힘은 삼키지 않는다**: phase 변화만 보면 치임·붙잡힘도 '통과'로 읽혀
+ *  **늘어남은 삼키지 않는다**: phase 변화만 보면 치임·붙잡힘도 '통과'로 읽혀
  *  같은 구간을 조용히 반복 촬영하게 된다 (2026-08-03 실측으로 발견한 결함) */
 async function passMain(page) {
   const s0 = await state(page);
@@ -92,8 +92,8 @@ async function passMain(page) {
   );
   await page.keyboard.up('KeyW');
   const s1 = await state(page);
-  if (s1.folds !== s0.folds) {
-    console.warn(`  ⚠ 통과 중 접힘 — theme ${s0.theme}, folds ${s0.folds}→${s1.folds}, depth ${s1.depth}`);
+  if (s1.stretches !== s0.stretches) {
+    console.warn(`  ⚠ 통과 중 늘어남 — theme ${s0.theme}, stretches ${s0.stretches}→${s1.stretches}, depth ${s1.depth}`);
   }
 }
 
@@ -182,22 +182,22 @@ async function shots() {
     }
     await browser.close();
   }
-  // 접힘 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛)
+  // 늘어남 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=drag_mark'); // 귀갓길 첫 구간(테마 5)의 흔적 — 바로 판정에 걸린다
-    await passMain(page); // 접힘 1회 → 같은 구간 반복 (depth 2)
+    await passMain(page); // 늘어남 1회 → 같은 구간 반복 (depth 2)
     await walkTo(page, -3.2); // 분필 자국(z=-5.5)이 전방 바닥에 보이는 지점
-    await shot(page, 'fold-repeat-mark');
+    await shot(page, 'stretch-repeat-mark');
     await walkTo(page, -12); // 가로등(z=-16.2) 앞 — 감광 확인
-    await shot(page, 'fold-depth2-lamp');
+    await shot(page, 'stretch-depth2-lamp');
     await browser.close();
   }
 }
 
-// ---------- 모드 2: 판정 실측 (접힘·깊이·soft fail — game.md 판정) ----------
+// ---------- 모드 2: 판정 실측 (늘어남·깊이·soft fail — game.md 판정) ----------
 async function balance() {
-  // 1) 무결점 밤 (?a=none) — 접힘 0 → '아직 따뜻하다' → 시식 → 밤 2 진입
+  // 1) 무결점 밤 (?a=none) — 늘어남 0 → '아직 따뜻하다' → 시식 → 밤 2 진입
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=none');
@@ -233,16 +233,16 @@ async function balance() {
     await browser.close();
   }
 
-  // 2) 접힘 3회 = 깊이 한계 → 골목 입구 리셋 (?a=drag_mark — 귀갓길 첫 구간 흔적, 지나치기 강행)
+  // 2) 늘어남 3회 = 깊이 한계 → 골목 입구 리셋 (?a=drag_mark — 귀갓길 첫 구간 흔적, 지나치기 강행)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=drag_mark');
     for (let i = 0; i < 2; i++) {
       await passMain(page);
       const s = await state(page);
-      console.log(`[접힘 ${i + 1}] ${JSON.stringify({ done: s.done, total: s.total, depth: s.depth, folds: s.folds })}`);
+      console.log(`[늘어남 ${i + 1}] ${JSON.stringify({ done: s.done, total: s.total, depth: s.depth, stretches: s.stretches })}`);
     }
-    await passMain(page); // 3번째 접힘 → depth 6 → soft fail 오버레이
+    await passMain(page); // 3번째 늘어남 → depth 6 → soft fail 오버레이
     await clickOverlayButton(page); // …다시 걷는다
     await page.waitForFunction(
       () => { const s = globalThis.__fries.state(); return s.phase === 'walk' && s.done === 0; },
@@ -261,7 +261,7 @@ async function balance() {
     const checked = (await state(page)).checked;
     await passMain(page);
     const s = await state(page);
-    console.log('확인 통과:', JSON.stringify({ checked, done: s.done, total: s.total, depth: s.depth, folds: s.folds, theme: s.theme }));
+    console.log('확인 통과:', JSON.stringify({ checked, done: s.done, total: s.total, depth: s.depth, stretches: s.stretches, theme: s.theme }));
     await browser.close();
   }
 
@@ -271,11 +271,11 @@ async function balance() {
     await startGame(page, 'a=none');
     await debugSpot(page);
     const s = await state(page);
-    console.log('빈 지적 확인:', JSON.stringify({ depth: s.depth, done: s.done, folds: s.folds }));
+    console.log('빈 지적 확인:', JSON.stringify({ depth: s.depth, done: s.done, stretches: s.stretches }));
     await browser.close();
   }
 
-  // 5) avert — 사람 형태를 짚으면 즉시 붙잡힌다 = 접힘 (v0.11.0 괴담 규칙)
+  // 5) avert — 사람 형태를 짚으면 즉시 붙잡힌다 = 늘어남 (v0.11.0 괴담 규칙)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=bus_figure'); // 구간 4 = 귀갓길 두 번째
@@ -286,21 +286,21 @@ async function balance() {
       { polling: 120, timeout: 15000 });
     const s = await state(page);
     console.log('손가락질 붙잡힘:', JSON.stringify({
-      avert: s0.avert, folds: s.folds, total: s.total, depth: s.depth, theme: s.theme,
+      avert: s0.avert, stretches: s.stretches, total: s.total, depth: s.depth, theme: s.theme,
     }));
     await browser.close();
   }
 
-  // 6) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (접힘 없음)
+  // 6) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (늘어남 없음)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=bus_figure&avert=off'); // 응시 정지 = '눈을 마주치지 않은' 상태
     await passMain(page);
     const s0 = await state(page);
-    await passMain(page); // 확인 없이 통과 — avert는 접힘 대상이 아니다
+    await passMain(page); // 확인 없이 통과 — avert는 늘어남 대상이 아니다
     const s = await state(page);
     console.log('외면 통과:', JSON.stringify({
-      avert: s0.avert, folds: s.folds, total: s.total, depth: s.depth,
+      avert: s0.avert, stretches: s.stretches, total: s.total, depth: s.depth,
     }));
     await browser.close();
   }

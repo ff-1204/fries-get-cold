@@ -34,7 +34,7 @@
       font-size: clamp(12px, 1.6vw, 15px); letter-spacing: 0.06em; opacity: 0.85;
       text-shadow: 0 1px 4px #000;
       border-left: 2px solid rgba(255, 178, 62, 0.35); padding-left: 9px; /* 이정표 — 웜 = 목표 (visual-polish §3) */
-      transition: opacity 0.32s; /* 접힘 카운터 교체 페이드 (hud.setStatusFold) */
+      transition: opacity 0.32s; /* 늘어남 카운터 교체 페이드 (hud.setStatusStretch) */
     }
     #reticle { /* 지적 크로스헤어 — 어포던스: 짚을 수 있다는 신호 (걷는 동안만, hud.setReticle) */
       position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px;
@@ -116,7 +116,7 @@
       to { transform: scale(1.045); }
     }
 
-    /* 접이식 설정 (밝기·소리) — 타이틀 첫인상을 해치지 않게 기본 접힘 (visual-polish §1) */
+    /* 접이식 설정 (밝기·소리) — 타이틀 첫인상을 해치지 않게 기본 늘어남 (visual-polish §1) */
     #settings-panel { display: none; flex-direction: column; align-items: center; gap: 14px; }
     #settings-panel.open { display: flex; }
     /* 설정 한 항목 = 조작 줄 + 설명 줄, 둘 다 가운데. 항목 사이는 아주 옅은 실선으로 나눈다 */

@@ -3,7 +3,7 @@
 // (콘텐츠·텍스트는 data.ts 파사드 — 여기는 수치·레이아웃만)
 
 export const CONFIG = {
-  segments: 5,             // 기본 밤 길이 — 접힘이 없을 때의 총 구간 수
+  segments: 5,             // 기본 밤 길이 — 늘어남이 없을 때의 총 구간 수
   segLength: 36,           // 구간 길이 (m)
   corridorHalfWidth: 3,    // 골목 절반 폭
   // 속도는 하나뿐이고, 느리다 (v0.11.3). 달리기 없음 + 느린 걸음 = 도망칠 수 없다는 감각.
@@ -18,7 +18,7 @@ export const CONFIG = {
   // ---------- 깊이 — 유일한 자원 (game.md 판정, game-design-theory §5·§9) ----------
   // 숫자 게이지 없음: 가로등 밝기가 다이제틱 표시 (world.ts applyDepth 사다리)
   depthLimit: 6,           // 도달 = soft fail: 암전 → 골목 입구 리셋 (죽음 아님)
-  foldDepthCost: 2,        // 확인 없이 지나침(접힘) — 구간 반복 + 남은 거리 +1과 함께
+  stretchDepthCost: 2,        // 확인 없이 지나침(늘어남) — 구간 반복 + 남은 거리 +1과 함께
   wasteDepthCost: 1,       // 빈 지적(아무것도 아닌 것을 짚음) — 정확한 확인은 비용 0
   spotCooldownSec: 0.6,    // 지적 연타 방지 (스팸으로 우연히 맞추기 차단)
   checkDistance: 4.5,      // 확인 성립 거리(m) — 멀리서는 안 된다. 무서운 쪽으로 다가가야 한다
@@ -35,7 +35,7 @@ export const CONFIG = {
   avertWarnSec: 0.4,       // 경고까지 (즉각 피드백 — 눈을 뗄 시간을 준다)
   avertGrabSec: 2.2,       // 붙잡힘까지. 시선을 떼면 회복되므로 관대하게
   avertRecoverMul: 2.5,    // 시선을 뗐을 때 회복 배속
-  // 밸런스 함의: 접힘 3회 = 리셋 / 빈 지적만 6회 = 리셋 ("전부 의심하면 밤이 끝나지 않는다")
+  // 밸런스 함의: 늘어남 3회 = 리셋 / 빈 지적만 6회 = 리셋 ("전부 의심하면 밤이 끝나지 않는다")
 };
 
 // ---------- 레이아웃 파생 상수 (world.ts 지오메트리 + main.ts 판정이 공유) ----------

@@ -27,7 +27,7 @@
 | `npm run build` | 커밋 전 항상 | 타입 검사 포함 |
 | `npm run verify:sim` | 커밋 전 항상 | 깊이 모델 10건, <1초 |
 | `npm run verify:balance` | 판정·속도·공간을 건드렸으면 | E2E 6케이스 |
-| `npm run verify:shots` | 시각 변경이 있으면 | 이상현상 쌍 + 테마 + 접힘 |
+| `npm run verify:shots` | 시각 변경이 있으면 | 이상현상 쌍 + 테마 + 늘어남 |
 | `npm run verify:play` | 흐름·전환을 건드렸으면 | 첫 방문 → 튜토리얼 → 밤 1 → 집 → 밤 2 |
 | `__fries.occlusion()` | 프롭을 더했으면 | 이상현상이 가려지지 않는지 |
 | **직접 걷기** | 구간이 바뀌면 | 자동 검증은 "재밌는가"를 답하지 못한다 |

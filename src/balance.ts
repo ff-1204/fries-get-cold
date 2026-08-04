@@ -6,10 +6,10 @@ import { CONFIG } from './config.ts';
 
 export type Taste = 'crispy' | 'lukewarm' | 'soggy';
 
-/** 시식 서사 등급 — 온도 시스템은 퇴역, 감자튀김은 접힘 횟수를 비추는 내러티브로만.
- *  접힘 0 = 아직 따뜻하다(바삭) / 1~2 = 조금 식었다 / 3+ = 다 식었다 */
-export function tasteFromFolds(folds: number): Taste {
-  return folds <= 0 ? 'crispy' : folds <= 2 ? 'lukewarm' : 'soggy';
+/** 시식 서사 등급 — 온도 시스템은 퇴역, 감자튀김은 늘어남 횟수를 비추는 내러티브로만.
+ *  늘어남 0 = 아직 따뜻하다(바삭) / 1~2 = 조금 식었다 / 3+ = 다 식었다 */
+export function tasteFromStretches(stretches: number): Taste {
+  return stretches <= 0 ? 'crispy' : stretches <= 2 ? 'lukewarm' : 'soggy';
 }
 
 // ---------- 밤 시뮬레이션 (테스트 전용 — 게임은 실이동으로 같은 값에 도달한다) ----------
@@ -19,8 +19,8 @@ export function tasteFromFolds(folds: number): Taste {
 const SEG_DIST = CONFIG.segLength + 0.5;
 
 /** 증식 — 확인 없이 지나칠 때마다 이상이 하나씩 늘어난다 (상한 CONFIG.swarmMax) */
-export function swarmAfterFolds(folds: number): number {
-  return Math.min(CONFIG.swarmMax, folds);
+export function swarmAfterStretches(stretches: number): number {
+  return Math.min(CONFIG.swarmMax, stretches);
 }
 
 /** 이상이 배정된 구간의 동시 출현 수 */
@@ -29,8 +29,8 @@ export function activeCount(swarm: number): number {
 }
 
 export interface NightPlan {
-  /** 접힘(이상을 못 보고 지나침) 횟수 — 각각 구간 반복 1회 = 총 걸음 +1 */
-  folds?: number;
+  /** 늘어남(이상을 못 보고 지나침) 횟수 — 각각 구간 반복 1회 = 총 걸음 +1 */
+  stretches?: number;
   /** 빈 지적(아무것도 아닌 것을 짚음) 횟수 — 깊이만 지불, 거리 비용 없음 */
   wastes?: number;
 }
@@ -39,15 +39,15 @@ export interface NightPlan {
 export function simulateNight(plan: NightPlan = {}): {
   depth: number; softFail: boolean; total: number; taste: Taste; seconds: number;
 } {
-  const { folds = 0, wastes = 0 } = plan;
-  const depth = folds * CONFIG.foldDepthCost + wastes * CONFIG.wasteDepthCost;
-  const total = CONFIG.segments + folds; // 접힘마다 남은 거리 +1
+  const { stretches = 0, wastes = 0 } = plan;
+  const depth = stretches * CONFIG.stretchDepthCost + wastes * CONFIG.wasteDepthCost;
+  const total = CONFIG.segments + stretches; // 늘어남마다 남은 거리 +1
   const seconds = (total * SEG_DIST) / CONFIG.walkSpeed;
   return {
     depth,
     softFail: depth >= CONFIG.depthLimit,
     total,
-    taste: tasteFromFolds(folds),
+    taste: tasteFromStretches(stretches),
     seconds,
   };
 }
