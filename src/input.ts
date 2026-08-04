@@ -1,8 +1,12 @@
 // 입력 추상화 레이어 — docs/responsive-design.md §1
-// PC: Pointer Lock + WASD / 모바일: 걷기 버튼 홀드(전진) + 화면 어디든 드래그(시점) + 탭(지적)
+// PC: Pointer Lock + WASD / 모바일: 걷기 버튼 홀드(전진, **쥔 채로 끈 방향으로 게걸음·뒷걸음**) +
+//     화면 어디든 드래그(시점) + 탭(지적)
 // 달리기 없음 (v0.11.2) — 이 게임의 속도는 하나뿐이다
 // 길이 직진뿐이라 조향이 필요 없다 — 조이스틱·반분할 폐지 (v0.7.0)
 // 기기 고정 감지 대신 pointerType으로 런타임 전환
+
+/** 터치 드래그 → 시점 배율 (화면 드래그 = 시점, 걷기 버튼 드래그 = 걸음 방향) */
+const TOUCH_LOOK = 2.4;
 
 export class Input {
   yaw = 0;
@@ -11,8 +15,9 @@ export class Input {
   /** 지적 콜백 — 화면 좌표(px). PC(포인터락)는 화면 중앙, 모바일은 탭 지점 (main.ts tryPoint) */
   onPoint: ((x: number, y: number) => void) | null = null;
 
-  /** 걷기 버튼 (모바일 #walk-btn) — main.ts가 홀드 상태를 넣는다 */
+  /** 걷기 버튼 (모바일 #walk-btn) — main.ts가 홀드/끈 방향을 넣는다. 키보드와 같은 −1/0/+1 */
   touchForward = 0;
+  touchStrafe = 0;
 
   private keys = new Set<string>();
   private canvas: HTMLCanvasElement;
@@ -76,7 +81,7 @@ export class Input {
 
   private onPointerMove(e: PointerEvent) {
     if (this.lookTouch && e.pointerId === this.lookTouch.id) {
-      this.applyLook((e.clientX - this.lookTouch.x) * 2.4, (e.clientY - this.lookTouch.y) * 2.4);
+      this.applyLook((e.clientX - this.lookTouch.x) * TOUCH_LOOK, (e.clientY - this.lookTouch.y) * TOUCH_LOOK);
       this.lookTouch.x = e.clientX;
       this.lookTouch.y = e.clientY;
     }
@@ -108,8 +113,9 @@ export class Input {
     if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) forward -= 1;
     if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) strafe += 1;
     if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) strafe -= 1;
-    // 걷기 버튼 (모바일) — 누르는 동안 전진
+    // 걷기 버튼 (모바일) — 누르는 동안 전진, 끈 방향이 있으면 그쪽으로
     forward += this.touchForward;
+    strafe += this.touchStrafe;
 
     return {
       forward: Math.max(-1, Math.min(1, forward)),

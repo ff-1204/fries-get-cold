@@ -660,24 +660,50 @@ function tryPoint(px: number, py: number, force = false) {
 
 input.onPoint = (x, y) => tryPoint(x, y);
 
-// ---------- 걷기 버튼 (모바일 #walk-btn) — 누르는 동안 전진 ----------
-// 길이 직진뿐이라 조향이 필요 없다: 홀드 = 걷기, 손을 떼면 그 자리에서 관찰 (responsive-design §1)
+// ---------- 걷기 버튼 (모바일 #walk-btn) — 홀드는 전진, 쥔 채로 끌면 그쪽으로 ----------
+// 홀드 = 걷기, 손을 떼면 그 자리에서 관찰 (responsive-design §1).
 // 달리기 없음 (v0.11.2) — 밀기 제스처도 함께 폐지, 조작은 홀드 하나뿐
+//
+// setPointerCapture가 **버튼을 누른 손가락을 잡고 있다** — 그 뒤의 움직임은 캔버스에 닿지
+// 않으므로, 잡고 있는 그 포인터를 여기서 방향으로 읽는다. 누른 지점이 중심이고
+// 끈 방향이 걸음의 방향이다: 위=전진 · 아래=뒷걸음 · 좌우=게걸음 (대각 포함 8방향).
+//
+// ⚠ **세기는 읽지 않는다 — 방향만 읽는다.** 키보드와 똑같이 −1/0/+1만 넣는다.
+// 이 게임의 속도는 하나뿐이고(config.walkSpeed) 아날로그 스틱은 그 전제를 깬다.
+// 축별 감속은 이동 계산이 이미 한다 (뒷걸음 0.65 · 게걸음 0.5 — updateWalk).
 const walkBtn = document.getElementById('walk-btn') as HTMLButtonElement | null;
 if (walkBtn) {
+  // 누른 자리에서 이만큼 벗어나야 방향으로 친다 — 엄지의 미세한 흔들림에 걸음이 흔들리면 안 된다.
+  // 버튼 지름 96px 기준: 반지름의 1/3쯤에서 걸린다
+  const DEAD = 16;
   let walkPointer: number | null = null;
+  const origin = { x: 0, y: 0 };
   const endWalk = (e: PointerEvent) => {
     if (e.pointerId !== walkPointer) return;
     walkPointer = null;
     input.touchForward = 0;
+    input.touchStrafe = 0;
     walkBtn.classList.remove('held');
   };
   walkBtn.addEventListener('pointerdown', (e) => {
     walkPointer = e.pointerId;
     input.usesTouch = true;
     input.touchForward = 1;
+    input.touchStrafe = 0;
+    origin.x = e.clientX;
+    origin.y = e.clientY;
     walkBtn.classList.add('held');
     walkBtn.setPointerCapture(e.pointerId);
+  });
+  walkBtn.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== walkPointer) return;
+    const dx = e.clientX - origin.x;
+    const dy = e.clientY - origin.y;
+    const fwd = Math.abs(dy) >= DEAD ? -Math.sign(dy) : 0;   // 화면 위(−y) = 앞
+    const str = Math.abs(dx) >= DEAD ? Math.sign(dx) : 0;
+    // 어느 쪽으로도 벗어나지 않았으면 **그냥 홀드** = 전진 (누르기만 하는 조작을 잃지 않는다)
+    input.touchForward = fwd === 0 && str === 0 ? 1 : fwd;
+    input.touchStrafe = str;
   });
   walkBtn.addEventListener('pointerup', endWalk);
   walkBtn.addEventListener('pointercancel', endWalk);
