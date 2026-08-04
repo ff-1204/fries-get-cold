@@ -301,7 +301,10 @@ function rollSegment(stretchStatus = false) {
     : walkMode === 'return'
       ? `${TEXT.nightLabel(night)} — 돌아가는 길 ${TEXT.segLabel(done + 1, total, theme)}`
       : `${TEXT.nightLabel(night)} — ${TEXT.segLabel(done + 1, total, theme)}`;
-  if (stretchStatus) hud.setStatusStretch(label); // 늘어남 — 카운터 강조 교체 (인지 4요소 ①)
+  if (stretchStatus) {
+    hud.setStatusStretch(label); // 늘어남 — 카운터 강조 교체 (인지 4요소 ①)
+    audio.stretch();             // …그리고 그 순간의 소리 (v0.11.47). 놀래키지 않고 가라앉는다
+  }
   else hud.setStatus(label);
 }
 
@@ -943,6 +946,10 @@ function updateWalk(dt: number) {
       audio.duck(anomalies.length > 0);
     }
   }
+  // 심박 — 응시 게이지의 청각 병행 (v0.11.47). **눈을 돌리면 화면의 비네트는 안 보인다**:
+  // 규칙이 "보지 마라"인데 위험 표시가 시각뿐이면 지키는 순간 정보가 끊긴다.
+  // 심박은 눈을 감아도 들리고, 물러나면 함께 잦아든다
+  audio.setStare(stare / CONFIG.avertGrabSec);
 
   // 온보딩 힌트 — 걷기 힌트는 몇 걸음 걸으면 해제, 직시 힌트는 첫 흔적 접근 시 한 번
   if (stageOf(night).onboarding) {
