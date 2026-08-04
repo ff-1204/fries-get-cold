@@ -89,6 +89,7 @@ export interface Theme4Refs {
   boothLight: THREE.PointLight;
   boothTubeMat: THREE.MeshStandardMaterial;
   acrossFigure: THREE.Group;                // H-014 길 건너 서 있는 형체 (밤 4)
+  benchShoes: THREE.Group;                  // H-016 벤치 위의 신발 한 켤레 (밤 4)
 }
 
 /** 테마 5: 먹자골목 입구 */

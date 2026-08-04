@@ -117,6 +117,24 @@
     "reveal": "…반쯤 올라간 셔터 안은, 불도 사람도 없었다."
   },
   {
+    "id": "H-016",
+    "night": 4,
+    "segment": 4,
+    "category": "OBJ",
+    "rule": "gaze",
+    "effect": "bench_shoes",
+    "reveal": "…벤치 위에 신발만 가지런히. 신고 갈 사람이, 없었다."
+  },
+  {
+    "id": "H-017",
+    "night": 5,
+    "segment": 2,
+    "category": "LGT",
+    "rule": "gaze",
+    "effect": "sign_lit",
+    "reveal": "…다 꺼진 상가에서, 그 간판 하나만 켜져 있었다."
+  },
+  {
     "id": "H-013",
     "night": 4,
     "segment": 1,

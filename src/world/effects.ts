@@ -27,6 +27,7 @@ function toggle(pick: (r: SegmentRefs) => { visible: boolean }): EffectHandler {
 const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
   // ---- 밤 3~4 해금 ----
   shoes: toggle((r) => r.shoes),
+  bench_shoes: toggle((r) => r.benchShoes),
   bike_figure: toggle((r) => r.bikeFigure),
   slide_figure: toggle((r) => r.slideFigure),
   across_figure: toggle((r) => r.acrossFigure),

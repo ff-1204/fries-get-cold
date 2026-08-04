@@ -7,7 +7,7 @@ import { box, bannerTexture, type SharedMats } from '../kit';
 import { buildRoadTunnel } from '../prefab';
 import { L, HW, WALL_H, ROAD_Z, ROAD_HALF } from '../layout';
 
-type E = 'traffic_red' | 'bus_figure' | 'across_figure';
+type E = 'traffic_red' | 'bus_figure' | 'across_figure' | 'bench_shoes';
 
 export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   const t4 = new THREE.Group();
@@ -119,13 +119,32 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   banner.position.set(0, 5.25, -L + 0.25);
   t4.add(banner);
 
+  // ---------- H-016 벤치 위의 신발 한 켤레 (밤 4, 직시) ----------
+  // H-010(계단 앞 신발)의 변주다. **같은 사물이 다른 자리에 있는 것**이 부재를 강화한다 —
+  // 계단 앞은 "신발을 벗고 들어갔나"지만, 정류장 벤치 위는 벗어둘 이유가 없는 자리다.
+  // 앉아서 기다리던 사람이 신발만 두고 갔다는 것 외에 읽을 방법이 없다.
+  //
+  // 벤치(x = HW-0.32, 상판 y 0.59, z 길이 1.8)의 **앞쪽 끝**에 둔다.
+  // 형체(H-007)는 벤치 한가운데(-L*0.32)에 앉으므로 증식으로 둘이 겹쳐도 자리가 안 부딪힌다.
+  // 나란히 놓는 방향은 **z(벤치 길이 방향)** — x로 벌리면 벤치 깊이(0.35)를 넘어 뜬다.
+  // 실루엣 대비: 부스 형광등(한색)이 비추는 벤치 위의 밝은 것 (배치 3원칙 ③)
+  const benchShoes = new THREE.Group();
+  for (const sz of [-0.19, 0.19]) {
+    const shoe = box(0.24, 0.11, 0.34, 0xd8d4c8, 0, 0.055, sz, benchShoes);
+    shoe.position.z = sz;
+  }
+  benchShoes.position.set(HW - 0.32, 0.59, -L * 0.32 + 0.62);
+  benchShoes.visible = false;
+  t4.add(benchShoes);
+
   return {
     group: t4,
-    refs: { trafficRed, trafficGreen, busFigure, banner, boothLight, boothTubeMat, acrossFigure },
+    refs: { trafficRed, trafficGreen, busFigure, banner, boothLight, boothTubeMat, acrossFigure, benchShoes },
     hit: {
       traffic_red: trafficHeads,
       bus_figure: [busFigure],
       across_figure: [acrossFigure],
+      bench_shoes: [benchShoes],
     },
   };
 }

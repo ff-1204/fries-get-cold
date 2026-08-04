@@ -20,6 +20,9 @@ export type AnomalyEffect =
   | 'slide_figure'                                             // 구간 3 놀이터 옆길
   | 'across_figure'                                            // 구간 4 정류장 앞
   | 'open_shutter'                                             // 구간 5 먹자골목 입구
+  // ---- 밤 4~5 해금 (v0.11.43 — 밤 5의 신규 0종을 깨고 얇은 구간 2·4를 채운다) ----
+  | 'bench_shoes'                                              // 구간 4 정류장 앞 (OBJ)
+  // ※ `sign_lit`은 퇴역 목록에 있지만 **풀에 복귀했다**(H-017) — 아래 주석 참조
   // ---- 퇴역 (구 일상 어긋남 문법 — 풀에서 제외, 핸들러는 유지) ----
   | 'umbrella' | 'sensor_on' | 'window_red' | 'flyer_digits'
   | 'laundry_open' | 'sign_lit' | 'realty_urgent'
