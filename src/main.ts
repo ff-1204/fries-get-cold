@@ -2,7 +2,7 @@
 // 직진 + 확인(무섭지만 다가가서 짚어야 한다) + 늘어남(지나침=연장+증식) + 깊이(가로등 소등·soft fail)
 
 import * as THREE from 'three';
-import { ANOMALIES, CONFIG, TEXT, STAGE_COUNT, stageOf, type AnomalyDef } from './data';
+import { ANOMALIES, CONFIG, TEXT, STAGE_COUNT, stageOf, pressureOf, type AnomalyDef } from './data';
 import { tasteFromStretches, activeCount } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
@@ -125,8 +125,16 @@ let tripAnomalies = 0; // 이 밤에 등장한 이상 수 (밤 1 온보딩 보�
 
 const player = { x: 0, z: 0 };
 
+/** 그 밤의 압력 — stages.json이 정한다 (v0.11.44). 밤 1~2는 0이라 지금까지와 같다 */
+function nightPressure() {
+  return walkMode === 'tutorial' ? { chanceBonus: 0, swarmFloor: 0 } : pressureOf(night);
+}
+
 function anomalyChance(): number {
-  return Math.min(0.8, CONFIG.baseAnomalyChance + (elapsed / 60) * CONFIG.chancePerMinute);
+  // 상한도 압력만큼 올린다 — 밤 5에서 0.8에 걸려 밤 3과 같아지면 상승이 사라진다
+  const { chanceBonus } = nightPressure();
+  return Math.min(0.8 + chanceBonus,
+    CONFIG.baseAnomalyChance + chanceBonus + (elapsed / 60) * CONFIG.chancePerMinute);
 }
 
 // 디버그: ?a=<effect>로 이상 고정 — 해당 이상현상의 배치 구간에 도달했을 때 등장
@@ -210,10 +218,31 @@ function rollSegment(stretchStatus = false) {
     anomalies = forced ? [forced] : [];
   } else if (pool.length > 0 && !forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
     // 증식 — 지나칠수록 동시 이상이 늘어난다 (풀에서 서로 다른 것을 뽑는다)
-    const n = Math.min(activeCount(swarm), pool.length);
+    const n = Math.min(activeCount(swarm + nightPressure().swarmFloor), pool.length);
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    anomalies = shuffled.slice(0, n);
-    tripAnomalies += n;
+    // ⭐ **규칙이 다른 것부터 번갈아 뽑는다** (v0.11.44) — 흔적 둘보다 흔적+형체가 무섭다.
+    //
+    // 이 게임에는 여태 '고민'이 없었다: 흔적은 명백하니 보면 바로 알고, 다가가 짚으면 무비용.
+    // 사람 형태는 실루엣으로 즉시 갈린다. 즉 **판단해야 하는 순간이 구조적으로 없었다.**
+    // 둘을 한 구간에 함께 세우면 그 순간이 공짜로 생긴다 —
+    // 흔적을 직시하려면 4.5m까지 다가가야 하는데, 그 자리가 형체의 응시 판정(11m·12°) 안이면
+    // **짚으러 갈 것인가, 늘어남을 받을 것인가**를 처음으로 고르게 된다.
+    // 판정도 새 부류도 필요 없다. 선택 순서만 바꾼 것이다
+    const byRule: Record<string, typeof pool> = {
+      gaze: shuffled.filter((a) => a.rule === 'gaze'),
+      avert: shuffled.filter((a) => a.rule === 'avert'),
+    };
+    const picked: typeof pool = [];
+    let want = Math.random() < 0.5 ? 'gaze' : 'avert';   // 어느 쪽이 먼저인지는 매번 다르다
+    while (picked.length < n) {
+      const other = want === 'gaze' ? 'avert' : 'gaze';
+      const next = byRule[want].shift() ?? byRule[other].shift();
+      if (!next) break;                                   // 한쪽 부류만 있는 구간이면 그대로
+      picked.push(next);
+      want = other;
+    }
+    anomalies = picked;
+    tripAnomalies += picked.length;
   } else {
     anomalies = [];
   }

@@ -66,6 +66,27 @@ export interface StageDef {
   intro: string;
   /** 집에 도착해서 — 그 밤의 마지막 컷 (Peak-End의 End, story.md §5) */
   epilogue: string;
+  /** 그 밤의 압력 (v0.11.44). 없으면 0 — 밤 1~2는 지금까지와 완전히 같다.
+   *
+   *  ⚠ **이것은 이전 설계의 번복이다.** 여태 "난이도는 밤 번호를 타지 않는다"가 의도였고,
+   *  깊어지는 감각은 해금되는 콘텐츠가 만든다고 봤다. 그런데 실제로는 인트로·에필로그를 빼면
+   *  **밤 5가 밤 2와 기계적으로 똑같이 걸렸다** — 다섯 밤짜리 공포 게임에서 마지막 밤이
+   *  두 번째 밤과 같은 압력이면 그건 다섯 밤이 아니라 한 밤을 다섯 번 하는 것이다.
+   *  콘텐츠 해금만으로는 상승이 안 만들어진다는 것이 확인됐으므로 압력을 데이터로 준다. */
+  pressure?: {
+    /** 이상 등장 확률에 더한다 (기본식: 0.4 + 경과분×0.06, 상한 0.8) */
+    chanceBonus?: number;
+    /** 증식 하한 — 늘어남이 없어도 이 밤은 처음부터 동시 이상이 이만큼 많다.
+     *  **규칙이 다른 것부터 뽑히므로**(main.ts rollSegment) 1 이상이면
+     *  흔적+형체가 함께 서는 것이 그 밤의 기본값이 된다 = "고민"이 상시화된다 */
+    swarmFloor?: number;
+  };
+}
+
+/** 그 밤의 압력 — 없는 필드는 0 (밤 1~2는 압력 0이 정상이다) */
+export function pressureOf(night: number): { chanceBonus: number; swarmFloor: number } {
+  const p = stageOf(night).pressure ?? {};
+  return { chanceBonus: p.chanceBonus ?? 0, swarmFloor: p.swarmFloor ?? 0 };
 }
 
 export const STAGES = stagesJson as StageDef[];

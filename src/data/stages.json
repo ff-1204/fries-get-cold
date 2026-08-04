@@ -15,18 +15,29 @@
     "night": 3,
     "onboarding": false,
     "intro": "사장님이 \"조심히 들어가세요\" 했다.\n…뭘 조심하라는 거지.",
-    "epilogue": "도장 세 개.\n…내가 안 간 날짜에, 하나 더 찍혀 있는 것 같다."
+    "epilogue": "도장 세 개.\n…내가 안 간 날짜에, 하나 더 찍혀 있는 것 같다.",
+    "pressure": {
+      "chanceBonus": 0.05
+    }
   },
   {
     "night": 4,
     "onboarding": false,
     "intro": "오늘은 안 오려고 했는데.\n정신을 차려 보니 다 먹고 있었다. 이제, 집에 간다.",
-    "epilogue": "주머니에 영수증이 두 장 들어 있다.\n한 장은 오늘 날짜. 한 장은, 내일 날짜."
+    "epilogue": "주머니에 영수증이 두 장 들어 있다.\n한 장은 오늘 날짜. 한 장은, 내일 날짜.",
+    "pressure": {
+      "chanceBonus": 0.1,
+      "swarmFloor": 1
+    }
   },
   {
     "night": 5,
     "onboarding": false,
     "intro": "마지막 도장을 찍었다.\n이제 집에 가기만 하면 된다. 가기만 하면.",
-    "epilogue": "도장을 다 채웠다. 칸이 꽉 찼다.\n…이제, 안 가도 되는 거겠지."
+    "epilogue": "도장을 다 채웠다. 칸이 꽉 찼다.\n…이제, 안 가도 되는 거겠지.",
+    "pressure": {
+      "chanceBonus": 0.15,
+      "swarmFloor": 1
+    }
   }
 ]
