@@ -200,8 +200,11 @@ function rollSegment(stretchStatus = false) {
 
   // 이 테마·이 밤에 가능한 풀 — 테마 사물 고정형 + 스폰 포인트 랜덤형(segment 0)
   // 같은 이상현상 연속 등장 방지 (공정성 — 늘어남 반복 구간에서 특히 중요)
+  // `untilNight`은 밤 5의 규칙 배신을 위한 것 — 같은 사물이 rule만 바꿔 다시 등록되고,
+  // 옛 항목은 여기서 끊긴다. 둘이 겹치면 정답이 둘이 되어 판정이 거짓말을 한다 (v0.11.46)
   const pool = ANOMALIES.filter(
-    (a) => (a.segment === theme || a.segment === 0) && a.night <= night && !lastIds.has(a.id),
+    (a) => (a.segment === theme || a.segment === 0) && a.night <= night &&
+      (a.untilNight === undefined || night <= a.untilNight) && !lastIds.has(a.id),
   );
 
   // 온보딩 보장 (game-design-theory §6): 온보딩 밤의 첫 구간은 반드시 정상 —
@@ -216,9 +219,15 @@ function rollSegment(stretchStatus = false) {
   if (tutorial) {
     anomalies = []; // 첫날 아침 — 아무 일도 없다. 표지판만 말이 많다
   } else if (forcedEffect()) {
-    const forced = ANOMALIES.find(
+    // 같은 effect가 밤에 따라 rule이 다를 수 있다 (규칙 배신, v0.11.46) —
+    // **지금 밤에 유효한 항목을 먼저** 고른다. 없으면 아무거나: `?a=`는 해금 밤을 무시하는
+    // 디버그 수단이고(verify.mjs가 밤 1에서 밤 3~4 이상을 찍는다), 그 편의를 유지한다
+    const cands = ANOMALIES.filter(
       (x) => x.effect === forcedEffect() && (x.segment === theme || x.segment === 0),
     );
+    const forced = cands.find(
+      (x) => x.night <= night && (x.untilNight === undefined || night <= x.untilNight),
+    ) ?? cands[0];
     anomalies = forced ? [forced] : [];
   } else if (pool.length > 0 && !forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
     // 증식 — 지나칠수록 동시 이상이 늘어난다 (풀에서 서로 다른 것을 뽑는다)

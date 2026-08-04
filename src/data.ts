@@ -48,6 +48,10 @@ export interface AnomalyDef {
   reveal: string;
   /** 가는 길 전용 — 귀갓길에는 보이지 않는 사물(버거집 간판 등)에 지정 (공정성) */
   outboundOnly?: boolean;
+  /** 이 밤까지만 등장한다 (v0.11.46). **밤 5의 규칙 배신**을 표현하는 유일한 수단 —
+   *  같은 사물을 `rule`만 바꿔 다시 등록하고, 옛 항목을 여기서 끊는다.
+   *  두 항목이 같은 밤에 겹치면 "무엇이 정답인지" 판정이 거짓말을 하게 된다 (§0) */
+  untilNight?: number;
 }
 
 export const ANOMALIES = anomaliesJson as AnomalyDef[];
