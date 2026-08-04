@@ -493,10 +493,14 @@ const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 const projPos = new THREE.Vector3();
 
-function hitAnomaly(targets: THREE.Object3D[]): boolean {
+/** 조준이 대상에 닿았는가.
+ *  `tolerant`(기본) — 가는 사물(그네 줄·전단지)도 근처를 짚으면 인정한다. 모바일 손가락 오차 대응.
+ *  ⚠ **벌을 주는 판정에는 관용을 쓰지 않는다** (v0.11.42) — 관용은 "짚기 쉽게" 하려는 것이고,
+ *  붙잡힘처럼 대가가 큰 쪽에 그대로 적용하면 조준하지 않은 것까지 손가락질로 친다 */
+function hitAnomaly(targets: THREE.Object3D[], tolerant = true): boolean {
   raycaster.setFromCamera(ndc, camera);
   if (raycaster.intersectObjects(targets, true).length > 0) return true;
-  // 관용 판정 — 가는 사물(그네 줄·전단지)도 근처를 짚으면 인정 (모바일 손가락 오차 포함)
+  if (!tolerant) return false;
   for (const t of targets) {
     t.getWorldPosition(projPos);
     if (projPos.distanceTo(camera.position) > 45) continue;
@@ -529,6 +533,25 @@ function nearestGaze(): { obj: THREE.Object3D; dist: number } | null {
   let best: { obj: THREE.Object3D; dist: number } | null = null;
   for (const a of anomalies) {
     if (a.rule !== 'gaze' || checked.has(a.id)) continue;
+    for (const t of refs.hit[a.effect]) {
+      t.traverse((o) => {
+        if (!(o as THREE.Mesh).isMesh) return;
+        o.getWorldPosition(projPos);
+        const d = projPos.distanceTo(camera.position);
+        if (!best || d < best.dist) best = { obj: o, dist: d };
+      });
+    }
+  }
+  return best;
+}
+
+/** 외면(avert) 대상 중 **가장 가까운 개별 메시**와 그 거리. `nearestGaze`의 대칭짝.
+ *  avert는 `checked`에 영원히 안 들어가므로 거를 것이 없다 (지나치는 것이 정답).
+ *  검증 훅(`state().avertNear` / `avertAim`) 전용 — 손가락질 임계 실측용 (v0.11.42) */
+function nearestAvert(): { obj: THREE.Object3D; dist: number } | null {
+  let best: { obj: THREE.Object3D; dist: number } | null = null;
+  for (const a of anomalies) {
+    if (a.rule !== 'avert') continue;
     for (const t of refs.hit[a.effect]) {
       t.traverse((o) => {
         if (!(o as THREE.Mesh).isMesh) return;
@@ -623,9 +646,22 @@ function tryPoint(px: number, py: number, force = false) {
   };
 
   // 사람 형태를 짚는 것 = 손가락질. 최악의 대응이다 — 즉시 붙잡힌다 (avert 규칙)
+  //
+  // ⚠ **정타만, 그리고 응시 판정 거리 안에서만** (v0.11.42). 예전에는 관용 반경(NDC 0.12·45m)을
+  // 거리 조건 없이 그대로 썼다 — 직시는 4.5m를 요구하는데 붙잡힘만 무제한이라 비대칭이 10배였고,
+  // **30m 밖 흔적을 짚으려다 형체가 화면 몇 도 안쪽에 있었을 뿐인데 즉사**했다.
+  // 증식(동시 이상 최대 3)으로 gaze와 avert가 공존할수록 잦아지므로 밤이 깊을수록 억울해진다.
+  // 손가락질을 처벌하려면 **손가락질이었음이 확실해야** 한다 (design-principles §0)
   const avertHere = anomalies.find((a) => a.rule === 'avert');
-  if (avertHere && (force || hitAnomaly(refs.hit[avertHere.effect]))) {
-    void grabbed(TEXT.avertPoint); // force = 검증 훅 (?a= 한정) — 조준 없이 결정적으로 재현
+  if (avertHere && (force || hitAnomaly(refs.hit[avertHere.effect], false))) {
+    // force = 검증 훅 (?a= 한정) — 조준·거리 없이 결정적으로 재현
+    if (force || targetDistance(refs.hit[avertHere.effect]) <= CONFIG.avertDistance) {
+      void grabbed(TEXT.avertPoint);
+      return;
+    }
+    // 응시 판정 거리(11m) 밖 — 무비용. **문구는 흔적의 원거리 지적과 같은 것을 쓴다**:
+    // 부류마다 다른 반응을 주면 그것이 또 하나의 공짜 판별기가 된다 (anomalies.md 구조적 사실 ②)
+    hud.say(TEXT.tooFar, 2200);
     return;
   }
 
@@ -1100,6 +1136,24 @@ window.addEventListener('resize', () => {
         y: Math.round(((1 - projPos.y) / 2) * 1000) / 1000,
       };
     })(),
+    // **외면** 대상까지의 최단 거리와 화면 위치 — gazeNear/gazeAim의 대칭짝 (v0.11.42).
+    // 손가락질 판정이 정타·거리 조건을 갖게 되면서, 그 임계를 **실측으로** 확인하려면
+    // "지금 저 형체가 몇 m에 있고 화면 어디인가"를 헤드리스가 알아야 한다
+    avertNear: (() => {
+      const t = nearestAvert();
+      return t ? Math.round(t.dist * 10) / 10 : null;
+    })(),
+    avertAim: (() => {
+      const t = nearestAvert();
+      if (!t) return null;
+      t.obj.getWorldPosition(projPos);
+      projPos.project(camera);
+      if (projPos.z >= 1) return null;                       // 카메라 뒤
+      return {
+        x: Math.round(((projPos.x + 1) / 2) * 1000) / 1000,
+        y: Math.round(((1 - projPos.y) / 2) * 1000) / 1000,
+      };
+    })(),
     stare: Math.round(stare * 100) / 100,
     green: isGreen(time),                                        // 보행 신호 (차도 검증용)
     carX: refs.car.visible ? Math.round(refs.car.position.x * 10) / 10 : null,
@@ -1117,6 +1171,11 @@ window.addEventListener('resize', () => {
   ...(DEBUG_ANOMALY !== null
     ? {
         debugSpot: () => tryPoint(window.innerWidth / 2, window.innerHeight / 2, true),
+        // **실제 입력 경로**로 짚는다 (force 없음) — 조준 정타·거리 조건을 그대로 통과시킨다.
+        // debugSpot은 그 둘을 건너뛰므로 손가락질 임계를 검증할 수 없다 (v0.11.42).
+        // 인자는 state().avertAim/gazeAim과 같은 정규화 좌표(0~1, 좌상단 원점)
+        debugSpotAt: (nx: number, ny: number) =>
+          tryPoint(nx * window.innerWidth, ny * window.innerHeight),
         occlusion: () => occlusionReport(), // 가림 검사 (배치 3원칙 ② 검증)
       }
     : {}),

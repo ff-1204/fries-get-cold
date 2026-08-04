@@ -304,6 +304,41 @@ async function balance() {
     }));
     await browser.close();
   }
+
+  // 7) 손가락질 임계 (v0.11.42) — **거리로 갈린다.** 케이스 5는 force 경로라 조준·거리를
+  //    건너뛰므로 이 판정을 전혀 검증하지 않는다. 여기서는 실제 입력 경로(debugSpotAt)로
+  //    형체를 정확히 조준해 짚고, 응시 판정 거리(config.avertDistance) 안팎을 갈라 잰다.
+  //    `avert=off`는 응시 누적만 멈춘다 — 손가락질 판정은 살아 있다
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=bus_figure&avert=off');
+    await passMain(page);                            // 테마 5 → 4 (형체 등장)
+    const { avertDistance } = await page.evaluate(() => globalThis.__fries.config());
+
+    // (a) 판정 거리 밖에서 정조준하고 짚는다 → 무비용이어야 한다
+    const far = await state(page);
+    const aimFar = far.avertAim;
+    await page.evaluate((p) => globalThis.__fries.debugSpotAt(p.x, p.y), aimFar);
+    await page.waitForFunction(() => true, { polling: 60 });
+    const sFar = await state(page);
+    console.log('손가락질 — 판정 거리 밖:', JSON.stringify({
+      dist: far.avertNear, limit: avertDistance,
+      stretches: sFar.stretches, depth: sFar.depth, phase: sFar.phase,
+    }));
+
+    // (b) 판정 거리 안까지 걸어가서 같은 짓을 한다 → 붙잡혀야 한다
+    await walkTo(page, far.z - (far.avertNear - avertDistance) - 2.5);
+    const near = await state(page);
+    await page.evaluate((p) => globalThis.__fries.debugSpotAt(p.x, p.y), near.avertAim);
+    await page.waitForFunction(() => globalThis.__fries.state().phase === 'walk',
+      { polling: 120, timeout: 15000 });
+    const sNear = await state(page);
+    console.log('손가락질 — 판정 거리 안:', JSON.stringify({
+      dist: near.avertNear, limit: avertDistance,
+      stretches: sNear.stretches, depth: sNear.depth,
+    }));
+    await browser.close();
+  }
 }
 
 const mode = process.argv[2] ?? 'shots';
