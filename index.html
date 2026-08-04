@@ -51,6 +51,15 @@
     }
 
     /* ---------- 오버레이 공통 ---------- */
+    /* 타이틀 일러스트 — 캔버스로 그린 골목 (src/titleArt.ts). 파일 에셋 0 유지.
+       내용물 뒤에 깔리고 클릭을 먹지 않는다. #start.peek(밝기 조절 미리보기)에서는
+       형제 규칙에 걸려 함께 사라진다 — 그때는 게임 화면을 봐야 하기 때문 */
+    #title-art {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+    #start > *:not(#title-art) { position: relative; z-index: 1; }
+
     .overlay {
       position: fixed; inset: 0; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 14px;

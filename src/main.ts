@@ -6,6 +6,7 @@ import { ANOMALIES, CONFIG, TEXT, STAGE_COUNT, stageOf, pressureOf, type Anomaly
 import { tasteFromStretches, activeCount } from './balance';
 import { Input } from './input';
 import { Hud } from './hud';
+import { mountTitleArt } from './titleArt';
 import { AudioEngine } from './audio';
 import {
   createWorld, applyAnomalies, applyDepth, setStretchMark, setShopNear, setBackScene, setBannerSide,
@@ -67,6 +68,7 @@ const refs = createWorld(scene);
 
 const input = new Input(renderer.domElement);
 const hud = new Hud();
+mountTitleArt(); // 타이틀 뒤에 깔리는 골목 일러스트 (캔버스 — 이미지 파일 없음, v0.11.45)
 const audio = new AudioEngine();
 const clock = new THREE.Clock();
 
@@ -117,6 +119,7 @@ let stare = 0;              // avert — 사람 형태를 화면에 담고 있�
 let stareWarned = false;    // 경고 자막 1회 (눈을 뗄 시간을 준다 — 공정성)
 let carCycle = -1;          // 차를 보낸 신호 주기 번호 — 빨간불마다 정확히 한 대
 let tutBeat = 0;            // 튜토리얼 자막 진행 — 걸음이 지점을 지날 때마다 하나씩
+let nightBeat = 0;          // 밤별 걸음 모놀로그 진행 (stages.json beats, v0.11.45)
 let elapsed = 0;            // 이 밤의 경과 시간(초) — 새벽이 깊을수록 위험
 let anomalies: AnomalyDef[] = [];        // 이 구간의 활성 이상 (0~1+swarm)
 const checked = new Set<string>();       // 이 구간에서 확인을 마친 이상 id
@@ -184,6 +187,7 @@ const admin = new Admin({
     done = walkMode === 'return' ? CONFIG.segments - theme : theme - 1;
     if (j.depth !== undefined) depth = Math.max(0, Math.min(CONFIG.depthLimit - 1, j.depth));
     tutBeat = TEXT.tutBeats.length; // 이동한 자리에서 튜토리얼 자막이 튀어나오지 않게
+    nightBeat = Number.MAX_SAFE_INTEGER; // 밤 모놀로그도 마찬가지 (관리자 이동은 서사가 아니다)
     rollSegment();
     applyPain(depth);
     phase = 'walk';
@@ -348,6 +352,7 @@ async function startNight() {
   setMorning(refs, false);
   rollSegment();
   phase = 'walk';
+  nightBeat = 0; // 걸음 모놀로그는 매 밤 처음부터 (인트로 뒤로 이어진다)
   hud.say(stageOf(night).intro, 4200);
   if (stageOf(night).onboarding && !onboard.move) {
     onboard.hintZ = player.z;
@@ -860,6 +865,17 @@ function updateWalk(dt: number) {
     if (beat && beat.theme === theme && player.z <= beat.z) {
       hud.say(beat.text, 3600);
       tutBeat += 1;
+    }
+  } else if (walkMode === 'return') {
+    // 밤별 걸음 모놀로그 (v0.11.45) — 인트로 한 줄로 68초를 버티게 두지 않는다.
+    // `at: -1`은 마지막 구간 — 늘어남으로 총 구간이 늘어나도 "다 와간다"가 엉뚱한 데서 안 뜬다
+    const beats = stageOf(night).beats ?? [];
+    const atOf = (a: number) => (a < 0 ? total - 1 : a);
+    while (nightBeat < beats.length && atOf(beats[nightBeat].at) < done) nightBeat += 1;
+    const b = beats[nightBeat];
+    if (b && atOf(b.at) === done && player.z <= b.z) {
+      hud.say(b.text, 3800);
+      nightBeat += 1;
     }
   }
 
