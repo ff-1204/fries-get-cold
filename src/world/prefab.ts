@@ -209,9 +209,17 @@ export function createCorridor(
   group.add(tunnel);
   const tunnelLights = [front.light, back.light];
 
-  // 가로등 (구간 중반) — 모든 구간 공용, A-008 깜빡임 타깃
+  // 가로등 (구간 중반) — 모든 구간 공용, A-008 깜빡임 타깃.
+  // **깊이 게이지가 이 등이다** — 숫자를 안 쓰는 대신 밝기로 남은 여유를 말한다(spec §3).
+  //
+  // ⚠ 예전에는 기둥 하나(0.15×5×0.15)뿐이었고 광원은 x 2.1·y 4.8에 따로 떠 있었다.
+  //   기둥과 빛이 이어져 보이지 않아 **정체를 알 수 없는 막대**로 읽혔다.
+  //   암(arm)과 등기구를 달아 빛이 나오는 자리를 눈에 보이게 잇는다 — 광원 위치는 그대로다
   const lampZ = -L * 0.45;
   const lampPole = box(0.15, 5, 0.15, 0x3a4157, HW - 0.4, 2.5, lampZ, group);
+  box(0.62, 0.1, 0.1, 0x3a4157, HW - 0.7, 4.95, lampZ, group);        // 등을 내미는 암
+  const lampHead = box(0.5, 0.14, 0.26, 0x2a3142, HW - 0.9, 4.86, lampZ, group); // 등기구 갓
+  (lampHead.material as THREE.MeshStandardMaterial).emissive.setHex(0x3a2a12);
   const lampLight = new THREE.PointLight(0xffc687, 22, 18, 1.8);
   lampLight.position.set(HW - 0.9, 4.8, lampZ);
   group.add(lampLight);
@@ -245,8 +253,9 @@ export function createCorridor(
 
   // FF-1204 간판(개구부 위) — 마지막 구간에서만 점등. 글자는 캔버스 텍스처 (A-012 오탈자 타깃)
   const shopTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
-    shopSignTexture('FF-1204 24시'),
-    shopSignTexture('FF-1204 24시간요'),
+    shopSignTexture('감자튀김 전문점!!\nff-1204'),
+    // 이상 — 간판이 **묻지도 않은 말에 대답한다** (원래 "24시" → "24시간요"가 하던 일)
+    shopSignTexture('감자튀김 전문점이요\nff-1204'),
   ];
   const shopSignMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, map: shopTex[0], emissiveMap: shopTex[0], emissive: 0x000000,

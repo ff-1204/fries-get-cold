@@ -24,6 +24,9 @@ export interface AdminJump {
   night?: number;
   theme?: number;
   morning?: boolean;
+  /** 조명만 강제한다 (디버깅용) — 생략하면 스테이지 기본값(퇴근길=낮 / 밤=밤).
+   *  `morning`이 규칙(이상현상·깊이 유무)까지 바꾸는 것과 달리 이것은 **보이는 것만** 바꾼다 */
+  daylight?: boolean;
   depth?: number;
   /** null = 강제 해제(정상 확률) · 'none' = 항상 정상 · 그 외 = 해당 effect 강제 */
   effect?: string | null;
@@ -36,6 +39,8 @@ export interface AdminHost {
   corridorHalfWidth: number; // HW
   anomalies: Array<{ id: string; effect: string; segment: number; label: string }>;
   segments: number;
+  /** 밤의 수 (stages.json 길이) — 이동 목록을 플레이 순서대로 세우는 데 쓴다 */
+  nights: number;
   snapshot(): AdminSnapshot;
   jump(j: AdminJump): void;
   /** 패널을 닫을 때 포인터락을 되돌린다 */
@@ -78,6 +83,8 @@ export class Admin {
   /** 안개·터널 암전을 걷을 것인가 — 구조를 보려면 어둠이 방해가 된다.
    *  매 프레임 main.ts가 읽는다 (관리자 모드에서는 걷기 갱신이 돌지 않으므로) */
   clearView = true;
+  /** 조명 강제 — 패널을 다시 열어도 고른 값이 남는다 (같은 자리를 낮↔밤으로 번갈아 보게) */
+  lit: 'auto' | 'day' | 'night' = 'auto';
 
   private host: AdminHost;
   private hud!: HTMLDivElement;
@@ -202,6 +209,10 @@ export class Admin {
       `   <span class="k">속도</span> ${num(this.speed, 1)}\n` +
       `<span class="k">상태</span> ${s.morning ? '아침(퇴근길)' : `밤 ${s.night}`}` +
       `  구간 ${s.done + 1}/${s.total}  테마 ${s.theme}  깊이 ${s.depth}  늘어남 ${s.stretches}\n` +
+      // ⚠ 스테이지 이동 패널의 여는 법을 **패널 안에만** 적어 뒀었다 — 열어야 볼 수 있는
+      //   안내라 아무 소용이 없었다. 상시 HUD에 한 줄로 올린다
+      `<span class="k">이동</span> <span class="o">Esc</span> — 밤·테마·이상현상·깊이 골라서 점프` +
+      `   <span class="k">C</span> 좌표 복사\n` +
       `<span class="k">조준</span> ${look}`;
   }
 
@@ -238,11 +249,15 @@ export class Admin {
     const w = o.getWorldPosition(new THREE.Vector3());
     const L = this.host.segLength;
     const zL = w.z < 0.5 && w.z > -L * 1.4 ? ` = -L*${num(-w.z / L, 3)}` : '';
+    // 고유키 — box()/boxOf()가 붙인 **소스 위치**(`theme4.ts:99`)라 그대로 grep하면 그 줄이다.
+    // 이름 없는 프롭이 대부분이라 예전에는 `골목 › 테마4`까지밖에 안 나왔다 (kit.ts tagSrc)
+    const src = typeof o.userData.src === 'string' ? o.userData.src : '';
     // 복사용 원문에도 조준 대상을 담는다 — 이 한 줄이면 코드에서 찾을 수 있다
-    this.line += `\n${path.join(' › ')} | ${shape} ${color} | x ${num(w.x)} y ${num(w.y)} z ${num(w.z)}${zL}`;
+    this.line += `\n${path.join(' › ')} | ${src} | ${shape} ${color} | x ${num(w.x)} y ${num(w.y)} z ${num(w.z)}${zL}`;
 
     return (
       `<span class="o">${path.join(' › ') || '(이름 없음)'}</span>\n` +
+      (src ? `     <span class="o">${src}</span>\n` : '') +
       `     ${shape}  ${color}  <span class="k">${num(hit.distance, 1)}m</span>\n` +
       `     <span class="v">x ${num(w.x)}  y ${num(w.y)}  z ${num(w.z)}</span>` +
       `<span class="k">${zL}</span>`
@@ -255,19 +270,24 @@ export class Admin {
     const s = this.host.snapshot();
     const el = document.createElement('div');
     el.id = 'adm-panel';
+    // 이상현상은 **제 구간에서만** 뜬다 (main.ts rollSegment가 segment로 거른다).
+    // 그래서 라벨에 갈 구간을 적어 두고, 아래 '이동'이 테마를 거기로 맞춰 준다 —
+    // 예전에는 구간이 안 맞으면 조용히 아무것도 안 나와서 "선택이 안 먹는다"로 보였다
     const opts = this.host.anomalies
-      .map((a) => `<option value="${a.effect}">${a.segment || '전'} · ${a.label}</option>`)
+      .map((a) => `<option value="${a.effect}">${
+        a.segment ? `구간 ${a.segment}` : '전 구간'} · ${a.label}</option>`)
       .join('');
+    const stops = stageStops(this.host.nights, this.host.segments);
     el.innerHTML = `
-      <h3>관리자 — 스테이지 이동</h3>
-      <label><span>밤</span><input id="adm-night" type="number" min="1" max="99" value="${s.night}"></label>
-      <label><span>시간대</span><select id="adm-when">
-        <option value="night"${s.morning ? '' : ' selected'}>밤 — 귀갓길 (테마 5→1)</option>
-        <option value="morning"${s.morning ? ' selected' : ''}>아침 — 퇴근길 (테마 4→5)</option>
-      </select></label>
-      <label><span>구간 테마</span><select id="adm-theme">${
-        Array.from({ length: this.host.segments }, (_, i) => i + 1)
-          .map((t) => `<option value="${t}"${t === s.theme ? ' selected' : ''}>${t} — ${THEME_NAME[t] ?? ''}</option>`)
+      <h3>관리자 — 콘솔</h3>
+      <label><span>스테이지</span><select id="adm-stop">${
+        stops
+          .map((st, i) => {
+            // 지금 서 있는 자리를 기본 선택으로 — 열자마자 "여기가 몇 번인지"가 읽힌다
+            const here = st.morning === s.morning && st.theme === s.theme
+              && (st.morning || st.night === s.night);
+            return `<option value="${i}"${here ? ' selected' : ''}>${i + 1}. ${st.label}</option>`;
+          })
           .join('')
       }</select></label>
       <label><span>이상현상</span><select id="adm-eff">
@@ -277,6 +297,11 @@ export class Admin {
       </select></label>
       <label><span>깊이</span><input id="adm-depth" type="range" min="0" max="5" step="1" value="${s.depth}">
         <span id="adm-depth-v" class="v">${s.depth}</span></label>
+      <label><span>조명</span><select id="adm-lit">
+        <option value="auto"${this.lit === 'auto' ? ' selected' : ''}>스테이지 기본 (퇴근길=낮 / 밤=밤)</option>
+        <option value="day"${this.lit === 'day' ? ' selected' : ''}>낮 강제 — 어느 밤이든 대낮으로</option>
+        <option value="night"${this.lit === 'night' ? ' selected' : ''}>밤 강제 — 퇴근길도 밤으로</option>
+      </select></label>
       <label><span>시야</span><select id="adm-view">
         <option value="clear"${this.clearView ? ' selected' : ''}>안개·터널 암전 끔 (구조 확인용)</option>
         <option value="game"${this.clearView ? '' : ' selected'}>게임 그대로</option>
@@ -296,13 +321,22 @@ export class Admin {
     el.querySelector('#adm-go')?.addEventListener('click', () => {
       const eff = el.querySelector<HTMLSelectElement>('#adm-eff')!.value;
       this.clearView = el.querySelector<HTMLSelectElement>('#adm-view')!.value === 'clear';
+      const stop = stops[Number(el.querySelector<HTMLSelectElement>('#adm-stop')!.value)] ?? stops[0];
+      this.lit = el.querySelector<HTMLSelectElement>('#adm-lit')!.value as typeof this.lit;
+      // ⭐ 고른 이상현상이 특정 구간의 것이면 **테마를 그 구간으로 맞춘다.**
+      // 안 그러면 rollSegment의 segment 필터에 걸려 아무것도 안 뜬다 — 고른 것이 안 보이면
+      // 도구를 못 믿게 된다. '전 구간'(segment 0)과 정상/해제는 스테이지를 그대로 둔다
+      const pick = this.host.anomalies.find((a) => a.effect === eff);
+      const theme = pick && pick.segment ? pick.segment : stop.theme;
       this.host.jump({
-        night: Number(el.querySelector<HTMLInputElement>('#adm-night')!.value) || 1,
-        morning: el.querySelector<HTMLSelectElement>('#adm-when')!.value === 'morning',
-        theme: Number(el.querySelector<HTMLSelectElement>('#adm-theme')!.value),
+        night: stop.night,
+        morning: stop.morning,
+        theme,
+        daylight: this.lit === 'auto' ? undefined : this.lit === 'day',
         depth: Number(depth.value),
         effect: eff === '' ? null : eff,
       });
+      if (theme !== stop.theme) this.flash(`이상현상에 맞춰 구간 테마 ${theme}로 이동`);
       this.closePanel();
     });
     el.querySelector('#adm-close')?.addEventListener('click', () => this.closePanel());
@@ -326,3 +360,35 @@ const THEME_NAME: Record<number, string> = {
   4: '정류장 앞 (차도)',
   5: '먹자골목 입구 (가게)',
 };
+
+interface StageStop {
+  night: number;
+  morning: boolean;
+  theme: number;
+  label: string;
+}
+
+/**
+ * 이동할 수 있는 자리를 **플레이어가 실제로 지나는 순서대로** 편다.
+ *
+ * 예전 패널은 밤·시간대·테마를 따로 골라야 했다. 셋의 조합이 곧 위치인데
+ * **그 조합 규칙(귀갓길은 테마 역순 5→1, 퇴근길만 첫날 4→5)을 아는 사람만** 원하는 데로 갈 수 있었다.
+ * 순번 하나로 합치면 "3번 다음이 4번"이라는 것만 알면 된다.
+ *
+ * 첫날 퇴근길 2구간 + (밤 × 구간 5). 늘어남으로 구간이 늘어나는 것은 여기 안 넣는다 —
+ * 그건 플레이 중에 생기는 것이지 갈 수 있는 자리가 아니다.
+ */
+function stageStops(nights: number, segments: number): StageStop[] {
+  const out: StageStop[] = [];
+  for (let i = 1; i <= 2; i++) {
+    const theme = segments - 2 + i;               // 퇴근길은 정순: 테마 4 → 5
+    out.push({ night: 1, morning: true, theme, label: `퇴근길 ${i}/2 · ${THEME_NAME[theme]}` });
+  }
+  for (let n = 1; n <= nights; n++) {
+    for (let seg = 1; seg <= segments; seg++) {
+      const theme = segments + 1 - seg;           // 귀갓길은 역순: 테마 5 → 1
+      out.push({ night: n, morning: false, theme, label: `밤 ${n} — ${seg}/${segments} · ${THEME_NAME[theme]}` });
+    }
+  }
+  return out;
+}

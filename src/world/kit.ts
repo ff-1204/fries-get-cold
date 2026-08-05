@@ -144,17 +144,54 @@ export function bannerTexture(): THREE.CanvasTexture {
   });
 }
 
-/** 가게 간판 — 정상 "FF-1204 24시" / 이상 "FF-1204 24시간요" (story.md §7) */
+/**
+ * 가게 간판 — `\n`으로 여러 줄을 넣을 수 있다.
+ * 줄 수에 맞춰 크기를 잡고 가장 긴 줄이 470px를 넘으면 한 번 더 줄인다.
+ */
 export function shopSignTexture(text: string): THREE.CanvasTexture {
   return canvasTex(512, 144, (c) => {
     c.fillStyle = '#140d05';
     c.fillRect(0, 0, 512, 144);
     c.textAlign = 'center';
-    c.fillStyle = '#ffd9a0'; // 점등 시 emissiveMap으로 발광 — 웜은 목표(버거집) 전용색
-    c.font = `bold 60px ${KR_FONT}`;
-    const w = c.measureText(text).width;
-    if (w > 470) c.font = `bold ${Math.floor((60 * 470) / w)}px ${KR_FONT}`;
-    c.fillText(text, 256, 96);
+    c.fillStyle = '#ffd9a0'; // 점등 시 emissiveMap으로 발광 — 웜은 목표(가게) 전용색
+    const lines = text.split('\n');
+    let size = lines.length === 1 ? 60 : 46;
+    c.font = `bold ${size}px ${KR_FONT}`;
+    const widest = Math.max(...lines.map((l) => c.measureText(l).width));
+    if (widest > 470) {
+      size = Math.floor((size * 470) / widest);
+      c.font = `bold ${size}px ${KR_FONT}`;
+    }
+    const lh = size * 1.12;
+    const top = 72 - ((lines.length - 1) * lh) / 2;
+    lines.forEach((l, i) => c.fillText(l, 256, top + i * lh + size * 0.4));
+  });
+}
+
+/**
+ * 문 앞 영업시간 안내.
+ * ⭐ **밤 1 에필로그("새로 생긴 가게가, 왜 24시간을 하지")의 근거가 이것이다.**
+ * 예전에는 간판이 "FF-1204 24시"라고 말해 그 역할을 했는데, 간판 문구가 바뀌면서
+ * 단서가 사라졌다 — 설명 대신 **가게에 실제로 붙어 있는 안내문**으로 옮겼다.
+ * 대낮에도 이 안내가 걸려 있는 것이 첫 단서다 (무설명 학습).
+ */
+export function hoursTexture(): THREE.CanvasTexture {
+  return canvasTex(512, 256, (c) => {
+    c.fillStyle = '#140d05';
+    c.fillRect(0, 0, 512, 256);
+    c.strokeStyle = '#3a2a12';
+    c.lineWidth = 6;
+    c.strokeRect(8, 8, 496, 240);
+    c.textAlign = 'center';
+    c.fillStyle = '#9a8a6a';                 // 제목은 한 단 낮춰 — 눈이 숫자로 먼저 간다
+    c.font = `34px ${KR_FONT}`;
+    c.fillText('영업시간', 256, 74);
+    c.fillStyle = '#ffd9a0';                 // 간판·메뉴판과 같은 웜 — 이 가게의 색
+    c.font = `bold 72px ${KR_FONT}`;
+    c.fillText('24시간', 256, 156);
+    c.fillStyle = '#9a8a6a';
+    c.font = `32px ${KR_FONT}`;
+    c.fillText('연중무휴', 256, 210);
   });
 }
 
@@ -209,6 +246,27 @@ export function stampBoardTexture(): THREE.CanvasTexture {
   });
 }
 
+/**
+ * 이 오브젝트를 만든 **소스 위치**를 `userData.src`에 붙인다 (`theme4.ts:99` 꼴).
+ * 관리자 모드 조준 표시가 그대로 보여주므로 **화면에서 본 것을 그 자리에서 grep**할 수 있다.
+ * 이름을 손으로 붙일 수 있는 것은 눈에 띄는 구조물뿐인데(world/index.ts), 골목을 채우는
+ * 프롭 수백 개는 전부 이름이 없어 조준해도 `골목 › 테마4`까지밖에 안 나왔다.
+ *
+ * 스택 프레임 번호를 고정하지 않고 **kit.ts가 아닌 첫 프레임**을 찾는다 — box/boxOf 어느
+ * 쪽을 거쳐도, 엔진이 프레임을 하나 더 끼워도 맞다.
+ *
+ * 배포 빌드에서는 스택이 번들(`index-a1b2.js`)을 가리켜 정규식이 안 맞고, 그때는
+ * world/index.ts가 **경로+순번 키**로 대신 채운다. 그래서 어느 빌드에서든 키는 있다.
+ * 비용은 세계 생성 때 한 번뿐이다 (프롭 수백 개 × Error 생성).
+ */
+function tagSrc(m: THREE.Object3D): void {
+  const frames = new Error().stack?.split('\n') ?? [];
+  for (const f of frames.slice(1)) {
+    const at = /\/([\w.-]+\.ts)(?:\?[^:]*)?:(\d+):\d+/.exec(f);
+    if (at && at[1] !== 'kit.ts') { m.userData.src = `${at[1]}:${at[2]}`; return; }
+  }
+}
+
 export function box(
   w: number, h: number, d: number,
   color: number, x: number, y: number, z: number,
@@ -219,6 +277,7 @@ export function box(
     new THREE.MeshStandardMaterial({ color, roughness: 0.95 }),
   );
   m.position.set(x, y, z);
+  tagSrc(m);
   parent.add(m);
   return m;
 }
@@ -233,6 +292,7 @@ export function boxOf(
 ): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.set(x, y, z);
+  tagSrc(m);
   parent.add(m);
   return m;
 }

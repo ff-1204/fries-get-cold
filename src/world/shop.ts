@@ -10,7 +10,7 @@
 // setShopNear가 near일 때 30으로 올린다 — 그 자리가 정확히 가게 안이다 (visual-polish §4).
 
 import * as THREE from 'three';
-import { boxOf, concrete, menuTexture, stampBoardTexture, shopSignTexture } from './kit';
+import { boxOf, concrete, menuTexture, stampBoardTexture, shopSignTexture, hoursTexture } from './kit';
 import { L } from './layout';
 
 /** 가게 전면(카운터)의 z. 구간 통과 판정이 -40.5에서 걸리므로 그 2m 뒤 —
@@ -79,6 +79,16 @@ export function buildShopFront(standalone = false): THREE.Group {
   // 카운터 너머로 걸린 메뉴판은 포장마차의 실제 문법이기도 하다
   menu.position.set(-1.5, 1.92, FRONT_Z - 0.25); // 상인방 아래(2.45)에 딱 걸리게 — 위가 잘리지 않는다
   g.add(menu);
+
+  // 영업시간 안내 — 메뉴판 **맞은편**에, 같은 높이·같은 면에. 골목 개구부(반폭 1.4)로
+  // 들여다보는 시야 안에 메뉴판과 함께 들어온다. 밤 1 에필로그의 "왜 24시간을 하지"가
+  // 여기서 나온다 — 대사가 아니라 가게에 붙어 있는 것을 읽고 하는 말이어야 한다
+  const hours = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.15, 0.62),
+    new THREE.MeshStandardMaterial({ map: hoursTexture(), roughness: 0.9 }),
+  );
+  hours.position.set(1.85, 1.92, FRONT_Z - 0.25);
+  g.add(hours);
   const stamps = new THREE.Mesh(
     new THREE.PlaneGeometry(0.72, 0.9),
     new THREE.MeshStandardMaterial({ map: stampBoardTexture(), roughness: 0.95 }),
@@ -112,7 +122,7 @@ export function buildShopFront(standalone = false): THREE.Group {
   // ---------- 뒤 인스턴스 전용: 제 간판과 제 등 ----------
   if (standalone) {
     // 밤의 출발점에서 돌아보면 **이게 켜져 있어야** 한다 — 방금 나온 곳이라는 증거
-    const tex = shopSignTexture('FF-1204 24시');
+    const tex = shopSignTexture('감자튀김 전문점!!\nff-1204');
     const signMat = new THREE.MeshStandardMaterial({
       color: 0xffffff, map: tex, emissiveMap: tex, emissive: 0xffffff,
     });

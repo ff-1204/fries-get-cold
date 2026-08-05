@@ -164,6 +164,7 @@ const admin = new Admin({
   segLength: CONFIG.segLength,
   corridorHalfWidth: CONFIG.corridorHalfWidth,
   segments: CONFIG.segments,
+  nights: STAGE_COUNT,
   anomalies: ANOMALIES.map((a) => ({
     id: a.id, effect: a.effect, segment: a.segment,
     label: `${a.id} ${a.effect} (${a.rule === 'avert' ? '외면' : '직시'})`,
@@ -175,10 +176,11 @@ const admin = new Admin({
   jump: (j) => {
     if (j.effect !== undefined) adminEffect = j.effect;
     if (j.night !== undefined) night = Math.max(1, Math.floor(j.night));
-    if (j.morning !== undefined) {
-      walkMode = j.morning ? 'tutorial' : 'return';
-      setMorning(refs, j.morning);
-    }
+    if (j.morning !== undefined) walkMode = j.morning ? 'tutorial' : 'return';
+    // 조명은 규칙과 따로 건다 (디버깅용) — `walkMode`가 이상현상·깊이의 유무를 정하는 동안
+    // `setMorning`은 하늘·안개·가로등만 만진다. 떼어 두면 **밤 3을 대낮에** 볼 수 있다.
+    // ⚠ 낮에는 applyDepth가 가로등을 건드리지 않는다(runtime.ts) — 깊이 확인은 밤에서 한다
+    setMorning(refs, j.daylight ?? walkMode === 'tutorial');
     resetTrip();
     if (j.theme !== undefined) theme = Math.max(1, Math.min(CONFIG.segments, j.theme));
     // 카운터가 거짓말하지 않게 done을 테마에서 되짚는다 —
@@ -986,8 +988,14 @@ function updateWalk(dt: number) {
   }
 
   // 구간 통과 — 개구부를 지나 **다리 밑 터널**로 들어가고, 그 한가운데서 넘어간다 (v0.11.14).
-  // 순간이동 대신 실제로 지나가는 공간을 둔다: 좁고 낮고 어두운 터널이 두 골목을 잇는다
-  if (player.z < TUNNEL_SWAP_Z && Math.abs(player.x) < MAIN_GAP_HALF + 0.4) {
+  // 순간이동 대신 실제로 지나가는 공간을 둔다: 좁고 낮고 어두운 터널이 두 골목을 잇는다.
+  //
+  // ⚠ **마지막 구간만 개구부 바로 안쪽에서 끊는다.** 거기엔 앞 터널이 없고 그 자리에
+  //   목적지(FF-1204·집)가 서 있는데(setShopNear), 판정은 터널 한가운데(-L-4.5)를 쓰고 있어서
+  //   **도착 컷이 뜨기 전에 목적지 안으로 4.5m를 걸어 들어갔다.**
+  //   같은 이유로 마지막 구간은 터널 어둠 곡선도 꺼져 있다 (아래 done === total - 1)
+  const swapZ = done === total - 1 ? -L - 0.2 : TUNNEL_SWAP_Z;
+  if (player.z < swapZ && Math.abs(player.x) < MAIN_GAP_HALF + 0.4) {
     void passSegment();
     return;
   }

@@ -66,6 +66,18 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   t3.refs.eyes.name = '어둠의 눈';
   t3.refs.ball.name = '공';
 
+  // 남은 메시에 키를 채운다 — box()/boxOf()를 안 거치고 `new THREE.Mesh`로 직접 만든 것들
+  // (입간판 패널·형체 몸통·핏자국 원판 등). 소스 줄을 못 잡으므로 **부모 경로 + 형제 순번**을
+  // 쓴다. 순번은 생성 순서라 코드를 안 고치는 한 고정이다.
+  const fillKeys = (o: THREE.Object3D, path: string): void => {
+    const p = o.name ? (path ? `${path}/${o.name}` : o.name) : path;
+    o.children.forEach((c, i) => {
+      if ((c as THREE.Mesh).isMesh && !c.userData.src) c.userData.src = `${p || '?'}#${i}`;
+      fillKeys(c, p);
+    });
+  };
+  fillKeys(corridor.refs.group, '');
+
   // 지적 히트 대상 — effect마다 "짚을 수 있는 사물". 여섯 조각을 합쳐 전 effect를 덮는다:
   // data.ts에 effect를 추가하면 어느 테마에도 없을 때 **여기서 컴파일 에러**가 난다
   const hit: Record<AnomalyEffect, THREE.Object3D[]> = {

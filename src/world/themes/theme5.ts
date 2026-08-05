@@ -19,7 +19,10 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
 
   // A자 입간판 (A-013 — 정상: 벽과 평행(옆면) / 이상: 판면이 정면)
   const sign = new THREE.Group();
-  const panelMat = new THREE.MeshStandardMaterial({ color: 0x8b90a8, roughness: 0.9 });
+  // ⚠ 여기만 공용 concrete()를 안 쓰고 0x8b90a8을 직접 박아둬서 **혼자 하얗게 떴다.**
+  // 이 구간은 '전부 소등'이 정상인데 입간판만 밝으니 켜져 있는 것처럼 읽혔다.
+  // 파사드(0x232838)보다 한 단만 밝게 — 벽에서 실루엣은 떨어지되 무대를 뺏지 않는다
+  const panelMat = concrete(0x2d3346);
   const panelGeo = new THREE.BoxGeometry(0.8, 1.15, 0.06);
   for (const dir of [1, -1]) {
     const panel = new THREE.Mesh(panelGeo, panelMat);
