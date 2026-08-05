@@ -34,16 +34,22 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
   sign.rotation.y = SIGN_REST_Y;
   t5.add(sign);
 
-  // H-008 끌린 자국 — 길 한가운데서 시작해 왼쪽 벽 어둠으로 이어지는 긴 자국
+  // H-008 끌린 자국 — **가로등(x 2.1, z −16.2) 불빛에서 시작해** 왼쪽 벽 어둠으로 끌려간다.
+  // 예전에는 z −18.7~−21.4로 가로등을 지나친 어둠 속이라, 접근 내내 대비 0.2~1.5였다
+  // (실측). 젖은 재질이 일할 수 있는 자리로 끌어온다 (v0.11.49)
   const dragMark = new THREE.Group();
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(0.34, 16), mats.blood);
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), mats.blood);
   pool.rotation.x = -Math.PI / 2;
-  pool.position.set(0.7, 0.015, -L * 0.52);
-  const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 6.2), mats.blood);
+  pool.position.set(1.75, 0.015, -L * 0.452);
+  const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 5.4), mats.blood);
   streak.rotation.x = -Math.PI / 2;
-  streak.rotation.z = 0.42; // 시작점 → 왼쪽 벽 방향
-  streak.position.set(-0.55, 0.015, -L * 0.595);
-  dragMark.add(pool, streak);
+  streak.rotation.z = 1.16; // 광원 쪽 웅덩이 → 왼쪽 벽 방향으로 비스듬히
+  streak.position.set(-0.35, 0.015, -L * 0.437);
+  // 벽에 닿아 위로 긁힌 끝 — 세로 요소가 있어야 멀리서 읽힌다
+  const wallEnd = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.9), mats.bloodWall);
+  wallEnd.position.set(-HW + 0.06, 0.47, -L * 0.428);
+  wallEnd.rotation.y = Math.PI / 2;
+  dragMark.add(pool, streak, wallEnd);
   dragMark.visible = false;
   t5.add(dragMark);
 
@@ -133,6 +139,16 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
   // 드러난 안쪽 — 아무 빛도 없다. **어둠 자체가 이 이상현상의 몸**이다.
   // 살짝 앞으로 내밀어 파사드에 묻히지 않게 한다
   boxOf(concrete(0x04060a), 0.06, 1.35, IW, HW - 0.36, 0.68, OPEN_Z, openShutter);
+  // ⚠ 검은 구멍만으로는 **화면에서 안 읽혔다** (실측 최대대비 3.9 — 파사드 자체가 어두워서
+  //   어둠 대 어둠이 됐다). 올라간 셔터의 **하단 레일**을 밝게 준다: 금속이라 빛을 받는 것이
+  //   물리적으로 맞고, 검은 구멍 바로 위에 밝은 선이 생겨 경계가 선다.
+  //   창백한 부분 하나로 실루엣을 세우는 수법 — H-013(손)·H-020(손)이 같은 원리다
+  const railMat = new THREE.MeshStandardMaterial({
+    color: 0x9aa2b0, roughness: 0.45, emissive: 0x14171d,
+  });
+  const openRail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, IW), railMat);
+  openRail.position.set(HW - 0.28, 1.33, OPEN_Z);
+  openShutter.add(openRail);
   openShutter.visible = false;
   t5.add(openShutter);
 

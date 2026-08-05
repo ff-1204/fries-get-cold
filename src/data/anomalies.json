@@ -161,5 +161,23 @@
     "rule": "gaze",
     "effect": "swing_figure",
     "reveal": "…오늘의 그것은, 눈을 돌리면 안 되는 것이었다."
+  },
+  {
+    "id": "H-019",
+    "night": 2,
+    "segment": 2,
+    "category": "OBJ",
+    "rule": "gaze",
+    "effect": "lone_shadow",
+    "reveal": "…가로등 밑에, 그림자만 있었다. 그걸 만든 것은 없었다."
+  },
+  {
+    "id": "H-020",
+    "night": 3,
+    "segment": 3,
+    "category": "HUM",
+    "rule": "avert",
+    "effect": "fence_hands",
+    "reveal": "…펜스를 잡은 손이, 넷이었다."
   }
 ]

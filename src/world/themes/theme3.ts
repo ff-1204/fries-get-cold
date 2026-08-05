@@ -5,7 +5,7 @@ import { type Build, type Theme3Refs } from '../refs';
 import { box, boxOf, concrete, type SharedMats } from '../kit';
 import { L, HW, WALL_H, BALL_HOME } from '../layout';
 
-type E = 'swing' | 'ball_out' | 'swing_figure' | 'eyes' | 'slide_figure';
+type E = 'swing' | 'ball_out' | 'swing_figure' | 'eyes' | 'slide_figure' | 'fence_hands';
 
 export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   const t3 = new THREE.Group();
@@ -83,6 +83,31 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
     prop: concrete(0x262c3e),
   };
 
+  // ---------- 놀이터 보안등 (v0.11.49) ----------
+  // ⭐ **형체가 안 보여서 넣는다.** 실측: 그네의 형체 대비 0.6~1.8, 담 위 형체 6.3 —
+  // 검은 실루엣인데 뒤에 밝은 것이 없어 배경과 함께 0으로 붕괴했다.
+  // 정류장의 형체(H-007)만 대비 24가 나왔는데, 부스가 제 형광등을 가진 덕이었다.
+  //
+  // 형체를 밝히면 '검은 실루엣'이라는 정체가 사라진다. **뒤에서 비춘다** —
+  // 담 너머 놀이터의 보안등이 그 자리를 맡는다. 실제 놀이터에 있는 물건이고,
+  // 그네도 담 위도 이 빛과 플레이어 사이에 있어 **가려서 검게 뚫린 사람 모양**이 된다.
+  // 한색(방범등)이라 웜 10% 원칙을 건드리지 않는다 — 웜은 목표(가게·집) 전용이다
+  // ⚠ 그림자 렌더링이 없으므로(castShadow 0) 빛은 담을 통과한다 — 담 너머에 세워도
+  //   골목 쪽 띠가 밝아진다. 대신 **광원을 형체보다 뒤(−z)에** 둬야 실루엣이 선다:
+  //   형체의 카메라 쪽 면은 광원을 등져 어둡게 남고, 그 뒤 벽·펜스만 밝아진다
+  const yardPole = boxOf(M.gear, 0.13, 4.6, 0.13, -HW - 1.7, 2.3, -L * 0.5, t3);
+  yardPole.name = '놀이터 보안등';
+  const headMat = new THREE.MeshStandardMaterial({
+    color: 0x2b3446, roughness: 0.6, emissive: 0x35486a, // 등기구 자체도 옅게 빛난다
+  });
+  const yardHead = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.18, 0.44), headMat);
+  yardHead.position.set(-HW - 1.7, 4.55, -L * 0.5);
+  t3.add(yardHead);
+  // 한색·근거리 — 골목 전체를 밝히지 않는다. 어둠의 눈(H-006)이 사는 띠를 씻으면 안 된다
+  const yardLight = new THREE.PointLight(0x9fb6d8, 6.5, 12, 2);
+  yardLight.position.set(-HW - 1.4, 4.2, -L * 0.5);
+  t3.add(yardLight);
+
   // **놀이터가 보여야 '놀이터 옆길'이다.** 펜스와 벽 사이는 0.85m뿐이라 기구를 넣을 수 없다 —
   // 담 너머 하늘에 실루엣으로 세운다 (수목과 같은 수법). 미끄럼틀·정글짐 윗부분만
   boxOf(M.gear, 0.12, 2.6, 0.12, -HW - 2.2, WALL_H + 0.6, -L * 0.34, t3);   // 미끄럼틀 기둥
@@ -138,15 +163,43 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   boxOf(M.prop, 0.3, 0.75, 0.3, HW - 0.25, 0.37, -L * 0.86, t3);            // 라바콘
   boxOf(M.wall2, 0.12, 1.1, 0.5, HW - 0.08, 1.6, -L * 0.86, t3);            // 우편함 기둥
 
+  // ---------- H-020 펜스를 잡은 손들 (밤 3, 외면) ----------
+  // ⭐ **새 보안등이 배경이 되어 준다.** 창백한 손이 어두운 펜스 위에 얹혀 있고,
+  // 그 뒤는 보안등이 만든 밝은 띠다 — 밝은 것을 어두운 데 두는 대신 **밝은 것을 밝은 데** 둔다.
+  // (검은 형체가 실패한 자리에서 창백한 것은 성공했다: 백골 19, 신발 47, 눈 75)
+  //
+  // 무엇인가: 펜스 상부 레일을 **손만** 여럿이 잡고 있다. 팔도 얼굴도 없다.
+  // 사람 형태(HUM)이므로 규칙은 외면 — 저 손들이 뭐에 붙어 있는지 확인하려 들면 안 된다.
+  // 놀이터 쪽은 어두워서 **어차피 안 보인다.** 상상이 채우게 둔다 (설명하지 않는다)
+  const fenceHands = new THREE.Group();
+  const handMat = new THREE.MeshStandardMaterial({
+    color: 0xb9b2a4, roughness: 0.9, emissive: 0x15140f, // 창백 + 아주 옅은 자체 발광
+  });
+  for (const [hx, hz] of [[-HW + 0.85, -L * 0.3], [-HW + 0.85, -L * 0.345],
+    [-HW + 0.85, -L * 0.62], [-HW + 0.85, -L * 0.665]] as Array<[number, number]>) {
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.17), handMat);
+    palm.position.set(hx, 0.9, hz);
+    fenceHands.add(palm);
+    for (let f = 0; f < 4; f++) {                       // 레일을 넘어 이쪽으로 걸린 손가락
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.035, 0.032), handMat);
+      fin.position.set(hx + 0.05, 0.855, hz - 0.06 + f * 0.04);
+      fin.rotation.z = -0.5;
+      fenceHands.add(fin);
+    }
+  }
+  fenceHands.visible = false;
+  t3.add(fenceHands);
+
   return {
     group: t3,
-    refs: { swingPivot, ball, swingFigure, eyes, slideFigure },
+    refs: { swingPivot, ball, swingFigure, eyes, slideFigure, fenceHands },
     hit: {
       swing: [swingPivot],
       ball_out: [ball],
       swing_figure: [swingFigure],
       eyes: [eyes],
       slide_figure: [slideFigure],
+      fence_hands: [fenceHands],
     },
   };
 }

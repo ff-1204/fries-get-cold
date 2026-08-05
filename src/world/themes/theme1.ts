@@ -12,12 +12,15 @@ type E = 'umbrella' | 'sensor_on' | 'window_red' | 'flyer_digits'
 export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   const t1 = new THREE.Group();
 
-  // H-001 바닥 핏자국 — 가로등(z=-16.2) 사거리 안, 통행부 한가운데를 가로질러
-  // 빌라 철문(z=-7.9) 쪽 어둠으로 이어진다. 걷다 보면 밟게 되는 자리 (관찰 시간 확보)
+  // H-001 바닥 핏자국 — **가로등 불빛을 가로지른다** (v0.11.49).
+  // 예전에는 z −11~−15.7 · x +0.55~−1.6이라 가로등(x 2.1, z −16.2) 반대편 어둠에 있었다.
+  // 젖은 재질로 바꿔도 비출 빛이 없으면 소용이 없다 — **광원 쪽에서 시작해** 어둠으로 끌려간다.
+  // 밝은 자리에서 번들거리다가 어둠으로 사라지는 편이 무섭기도 하다: 끝이 안 보인다
   const bloodTrail = new THREE.Group();
   const trailSpots: Array<[number, number, number]> = [
-    [0.55, -L * 0.31, 0.3], [0.2, -L * 0.345, 0.2], [-0.2, -L * 0.375, 0.26],
-    [-0.6, -L * 0.4, 0.17], [-1.1, -L * 0.42, 0.22], [-1.6, -L * 0.435, 0.14],
+    [2.05, -L * 0.455, 0.34], [1.5, -L * 0.45, 0.28], [0.95, -L * 0.443, 0.3],
+    [0.4, -L * 0.432, 0.24], [-0.15, -L * 0.425, 0.27], [-0.75, -L * 0.415, 0.2],
+    [-1.35, -L * 0.408, 0.23], [-1.9, -L * 0.4, 0.15],
   ];
   for (const [bx, bz, r] of trailSpots) {
     const spot = new THREE.Mesh(new THREE.CircleGeometry(r, 14), mats.blood);
@@ -25,6 +28,12 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
     spot.position.set(bx, 0.015, bz);
     bloodTrail.add(spot);
   }
+  // 벽으로 이어지는 세로 자국 — **바닥만으로는 멀리서 안 읽힌다.** 눈높이 1.65m에서
+  // 15m 밖 바닥 데칼은 거의 선으로 뭉갠다. 벽에 선 자국은 거리와 무관하게 서 있다
+  const smear = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.15), mats.bloodWall);
+  smear.position.set(-HW + 0.06, 0.6, -L * 0.397);
+  smear.rotation.y = Math.PI / 2;
+  bloodTrail.add(smear);
   bloodTrail.visible = false;
   t1.add(bloodTrail);
 
@@ -182,6 +191,18 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   bfH.position.set(0, 1.74, 0.02);
   const bfL = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.5), mats.darkFigure);
   bfL.position.set(0, 0.78, 0.24);            // 다리를 앞으로 내려놓았다
+  // ⭐ **손만 하얗다.** 실측에서 이 형체는 접근 내내 대비 2.0 — 검은 실루엣을 어둠에 세워
+  // 배경과 함께 0으로 붕괴한 것이다(가로등 −0.45L에서 7m 밖). 형체를 밝히면 정체가 사라지므로
+  // **창백한 부분을 하나만** 붙인다: 핸들을 잡은 두 손. 펜스의 손(H-020)이 대비 55로
+  // 증명한 수법이고, "얼굴은 안 보이는데 손은 보인다"가 더 무섭기도 하다
+  const paleMat = new THREE.MeshStandardMaterial({
+    color: 0xb9b2a4, roughness: 0.9, emissive: 0x15140f,
+  });
+  for (const hx of [-0.17, 0.17]) {
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.11, 0.15), paleMat);
+    hand.position.set(hx, 1.16, 0.3);           // 핸들 뭉치(y 0.9~1.2) 위
+    bikeFigure.add(hand);
+  }
   bikeFigure.add(bfB, bfH, bfL);
   bikeFigure.position.set(HW - 0.42, 0, -L * 0.655);
   bikeFigure.visible = false;

@@ -65,6 +65,7 @@ export interface Theme2Refs {
   shutterGlowMat: THREE.MeshStandardMaterial;
   shutterGlowSlitMat: THREE.MeshStandardMaterial;
   shutterGlowLight: THREE.PointLight;
+  loneShadow: THREE.Group;                  // H-019 주인 없는 그림자 (밤 2)
 }
 
 /** 테마 3: 놀이터 옆길 */
@@ -74,6 +75,7 @@ export interface Theme3Refs {
   swingFigure: THREE.Group;                 // H-005 그네에 앉은 형체
   eyes: THREE.Group;                        // H-006 펜스 뒤 어둠의 눈
   slideFigure: THREE.Group;                 // H-012 미끄럼틀 지붕 위의 형체 (밤 3)
+  fenceHands: THREE.Group;                  // H-020 펜스를 잡은 손들 (밤 3)
 }
 
 /** 테마 4: 정류장 앞 (차도) */

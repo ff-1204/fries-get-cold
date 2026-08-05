@@ -305,13 +305,30 @@ export const concrete = (color: number) =>
 export interface SharedMats {
   /** 핏자국 공용 재질 — 저채도 적 (팔레트: 이상 시그널 전용색. 야하게 빛나지 않는다) */
   blood: THREE.MeshStandardMaterial;
+  /** 벽에 튄 자국 — 발광 없음 (벽이 받는 빛으로 대비를 낸다) */
+  bloodWall: THREE.MeshStandardMaterial;
   /** 사람 형태(HUM) 공용 — 얼굴 없는 검은 실루엣 */
   darkFigure: THREE.MeshStandardMaterial;
 }
 
 export function sharedMats(): SharedMats {
   return {
-    blood: new THREE.MeshStandardMaterial({ color: 0x571010, roughness: 1 }),
+    // ⭐ **젖어 있다.** 예전에는 roughness 1의 마른 자국이라 어둠 속에서 아스팔트와
+    // 구분이 안 됐다 — 실측 대비 0.2~1.5로, 접근 내내 화면에 사실상 없었다
+    // (가림 검사는 100% '뚫림'이었다. 그 검사가 못 재는 것이 바로 이것이다).
+    // 색을 밝히면 시그널색이 야해진다. 대신 **반사**를 준다: 젖은 바닥은 가로등을 되비추고,
+    // 그 번들거림이 어둠 속에서 유일하게 읽히는 단서가 된다. 물리적으로도 이게 맞다
+    // 바닥의 젖은 자국 — 가로등을 되비춘다.
+    // ⚠ 발광 수위를 두 번 틀렸다. 0x2a0b0b는 대비 5로 부족했고, 0x5c1717은 대비 18이 나왔지만
+    //   **암흑에서 순수 빨강 페인트로 보였다**(발광은 조명을 안 타므로 어두운 곳일수록 도드라진다).
+    //   중간값 + 강한 젖음(거칠기 0.16)으로 간다: 빛 있는 자리에서 번들거리고,
+    //   빛 없는 자리에서는 겨우 떠오르는 정도. **가로등 불빛을 가로지르도록 배치**하는 것이 짝이다
+    blood: new THREE.MeshStandardMaterial({
+      color: 0x6b1414, roughness: 0.16, metalness: 0.25, emissive: 0x330f0e,
+    }),
+    // 벽에 튄 자국 — **발광 없음.** 벽은 가로등을 받으므로 어두운 얼룩이 그대로 대비가 된다.
+    // 세로 요소라 거리에 강하다: 바닥 데칼은 멀어질수록 선으로 뭉개지지만 벽 자국은 서 있다
+    bloodWall: new THREE.MeshStandardMaterial({ color: 0x4a0f0f, roughness: 0.5 }),
     darkFigure: new THREE.MeshStandardMaterial({ color: 0x0b0e16, roughness: 1 }),
   };
 }

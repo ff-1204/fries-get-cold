@@ -29,6 +29,8 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
   shoes: toggle((r) => r.shoes),
   bench_shoes: toggle((r) => r.benchShoes),
   bike_figure: toggle((r) => r.bikeFigure),
+  lone_shadow: toggle((r) => r.loneShadow),
+  fence_hands: toggle((r) => r.fenceHands),
   slide_figure: toggle((r) => r.slideFigure),
   across_figure: toggle((r) => r.acrossFigure),
   // 닫힌 셔터를 **치우고** 열린 셔터를 세운다 — 겹치면 닫힌 쪽이 그대로 덮는다

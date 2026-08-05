@@ -6,7 +6,8 @@ import { type Build, type Theme2Refs } from '../refs';
 import { box, boxOf, concrete, realtyTexture, handprintsTexture } from '../kit';
 import { L, HW } from '../layout';
 
-type E = 'laundry_open' | 'sign_lit' | 'realty_urgent' | 'handprints' | 'shutter_glow';
+type E = 'laundry_open' | 'sign_lit' | 'realty_urgent' | 'handprints' | 'shutter_glow'
+  | 'lone_shadow';
 
 export function createTheme2(): Build<Theme2Refs, E> {
   const t2 = new THREE.Group();
@@ -112,11 +113,41 @@ export function createTheme2(): Build<Theme2Refs, E> {
     boxOf(M.prop, 0.42, h, 0.6, -HW + 0.34, h / 2, pz, t2);           // 묶어둔 폐지
   }
 
+  // ---------- H-019 주인 없는 그림자 (밤 2, 직시) ----------
+  // ⭐ **가장 밝은 자리를 배경으로 쓴다.** 실측이 알려준 것: 이 게임에서 대비가 나오는 곳은
+  // 가로등이 만든 바닥 웅덩이 하나뿐이다. 거기에 **어두운 형상**을 놓으면 대비가 최대가 된다
+  // (검은 형체를 어둠에 세워 0.6이 나오던 것과 정확히 반대의 수법).
+  //
+  // 무엇인가: 가로등 아래에 **사람 그림자만** 늘어져 있다. 그림자를 드리울 것이 아무것도 없다.
+  // 이 게임에는 그림자 렌더링이 자체가 없으므로(castShadow 0) **그림자가 있다는 사실 자체가
+  // 이 골목의 규칙 위반**이다 — 플레이어가 그걸 의식할 필요는 없다. 그냥 잘못돼 보인다.
+  // 정물성 그대로: 움직이지 않는다. 늘어난 방향이 광원과 맞지 않는 것이 두 번째 단서다
+  const loneShadow = new THREE.Group();
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x04060b, transparent: true, opacity: 0.92, // 빛을 안 받는다 = 언제나 검다
+  });
+  // ⚠ 처음에는 골목 방향(z축)으로 눕혔더니 원근에 눌려 검은 얼룩이 됐다 (실측 대비 4).
+  //   **빛을 가로질러(x축) 눕힌다** — 걸어오는 내내 전신이 그대로 보이고,
+  //   광원이 오른쪽 벽에 붙어 있으므로 그림자가 왼쪽으로 뻗는 것이 물리적으로도 맞다
+  const shBody = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.66), shadowMat);
+  shBody.rotation.x = -Math.PI / 2;
+  shBody.position.set(0.75, 0.02, -L * 0.45);
+  const shHead = new THREE.Mesh(new THREE.CircleGeometry(0.3, 16), shadowMat);
+  shHead.rotation.x = -Math.PI / 2;
+  shHead.position.set(-0.5, 0.02, -L * 0.45);
+  const shArm = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.24), shadowMat);
+  shArm.rotation.x = -Math.PI / 2;
+  shArm.rotation.z = -0.55;
+  shArm.position.set(0.7, 0.02, -L * 0.417);
+  loneShadow.add(shBody, shHead, shArm);
+  loneShadow.visible = false;
+  t2.add(loneShadow);
+
   return {
     group: t2,
     refs: {
       laundryShutter, laundryMat, laundryLight, storeSignMat, realtyMat, realtyTex, handprints,
-      shutterGlowMat, shutterGlowSlitMat, shutterGlowLight,
+      shutterGlowMat, shutterGlowSlitMat, shutterGlowLight, loneShadow,
     },
     hit: {
       laundry_open: [laundryShutter, laundryInterior],
@@ -124,6 +155,7 @@ export function createTheme2(): Build<Theme2Refs, E> {
       realty_urgent: [realty],
       handprints: [handprints],
       shutter_glow: [shutterGlow, shutterGlowSlit],
+      lone_shadow: [loneShadow],
     },
   };
 }

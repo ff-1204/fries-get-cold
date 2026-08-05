@@ -12,7 +12,8 @@
     "verify:shots": "node scripts/verify.mjs shots",
     "verify:balance": "node scripts/verify.mjs balance",
     "verify:sim": "node --test src/balance.test.ts",
-    "verify:play": "node scripts/playthrough.mjs"
+    "verify:play": "node scripts/playthrough.mjs",
+    "verify:visible": "node scripts/verify-visibility.mjs"
   },
   "dependencies": {
     "three": "^0.178.0"

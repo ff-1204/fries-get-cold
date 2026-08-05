@@ -158,7 +158,7 @@ let adminWasFlying = false;
 
 // ---------- 관리자(디버그) 모드 — Ctrl + Space Space ----------
 // 게임 코드에는 이 블록과 updateWalk 앞머리의 분기, tick의 한 줄만 있다. admin.ts가 나머지 전부다
-const admin = new Admin({
+const adminHost: ConstructorParameters<typeof Admin>[0] = {
   camera,
   scene,
   segLength: CONFIG.segLength,
@@ -194,7 +194,8 @@ const admin = new Admin({
     applyPain(depth);
     phase = 'walk';
   },
-});
+};
+const admin = new Admin(adminHost);
 
 function rollSegment(stretchStatus = false) {
   setSegmentTheme(refs, theme); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
@@ -666,9 +667,35 @@ function occlusionReport() {
       if (hit && targets.some((t) => isDescendant(hit.object, t))) anyClear = true;
       else if (blockedAt === null && hit) blockedAt = Math.round(hit.distance * 10) / 10;
     }
+    // 화면 어디에 얼마만큼 크게 잡히는가 — 정규화 사각(0~1, 좌상단 원점).
+    // ⭐ 가림 검사가 못 재는 것이 '보이는가'다. 이 사각이 있으면 **그 자리 픽셀을 떠서
+    //   배경과의 대비를 잴 수 있다** — "5/5 통과인데 화면엔 아무것도 없던" 사고의 해법
+    // ⚠ **부품마다 따로** 낸다. 합집합 사각을 쓰면 핏자국처럼 흩어진 것은 자국 사이의
+    //   아스팔트까지 평균에 들어가 대비가 씻긴다 (실측에서 실제로 그랬다)
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    const rects: Array<{ x0: number; y0: number; x1: number; y1: number }> = [];
+    for (const p of parts) {
+      aimBox.setFromObject(p);
+      if (aimBox.isEmpty()) continue;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, on = false;
+      for (let i = 0; i < 8; i++) {
+        projPos.set(
+          i & 1 ? aimBox.max.x : aimBox.min.x,
+          i & 2 ? aimBox.max.y : aimBox.min.y,
+          i & 4 ? aimBox.max.z : aimBox.min.z,
+        );
+        projPos.project(camera);
+        if (projPos.z >= 1) { on = false; break; }    // 한 귀퉁이라도 카메라 뒤면 버린다
+        on = true;
+        const nx = (projPos.x + 1) / 2, ny = (1 - projPos.y) / 2;
+        x0 = Math.min(x0, nx); x1 = Math.max(x1, nx);
+        y0 = Math.min(y0, ny); y1 = Math.max(y1, ny);
+      }
+      if (on) rects.push({ x0: r3(x0), y0: r3(y0), x1: r3(x1), y1: r3(y1) });
+    }
     return { id: a.id, rule: a.rule, parts: parts.length,
       dist: Math.round(nearest * 10) / 10, clear: anyClear,
-      blockedAt: anyClear ? null : blockedAt };
+      blockedAt: anyClear ? null : blockedAt, rects };
   });
 }
 
@@ -1236,6 +1263,9 @@ window.addEventListener('resize', () => {
     on: () => admin.active,
     cam: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z }),
     toggle: () => admin.toggle(),
+    /** 패널을 거치지 않고 곧장 이동 — **검증 스크립트가 쓴다.**
+     *  구간을 걸어서 도달하려면 이상현상 하나 재는 데 1분이 걸린다 (구간 전환 ×4) */
+    jump: (j: Parameters<typeof adminHost.jump>[0]) => adminHost.jump(j),
   },
   ...(DEBUG_ANOMALY !== null
     ? {
