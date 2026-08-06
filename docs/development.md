@@ -121,6 +121,7 @@ npm run build:local    # 단일 파일 빌드 → play-local.html
 npm run deploy         # 빌드 후 gh-pages 브랜치로 배포
 npm run verify:sim     # 깊이 모델 시뮬레이션 (node:test, 브라우저 불요, <1초)
 npm run verify:shots   # 헤드리스 스크린샷 (dev 서버 필요)
+npm run verify:shots -- dusk grow-last   # ⭐ 케이스만 골라 (20분 → 1분 40초)
 npm run verify:balance # E2E 밸런스 실측 5케이스 (dev 서버 필요)
 npm run verify:visible # 이상현상 가시성 — 휘도 대비 실측 (dev 서버 필요)
 npm run verify:play    # 끝에서 끝까지 자동 플레이 (dev 서버 필요)

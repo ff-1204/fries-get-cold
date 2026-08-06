@@ -92,8 +92,8 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
   (지적 훅 `debugSpot`/`debugSpotAt`은 v0.11.50에 사라졌다 — 짚는 입력 경로가 없다)
 - **관리자 모드 `Ctrl + Space Space`** (`src/admin.ts`) — 비행 · Esc 스테이지 이동 패널 ·
   **조준 대상 표시**(이름·크기·색·`-L*0.296` 배수 좌표 → 그대로 grep 가능). 판정은 전부 멈춘다
-- `npm run verify:sim`(상시) / `verify:balance`(릴리즈 전) / `verify:visible`(이상현상 배치 변경 시) /
-  `verify:shots`(시각 변경 시) /
+- `npm run verify:sim`(상시) / `verify:balance`(릴리즈 전) / `verify:visible`(이상현상 배치·표면 변경 시)
+  / `verify:shots`(시각 변경 시 — **`-- dusk grow-last`로 골라 찍는다**, 전체는 20분) /
   **`verify:play`**(흐름·전환 변경 시 — 첫 방문부터 밤 2까지 자동 주파)
 - ⚠ **가림 검사는 '밝기'를 재지 않는다** — 통과해도 스크린샷을 한 장 본다
   (5/5인데 광원 밖이라 화면엔 안 보인 적이 있다)
