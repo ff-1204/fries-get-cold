@@ -135,19 +135,223 @@ export function handprintsTexture(): THREE.CanvasTexture {
 
 /** 정류장 현수막 — 게임을 시작시키는 물건. 퇴근길에 이걸 보고 걸음을 돌린다 (v0.11.5).
  *  튜토리얼 인트로 문구가 가리키는 실물이므로 반드시 보여야 한다 (어포던스: 말한 것은 보인다) */
+/** 개업 현수막 (v0.11.61 재설계) — 다리 난간에 걸린 신장개업 배너.
+ *
+ *  ⚠⚠ **여기는 오래 저채도 적(`#7c1d22`)이었다 — 그건 이상현상 전용색이다.**
+ *  visual-polish §3의 의미색 고정은 웜(`#ffb23e`) = 안전·목표, 저채도 적 = 어긋남이고,
+ *  그 표는 "FF-1204 간판"을 **웜 쪽에** 적어 두었다. 그런데 정작 이 가게를 가리키는
+ *  가장 큰 물건이 어긋남의 색을 입고 있었다 — 목표가 이상현상과 같은 색으로 말하고 있었던 것이다.
+ *  ⭐ 미색 바탕 + 웜 강조로 옮긴다. 덤으로 **글자 대비가 올라간다**(어두운 글자 / 밝은 바탕).
+ *
+ *  ⭐ **음식점 현수막으로 읽히게 하는 것은 색이 아니라 세간(細間)이다**:
+ *  ① 비닐이라 가장자리가 접혀 두 겹으로 보이고 ② 네 귀퉁이에 **그로밋(구멍)** 이 박혀 있고
+ *  ③ 제품 이름이 가게 이름보다 크고 ④ 그림이 하나 있다. 넷 다 캔버스로 그린다 (에셋 0).
+ *
+ *  ⚠ 문구는 story.md §73이 정한 것을 지킨다 — *FF-1204 개업 · XXXXL 감자튀김*.
+ *    **도장 보상은 절대 쓰지 않는다**: "도장 5개 = 무료"는 v0.11.6에 폐지됐고
+ *    도장은 보상이 아니라 방문 기록이다 (story.md §71). 현수막이 약속하면 그 폐지가 무효가 된다.
+ *  ⭐ 위계를 뒤집었다 — **XXXXL이 먼저**다. 이 게임의 유머 앵커는 튀김이고(story.md §35),
+ *    실제 개업 현수막도 가게 이름보다 파는 것을 크게 적는다 */
 export function bannerTexture(): THREE.CanvasTexture {
-  return canvasTex(1024, 192, (c) => {
-    c.fillStyle = '#7c1d22';               // 개업 현수막의 그 붉은색
-    c.fillRect(0, 0, 1024, 192);
-    c.strokeStyle = '#e8d9a0';
-    c.lineWidth = 5;
-    c.strokeRect(14, 14, 996, 164);
+  const w = 1024;
+  const h = 176;                            // 6.4 : 1.1 = 5.82 — 판 비율과 맞춰 글자가 눕지 않게
+  return canvasTex(w, h, (c) => {
+    c.fillStyle = '#f4e7cd';                // 미색 비닐 — 실제 개업 현수막의 흔한 바탕
+    c.fillRect(0, 0, w, h);
+    // 위아래 접힘단 — 비닐을 접어 박은 자리. 두 겹이라 조금 진하다 (평면감을 깬다)
+    c.fillStyle = '#e6d4b2';
+    c.fillRect(0, 0, w, 9);
+    c.fillRect(0, h - 9, w, 9);
+    // 웜 강조 띠 — 목표색 (visual-polish §3)
+    c.fillStyle = '#ffb23e';
+    c.fillRect(0, 12, w, 8);
+    c.fillRect(0, h - 20, w, 8);
+
+    // ⭐ **왼쪽 웜 블록** — 20m 밖에서는 글자가 안 읽히고 **색 덩어리만** 읽힌다 (실측).
+    //   미색 바탕만으로는 콘크리트 벽과 명도가 붙어 소실점에서 눈에 걸리지 않았다 —
+    //   붉은 현수막이 갖고 있던 초점을 잃은 것이다. 그 초점을 **목표색으로** 되찾는다:
+    //   멀리서는 주황 덩어리(= 가게가 저기 있다), 가까이서는 글자.
+    //   ⚠ 이 블록이 튀김 그림의 배경이 되므로 그림은 미색으로 뒤집어 그린다
+    c.fillStyle = '#ffb23e';
+    c.fillRect(20, 20, 168, h - 40);
+
+    // ---------- 감자튀김 그림 (왼쪽 블록 안) — '음식점'을 글자 없이 말하는 부분 ----------
+    // ⚠ 봉투를 붉게 칠하지 않는다 (이상 시그널색). 미색·크라프트로 웜 블록 위에 얹는다
+    const fx = 104;
+    const fy = h / 2 + 6;
+    c.fillStyle = '#fff4dc';                                  // 튀김 — 웜 블록 위라 미색으로 뒤집는다
+    for (const [dx, dh, rot] of [[-26, 58, -0.16], [-9, 70, -0.05], [8, 66, 0.06], [25, 54, 0.17]] as Array<[number, number, number]>) {
+      c.save();
+      c.translate(fx + dx, fy - 28);
+      c.rotate(rot);
+      c.fillRect(-7, -dh / 2, 14, dh);
+      c.restore();
+    }
+    c.fillStyle = '#8a5a22';                                  // 봉투 — 웜 블록보다 진한 갈색
+    c.beginPath();
+    c.moveTo(fx - 40, fy - 20);
+    c.lineTo(fx + 40, fy - 20);
+    c.lineTo(fx + 30, fy + 40);
+    c.lineTo(fx - 30, fy + 40);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#fff4dc';                                  // 봉투의 흰 띠
+    c.fillRect(fx - 34, fy - 2, 68, 9);
+
+    // ---------- 글자 ----------
+    // ⚠ 아랫줄을 키우고 진하게 했다 — 34px / `#7a5a2c`로는 12m에서 **읽히지 않았다**(실측).
+    //   튜토리얼 자막이 "FF-1204. …XXXXL 감자튀김이다"라고 두 줄을 다 읽으므로(data.ts tutBeats),
+    //   가게 이름도 그 거리에서 읽혀야 자막이 거짓말을 하지 않는다
+    c.textAlign = 'left';
+    c.fillStyle = '#3f2a14';                                  // 진한 갈색 — 미색 바탕에 최대 대비
+    c.font = `bold 72px ${KR_FONT}`;
+    c.fillText('XXXXL 감자튀김', 210, h / 2 - 2);
+    c.font = `bold 44px ${KR_FONT}`;
+    c.fillStyle = '#5a3c16';
+    c.fillText('신장개업  FF-1204', 214, h / 2 + 48);
+
+    // ---------- 그로밋 — 네 귀퉁이의 고정 구멍 ----------
+    // 현수막이 '걸린 것'으로 읽히는 결정적 세부. 없으면 공중에 뜬 판이다
+    for (const gx of [26, w - 26]) {
+      for (const gy of [24, h - 24]) {
+        c.fillStyle = '#8b8577';
+        c.beginPath();
+        c.arc(gx, gy, 9, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#4a4a48';                              // 구멍 속 — 뒤가 비친다
+        c.beginPath();
+        c.arc(gx, gy, 5, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+  });
+}
+
+// ---------- ⭐ 정류장 라이트박스 광고 둘 (v0.11.61) ----------
+// 레퍼런스(밤 버스 정류장)에서 정류장을 정류장으로 만드는 것은 **양쪽 끝의 백라이트 광고판**이다.
+// 밤 화면에서 가장 밝은 면이고, 유리·벤치보다 먼저 눈에 들어온다.
+//
+// ⭐ 광고 둘을 **서로 반대편에 세운다** — 걸어가며 보는 것과 돌아오며 보는 것이 다르다:
+//   가게 쪽(−z)을 향한 면은 **감자튀김 광고**(가게를 미리 보여 준다),
+//   집 쪽(+z)을 향한 면은 **실종 전단**. 같은 정류장이 방향에 따라 다른 말을 한다.
+// ⚠ 둘 다 **규칙을 설명하지 않는다** — 이름을 외우게 하거나 단서를 풀게 하지 않는다.
+//   전단은 로어(누군가 집에 못 갔다)일 뿐이고, 이 게임의 동사는 여전히 걷기 하나다.
+// ⚠ 실제 인물·사건과 겹치지 않게 이름은 쓰지 않고 실루엣만 둔다. 전화번호도 넣지 않는다
+
+/** 감자튀김 광고 — FF-1204의 라이트박스. 세로 판(0.9×1.6 = 0.5625) 비율에 맞춘다 */
+export function friesAdTexture(): THREE.CanvasTexture {
+  const w = 288;
+  const h = 512;
+  return canvasTex(w, h, (c) => {
+    c.fillStyle = '#ffb23e';                 // 웜 — 목표(가게) 전용색 (visual-polish §3)
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = '#f4e7cd';                 // 위아래 미색 여백 — 현수막과 같은 계열로 묶는다
+    c.fillRect(0, 0, w, 74);
+    c.fillRect(0, h - 96, w, 96);
+
+    // 감자튀김 — 화면의 주인공. 봉투에서 삐져나온 튀김 다발
+    const fx = w / 2;
+    const fy = 300;
+    c.fillStyle = '#fff4dc';
+    for (const [dx, dh, rot] of [[-52, 150, -0.17], [-18, 182, -0.05], [18, 172, 0.06], [52, 140, 0.18]] as Array<[number, number, number]>) {
+      c.save();
+      c.translate(fx + dx, fy - 78);
+      c.rotate(rot);
+      c.fillRect(-16, -dh / 2, 32, dh);
+      c.restore();
+    }
+    c.fillStyle = '#8a5a22';                 // 봉투 (크라프트)
+    c.beginPath();
+    c.moveTo(fx - 86, fy - 58);
+    c.lineTo(fx + 86, fy - 58);
+    c.lineTo(fx + 64, fy + 92);
+    c.lineTo(fx - 64, fy + 92);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#fff4dc';
+    c.fillRect(fx - 74, fy - 6, 148, 20);
+
     c.textAlign = 'center';
-    c.fillStyle = '#fdf3d8';
-    c.font = `bold 78px ${KR_FONT}`;
-    c.fillText('FF-1204  개업', 512, 86);
-    c.font = `bold 56px ${KR_FONT}`;
-    c.fillText('XXXXL 감자튀김', 512, 154);
+    c.fillStyle = '#3f2a14';
+    c.font = `bold 46px ${KR_FONT}`;
+    c.fillText('XXXXL', w / 2, 52);
+    c.font = `bold 40px ${KR_FONT}`;
+    c.fillText('감자튀김', w / 2, h - 52);
+    c.font = `bold 24px ${KR_FONT}`;
+    c.fillStyle = '#7a5a2c';
+    c.fillText('FF-1204  신장개업', w / 2, h - 18);
+  });
+}
+
+/** 실종 전단 — 같은 라이트박스에 끼워 넣은 공익 게시물.
+ *
+ *  ⭐ **이 게임의 전제를 배경으로 한 번 말한다**: 누군가 이 길에서 집에 도착하지 못했다.
+ *  자막도 규칙도 아니고, 정류장에 원래 붙어 있는 종류의 종이다 (무설명 학습).
+ *  ⚠ 얼굴은 **실루엣**뿐이다. 실제 인물로 읽힐 만한 이름·번호·사진은 쓰지 않는다.
+ *  ⚠ 색은 무채색으로 둔다 — 저채도 적은 이상현상 전용이고, 웜은 가게 전용이다.
+ *    공익 게시물이 그 둘 중 하나를 입으면 의미색 고정이 흐려진다 */
+export function missingAdTexture(): THREE.CanvasTexture {
+  const w = 288;
+  const h = 512;
+  return canvasTex(w, h, (c) => {
+    c.fillStyle = '#e9eaec';                 // 형광등에 비친 흰 종이
+    c.fillRect(0, 0, w, h);
+    c.strokeStyle = '#9aa0a8';
+    c.lineWidth = 3;
+    c.strokeRect(12, 12, w - 24, h - 24);
+
+    // ⚠ 헤더를 두 번에 걸쳐 줄였다 (v0.11.61 — 요청): 44 → 39 → **30px**.
+    //   44px는 288px 폭을 거의 꽉 채워 여백이 없었다. 30px면 본문(23px)과 위계는 남고
+    //   양옆이 비어 실물 전단처럼 읽힌다 — 전단의 헤더는 크기보다 **여백**이 만든다
+    c.textAlign = 'center';
+    c.fillStyle = '#2b2f36';
+    c.font = `bold 30px ${KR_FONT}`;
+    c.fillText('사람을 찾습니다', w / 2, 74);
+    c.fillStyle = '#6b7280';
+    c.fillRect(40, 96, w - 80, 3);
+
+    // 얼굴 — 실루엣만. 사진이 없는 전단이 오히려 흔하다 (그리고 더 서늘하다)
+    c.fillStyle = '#cfd3d8';
+    c.fillRect(64, 122, w - 128, 200);
+    c.fillStyle = '#9aa0a8';
+    c.beginPath();
+    c.arc(w / 2, 208, 40, 0, Math.PI * 2);   // 머리
+    c.fill();
+    c.beginPath();
+    c.moveTo(w / 2 - 62, 322);               // 어깨
+    c.quadraticCurveTo(w / 2, 244, w / 2 + 62, 322);
+    c.closePath();
+    c.fill();
+
+    // 본문 — 읽히는 것은 두 줄뿐이고 나머지는 잔글씨의 밀도로만 존재한다
+    c.fillStyle = '#3a4048';
+    c.font = `bold 23px ${KR_FONT}`;
+    c.fillText('원룸 골목 일대', w / 2, 366);
+    c.fillText('새벽 1시경 마지막 목격', w / 2, 400);
+    c.fillStyle = '#8b9098';
+    c.font = `18px ${KR_FONT}`;
+    c.fillText('보신 분은 가까운 지구대로', w / 2, 438);
+    // 잔글씨 — 글자로 읽지 않고 '종이'의 질감으로 읽는다
+    c.fillStyle = '#b9bec5';
+    for (let i = 0; i < 3; i++) c.fillRect(52, 458 + i * 11, w - 104, 4);
+  });
+}
+
+/** 택시 갓등 (v0.11.61) — 지붕 위의 그 상자. **차를 택시로 만드는 것은 이것 하나다.**
+ *
+ *  차체는 이미 검정(`0x161a24`)이었다 — 검은 세단과 검은 택시를 가르는 것은 색이 아니라
+ *  **지붕에 얹힌 상자**다. 옆으로 스쳐 지나가는 물건이라 0.6m 폭에 두 글자가 최대다.
+ *
+ *  ⚠ 발광은 `emissiveMap`으로 **글자에만** 건다 (간판과 같은 수법 — 아래 shopSignTexture).
+ *    상자 전체를 발광시키면 지나갈 때 화면에서 제일 밝은 물건이 된다 */
+export function taxiSignTexture(): THREE.CanvasTexture {
+  return canvasTex(192, 48, (c) => {
+    c.fillStyle = '#14161d';                 // 갓등 몸체 — 검정에 가깝다 (모범택시)
+    c.fillRect(0, 0, 192, 48);
+    c.textAlign = 'center';
+    c.fillStyle = '#d8b268';                 // 금색 글자 — 모범택시의 그 색
+    c.font = `bold 34px ${KR_FONT}`;
+    c.fillText('택시', 96, 36);
   });
 }
 
@@ -397,9 +601,12 @@ export function duskSkyTexture(): THREE.CanvasTexture {
   g.addColorStop(0.00, '#8d92bd'); // 천정 — 옅은 라벤더 블루
   g.addColorStop(0.16, '#a89cc0');
   g.addColorStop(0.30, '#c9a8bd'); // 라벤더 → 장밋빛
-  g.addColorStop(0.40, '#e8bcc2');
-  g.addColorStop(0.47, '#f5cdc6'); // 해가 넘어간 자리 — 가장 밝은 띠 (분홍)
-  g.addColorStop(0.52, '#eec4b4');
+  // ⚠ 밝은 띠를 v0.47에 두면 **화면에 들어오는 부분이 거기**라 하늘이 희게 읽힌다
+  //   (맑은 오후 하늘에서 배운 것과 같다 — 보이는 것은 지평선 바로 위의 좁은 띠뿐이다).
+  //   장밋빛을 지평선까지 끌고 내려와, 가장 밝은 곳은 해 둘레에만 남긴다
+  g.addColorStop(0.40, '#e0b0bd');
+  g.addColorStop(0.47, '#eabfc0'); // 해가 넘어간 자리 — 밝지만 흰색은 아니다 (분홍)
+  g.addColorStop(0.52, '#e2b3a8');
   g.addColorStop(1.00, '#b08b7a'); // 지평선 아래 — 바닥에 가려 거의 안 보인다
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
@@ -417,11 +624,15 @@ export function duskSkyTexture(): THREE.CanvasTexture {
   // ⚠ **지평선 바로 위(v 0.525)에 뒀더니 건물이 가렸다.** 벽 7m·거리 20m면 시선에 들어오는
   //   하늘은 고도각 15° 위부터다 — 해는 그보다 높이 걸어야 지붕선 너머로 보인다 (실측)
   const sunY = h * 0.40;
-  const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, w * 0.34);
+  // ⚠⚠ **빛무리를 넓게 깔면 하늘이 흰 종이가 된다** (v0.11.61 실측). 반지름이 w*0.34,
+  //   즉 구를 한 바퀴 도는 UV의 **24%** 였다. 골목에서 보이는 하늘은 벽 사이의 좁은 띠뿐인데
+  //   그 띠가 전부 빛무리 안에 들어가, 애써 만든 장밋빛 그라데이션이 화면에 한 번도 안 나왔다.
+  //   ⭐ 해는 **작고 세게**, 둘레는 하늘색이 살아 있게. 그래야 '해가 걸렸다'로 읽힌다
+  const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, w * 0.19);
   halo.addColorStop(0.00, 'rgba(255, 244, 214, 0.95)'); // 해 — 흰빛에 가깝게 (눈이 부신 쪽)
-  halo.addColorStop(0.06, 'rgba(255, 226, 172, 0.80)');
-  halo.addColorStop(0.20, 'rgba(250, 196, 158, 0.45)'); // 빛무리
-  halo.addColorStop(0.55, 'rgba(238, 180, 168, 0.16)');
+  halo.addColorStop(0.10, 'rgba(255, 226, 172, 0.78)');
+  halo.addColorStop(0.30, 'rgba(250, 196, 158, 0.38)'); // 빛무리
+  halo.addColorStop(0.62, 'rgba(238, 180, 168, 0.13)');
   halo.addColorStop(1.00, 'rgba(230, 175, 175, 0)');
   ctx.fillStyle = halo;
   ctx.fillRect(0, 0, w, h);
@@ -433,6 +644,65 @@ export function duskSkyTexture(): THREE.CanvasTexture {
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
+
+/** ⭐ 맑은 늦은 오후의 하늘 — 퇴근길 **첫 구간**의 하늘 (v0.11.61, layout.ts SKY_AFTERNOON).
+ *
+ *  ⭐ **이 하늘의 일은 화면에 한색 덩어리를 하나 놓는 것이다.** 레퍼런스(맑은 날 골목 사진)의
+ *  힐링은 파란 하늘·흰 벽·주황 나무·초록이 **서로 다른 계열로** 갈려 있는 데서 오고,
+ *  그중 가장 넓고 확실한 한색이 하늘이다. 노을 하늘(장밋빛)은 벽과 같은 계열이라
+ *  그 역할을 못 한다 — 두 구간을 이어 놓는 이유가 여기 있다.
+ *
+ *  노을 하늘과 다른 점 셋:
+ *  ① **해를 그리지 않는다.** 아직 높이 있어서 골목의 시야(고도각 15° 위)에 안 들어온다 —
+ *     소실점의 해는 '집으로 걸어 들어가는' 그림이고, 그것은 다음 구간의 몫이다
+ *  ② 채도를 노을보다 **높게** 쓴다. 파랑은 넓은 면에서 물러나 보여서, 같은 채도로는 회색이 된다
+ *  ③ 지평선 쪽이 **옅어진다** (대기 산란). 위가 진하고 아래가 흰 것이 맑은 날의 하늘이다 */
+export function afternoonSkyTexture(): THREE.CanvasTexture {
+  const h = 256;
+  const w = 512;
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d')!;
+  // 캔버스 y=0 이 v=1(천정), y=h 가 v=0(발밑) — duskSkyTexture와 같은 규약
+  // ⚠⚠ **옅은 띠를 지평선 쪽에 넉넉히 두면 하늘이 안 보인다** (실측 교정 1회차).
+  //   골목에서 보이는 하늘은 **지평선 바로 위의 좁은 띠**뿐이다 (벽 7m·시야각). 첫 시도는
+  //   v0.50을 #c6dcef(거의 흰색)로 뒀는데, 정작 화면에 들어온 것이 그 부분이라
+  //   **하늘이 흰 종이**가 됐다 — 파란 하늘을 넣은 이유(한색 앵커)가 그대로 사라졌다.
+  //   ⭐ 산란으로 옅어지는 구간을 **지평선에 붙여 압축한다**. 물리적 사실보다 보이는 것이 먼저다
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0.00, '#4a86c8'); // 천정 — 가장 진한 파랑
+  g.addColorStop(0.30, '#63a0d8');
+  g.addColorStop(0.44, '#86bce8'); // ⭐ 골목에서 실제로 보이는 띠 — 여기가 파랗지 않으면 의미가 없다
+  g.addColorStop(0.50, '#a8cfee'); // 지평선 — 이 아래로만 옅어진다
+  g.addColorStop(1.00, '#cfe0ee'); // 지평선 아래 — 바닥에 가려 거의 안 보인다
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+
+  // 구름 몇 점 — 레퍼런스의 하늘에도 얇은 조각구름이 몇 개뿐이다.
+  // ⚠ **소실점(u=0.75) 쪽에는 두지 않는다** — 걸어 들어가는 방향의 하늘은 비워 두는 것이
+  //   골목을 깊어 보이게 한다 (구름이 뚜껑처럼 닫힌다). 좌우 위쪽에만 흩는다
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  for (const [u, v, rx, ry] of [
+    [0.16, 0.16, 0.085, 0.020], [0.30, 0.27, 0.055, 0.014],
+    [0.52, 0.13, 0.070, 0.017], [0.93, 0.22, 0.060, 0.015],
+  ] as Array<[number, number, number, number]>) {
+    ctx.beginPath();
+    ctx.ellipse(w * u, h * v, w * rx, h * ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = THREE.RepeatWrapping;   // u는 구를 한 바퀴 감는다 — 이음매가 튀지 않게
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** 표면 텍스처 타일 한 변의 실측 미터 — **골목·터널·차도가 같은 값을 써야** 이음매에서
+ *  결이 어긋나지 않는다. 골목 바닥과 교차로 노면은 실제로 맞닿아 있다 (v0.11.61에 모아 왔다) */
+export const ASPHALT_M = 2.5;
+export const WALL_M = 3;
 
 /** 표면 텍스처를 입힌 재질. **면마다 반복 수가 달라야** 하므로 텍스처를 복제해 쓴다
  *  (BoxGeometry는 모든 면이 0~1 UV라, 50m 바닥에 repeat 1이면 한 장이 늘어난다).

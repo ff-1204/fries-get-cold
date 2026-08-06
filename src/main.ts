@@ -16,7 +16,7 @@ import {
   createWorld, applyAnomalies, applyDepth, setStretchMark, setShopNear, setBackScene, setBannerSide,
   setThemeMirror,
   setSegmentTheme,
-  setMorning, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
+  setMorning, type TimeOfDay, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
   setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z, TUNNEL_IN_HALF,
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, MAIN_GAP_HALF, SPAWN_ANCHORS, CAR_SEC,
 } from './world';
@@ -33,6 +33,12 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // responsive-design §2
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; // 밝기 슬라이더용 노출 제어
+// ⭐ 그림자 (v0.11.61) — **퇴근길의 해 하나만** 실제로 그린다 (world/index.ts·setMorning).
+// ⚠ 여기를 켜 두고 광원 쪽 `castShadow`로 여닫는다. `shadowMap.enabled`를 런타임에 토글하면
+//   전 재질의 셰이더가 재컴파일되어 그 프레임이 튄다 — 켜 두면 컴파일은 로딩 때 한 번이고,
+//   그림자를 만드는 광원이 없는 동안(밤)에는 패스 자체가 돌지 않는다
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 로우폴리에 하드 섀도는 톱니가 튄다
 app.appendChild(renderer.domElement);
 
 // 밝기 슬라이더 (visual-polish §4 — "골목이 겨우 보일 정도" 패턴). 설정은 기기 내 저장.
@@ -199,7 +205,48 @@ const adminHost: ConstructorParameters<typeof Admin>[0] = {
 };
 const admin = new Admin(adminHost);
 
-function rollSegment(stretchStatus = false) {
+/** 퇴근길 이 구간의 시각 — **마지막 구간에서 해가 넘어간다** (v0.11.61).
+ *
+ *  ⚠ 테마 번호가 아니라 `done === total - 1`로 정한다: 노을이 걸려야 하는 자리는
+ *  '테마 5'가 아니라 **가게에 도착하는 구간**이다. 튜토리얼이 세 구간이 되어도 그대로 맞는다
+ *  (같은 조건으로 setShopNear가 목적지를 켠다 — 도착지와 노을이 늘 같은 구간에 있다) */
+function tutorialTod(): TimeOfDay {
+  return done === total - 1 ? 'dusk' : 'afternoon';
+}
+
+/** 퇴근길의 대기 — 시간대마다 다르다. **setMorning의 fog.density와 같은 값이어야 한다**:
+ *  매 프레임 도는 setTunnelDark가 이 값을 기준으로 안개를 다시 깔기 때문이다 */
+function tutorialFog(): number {
+  return tutorialTod() === 'afternoon' ? 0.007 : 0.012;
+}
+
+/** 구간을 새로 세운다 — 테마 전환 · 이상현상 배치 · 조명 · 목적지 · HUD.
+ *
+ *  ⭐ **순간이동이 맵보다 먼저다** (v0.11.61). 예전에는 맵을 다 세운 **뒤에** 위치를 옮겼는데,
+ *  그 사이에 `setShopNear`가 목적지(FF-1204)를 켜므로 **카메라가 아직 옛 자리에 있는 동안
+ *  새 맵이 켜지는 창**이 있었다. 지금은 동기 블록이라 프레임이 끼지 않지만, 전제가 깨지기 쉽다:
+ *  여기 `await`이 하나 들어가거나 호출 순서가 바뀌면 그 순간 목적지가 노출된다.
+ *  ⭐ **어둠 속으로 옮긴 다음에 세계를 바꾼다** — 이 순서면 그 창이 아예 없다.
+ *
+ *  @param spawnZ 이 구간에서 서는 z. 기본은 뒤 갱구 바로 앞(−0.5)이고,
+ *    구간 전환은 지나온 터널 속(`passSegment`), 퇴근길 시작은 정류장 앞을 넘긴다 */
+function rollSegment(stretchStatus = false, spawnZ = -0.5) {
+  // ---------- ① 순간이동 → ② 카메라·어둠 동기 → ③ 그 다음에 테마 전환 ----------
+  // ⚠⚠ **카메라를 직접 옮겨야 한다.** `player`만 옮기면 카메라는 옛 자리에 남는다:
+  //   전환 프레임의 updateWalk는 `passSegment()` 뒤에서 **곧바로 return**하므로 말미의
+  //   카메라 동기화(`syncCamera`)에 도달하지 못한다. 그 프레임은 **새 맵을 옛 시점으로** 그린다 —
+  //   목적지(FF-1204)가 스쳐 보인 경로가 이것이다 (제보 2회).
+  // ⭐ 그리고 어둠도 새 위치로 다시 깐다: 카메라가 **검은 안개 안에 들어간 것을 확정한 다음에**
+  //   테마를 바꾼다. 이 순서면 세계가 바뀌는 프레임은 언제나 암흑 속이다
+  player.x = 0;
+  // 기본값 −0.5의 이유: 뒤 끝벽(z 0~1)과 갱구 기둥에 카메라가 닿지 않게. 앞 끝벽 쪽
+  // 통과 방지 거리(0.5m)와 대칭이다 — 시작하자마자 옆으로 걸어도 튀지 않는다 (v0.11.22)
+  player.z = spawnZ;
+  input.yaw = 0;
+  input.pitch = 0;
+  syncCamera();                     // ② 카메라가 실제로 그 자리로 간다
+  applyTunnelDark(baseFogNow());    //    그 자리의 어둠을 먼저 깐다
+
   setSegmentTheme(refs, theme); // 구간 테마 (원룸/상가/놀이터/정류장/먹자골목)
   const tutorial = walkMode === 'tutorial';
 
@@ -267,6 +314,10 @@ function rollSegment(stretchStatus = false) {
   }
   stopCar(refs);                      // 주행 중이던 차는 구간과 함께 사라진다 (v0.11.19)
   carCycle = -1;                      // 구간이 바뀌면 다시 (늘어남 반복에서도 새로 판정)
+  // ⭐ **퇴근길은 걸으면서 시간이 간다** (v0.11.61) — 구간마다 하늘을 다시 건다.
+  // 첫 구간은 맑은 늦은 오후, 마지막(가게 앞)은 해가 넘어간 노을. 전환은 터널의 암흑 속이라
+  // 화면에 보이지 않는다 (setTunnelDark). 관리자 모드의 강제 낮(`j.daylight`)은 여기 안 걸린다
+  if (tutorial) setMorning(refs, true, tutorialTod());
   applyDepth(refs, depth);            // 꺼져가는 빛 — 이상 리셋보다 먼저 (lampBase 기준 제공)
   applyPain(depth);                   // 통증 비네트 동기화
   applyAnomalies(refs, anomalies.map((a) => a.effect));
@@ -286,13 +337,14 @@ function rollSegment(stretchStatus = false) {
   // 같은 거리를 반대로 걸으면 좌우가 바뀐다 — 테마마다 저작된 방향이 있고, 반대일 때만 뒤집는다
   setThemeMirror(refs, walkMode === 'return');
 
-  player.x = 0;
-  // 뒤 갱구 바로 앞 — 지나온 터널에서 막 나온 자리. 0이 아니라 -0.5인 이유는
-  // 뒤 끝벽(z 0~1)과 갱구 기둥에 카메라가 닿지 않게 하기 위함이고, 앞 끝벽 쪽
-  // 통과 방지 거리(0.5m)와 대칭이다 — 시작하자마자 옆으로 걸어도 튀지 않는다 (v0.11.22)
-  player.z = -0.5;
-  input.yaw = 0;
-  input.pitch = 0;
+  // ---------- ④ 어둠을 **한 번 더** 깐다 (v0.11.61) ----------
+  // ⚠⚠ 위에서 부른 `setMorning`이 `fog.density`를 시간대 값(맑음 0.007 / 노을 0.012)으로
+  //   **되돌린다.** 그래서 ②에서 깔아 둔 암흑이 맵을 세우는 동안 지워지고, 전환 프레임이
+  //   옅은 안개로 그려진다 — 목적지가 40m 밖에서 그대로 보인다.
+  //   ⭐ 이것이 v0.11.61에 구간마다 `setMorning`을 부르기 시작하면서 생긴 구멍이다
+  //   (그전에는 퇴근길 전체에 한 번만 불렸으니 전환 중에 안개가 초기화될 일이 없었다).
+  //   맵 구성이 끝난 **맨 마지막**에 다시 깔아, 이 함수를 나갈 때의 상태가 곧 렌더 상태가 되게 한다
+  applyTunnelDark(baseFogNow());
 
   if (stretchStatus) {
     hud.setStatusStretch(segmentLabel()); // 늘어남 — 카운터 강조 교체 (인지 4요소 ①)
@@ -374,11 +426,12 @@ async function startTutorial() {
   // 하루의 끝, 정류장에서 현수막을 보고 걸음을 돌린 지점부터 (전체 5구간 중 4번째)
   done = CONFIG.segments - 2;
   theme = CONFIG.segments - 1;
-  setMorning(refs, true);
-  rollSegment();
+  setMorning(refs, true, tutorialTod()); // 첫 구간 = 맑은 늦은 오후 (rollSegment가 매 구간 다시 건다)
   // 정류장 앞에서 시작한다 — 부스(z=-L*0.32) 곁. 걸어온 게 아니라 서 있다가 걸음을 돌리는 것.
-  // rollSegment가 z를 0으로 되돌리므로 그 뒤에 놓는다 (v0.11.6)
-  player.z = -CONFIG.segLength * 0.24; // 부스(z=-L*0.32)가 2~3m 앞 오른쪽에 들어오는 자리
+  // 부스가 2~3m 앞 오른쪽에 들어오는 자리다.
+  // ⚠ 예전에는 `rollSegment()` **뒤에** z를 찍었다 (rollSegment가 −0.5로 되돌리므로, v0.11.6).
+  //   이제 위치를 인자로 넘긴다 — 순간이동이 맵 구성보다 먼저다 (rollSegment 주석)
+  rollSegment(false, -CONFIG.segLength * 0.24);
   phase = 'walk';
   tutBeat = 0; // 자막은 걸음에 맞춰 하나씩 (updateWalk가 위치로 터뜨린다)
   if (!onboard.move) {
@@ -551,9 +604,19 @@ async function passSegment() {
       : Math.min(theme + 1, CONFIG.segments);
   }
   // 전환은 **터널 한가운데의 암흑 속에서** 일어난다 (v0.11.15) — 화면 페이드 없음.
-  // 들어간 만큼(앞 터널 절반) 나온다(뒤 터널 절반): 걸음이 끊기지 않는다
-  rollSegment();
-  player.z = TUNNEL_LEN / 2;   // 지나온 터널의 한가운데 — 여기서 계속 걸어 나온다
+  // 들어간 만큼(앞 터널 절반) 나온다(뒤 터널 절반): 걸음이 끊기지 않는다.
+  // ⭐ 위치를 `rollSegment`에 **넘긴다** — 순간이동이 맵 구성보다 먼저 일어난다 (rollSegment 주석).
+  //   예전에는 `rollSegment()` 뒤에 z를 따로 찍었고, 그 사이에 목적지가 켜졌다
+  // 지나온 터널의 한가운데보다 **조금 더 깊은 곳**(0.60T)에서 나온다 (v0.11.61).
+  // ⚠ 어둠 곡선은 `min(1, (z / TUNNEL_LEN) * 2)`라 **정확히 0.5T에서 1.0에 닿는다** —
+  //   한가운데(4.5)에 두면 나오는 지점이 완전 암흑의 **경계선**이라, 첫 걸음에 곧바로 어둠이
+  //   풀리기 시작한다. 0.60T면 그 지점까지 0.9m의 여유가 생긴다.
+  // ⚠⚠ **돌려세우기 임계와 한 몸이다** — 그 위는 '뒤 터널 깊숙이'로 읽혀 골목이 돌려세운다.
+  //   여기를 0.60T로 당기면서 임계도 0.62 → 0.72T로 올렸다 (아래 turnedAround):
+  //   **둘의 간격(1.08m = 전환 직후 뒤로 물러설 수 있는 거리)을 원래대로 보존**하기 위함이다.
+  // ⚠ 다만 목적지가 스쳐 보인 실제 원인은 이 값이 아니라 **검은 안개 판의 배치**였다
+  //   (prefab.ts buildTunnel — 뒤 터널 판을 갱구 쪽으로 당겨 다섯 장이 전부 시선에 들어오게 했다)
+  rollSegment(repeat, TUNNEL_LEN * 0.60);
 }
 
 // ---------- 대상 거리·조준 — **판정이 아니라 관측이다** (v0.11.50) ----------
@@ -685,6 +748,37 @@ if (walkBtn) {
 const HW = CONFIG.corridorHalfWidth;
 const L = CONFIG.segLength;
 
+/** 지금 player 위치의 터널 어둠을 적용한다.
+ *
+ *  **마지막 구간에는 앞 터널이 없다** — 그 자리에 목적지(가게·집)가 서 있다 (v0.11.33).
+ *  어둠 곡선을 그대로 두면 목적지로 다가가는 마지막 4.5m가 새까매져서, 애써 만든 도착지를
+ *  정작 코앞에서 못 본다. 암전은 도착 컷이 알아서 한다.
+ *
+ *  ⭐ 매 프레임(updateWalk)과 **구간 전환 직후**(rollSegment) 둘이 같은 식을 쓴다 —
+ *  전환 프레임에 이 계산이 빠지면 새 맵이 **옛 위치의 어둠**으로 그려진다 (v0.11.61) */
+function applyTunnelDark(baseFog: number) {
+  const lastSeg = done === total - 1;
+  const intoFront = lastSeg ? 0 : Math.max(0, (-L - player.z) / TUNNEL_LEN);
+  const intoBack = Math.max(0, player.z / TUNNEL_LEN);
+  setTunnelDark(refs, Math.min(1, Math.max(intoFront, intoBack) * 2), baseFog);
+}
+
+/** 지금 걷는 방식의 기준 안개 밀도 — 퇴근길은 시간대 고정, 밤은 경과·깊이를 탄다 */
+function baseFogNow(): number {
+  return walkMode === 'tutorial'
+    ? tutorialFog()
+    : 0.044 + Math.min(0.018, (elapsed / 60) * 0.0035) + Math.min(0.02, depth * 0.0035);
+}
+
+/** player → camera. **전환 프레임에는 updateWalk가 여기까지 오지 않는다** (passSegment 뒤 return),
+ *  그래서 rollSegment가 순간이동 직후 직접 부른다 (v0.11.61) */
+function syncCamera() {
+  camera.position.set(player.x, 1.65, player.z);
+  camera.rotation.set(0, 0, 0);
+  camera.rotateY(input.yaw);
+  camera.rotateX(input.pitch);
+}
+
 function updateWalk(dt: number) {
   // ---------- 관리자 모드 — 걷기 대신 비행 (admin.ts) ----------
   // **여기서 곧장 빠져나간다**: 경계·구간 전환·머무름(자람)·치임·깊이가 전부 이 아래에 있다.
@@ -693,7 +787,7 @@ function updateWalk(dt: number) {
     admin.fly(dt, input.yaw, input.pitch, (c) => input.isDown(c));
     // 안개·터널 암전은 매 프레임 여기서 정한다 (걷기 갱신이 안 도니까).
     // '시야 걷기'가 기본 — 구조를 보러 들어왔는데 어둠이 가리면 도구의 의미가 없다
-    const baseFog = walkMode === 'tutorial' ? 0.008 : 0.044;
+    const baseFog = walkMode === 'tutorial' ? tutorialFog() : 0.044;
     if (admin.clearView) setTunnelDark(refs, 0, 0.004);
     else {
       const into = Math.max(
@@ -743,9 +837,11 @@ function updateWalk(dt: number) {
   }
 
   // 새벽의 깊이 — 경과 시간 + 깊이에 따라 안개가 짙어진다 (affective §2-1, 수치 없이 체감으로).
-  // 첫날 퇴근길은 옅은 낮 안개 고정 (setMorning 값)
+  // 첫날 퇴근길은 옅은 낮 안개 고정 (setMorning 값과 같아야 한다)
+  // ⚠ **여기가 매 프레임 setMorning의 fog.density를 덮어쓴다** — 시간대를 안 읽으면
+  //   맑은 오후/노을의 대기 차이가 첫 프레임에 사라진다 (맑은 날은 먼 것이 더 또렷하다)
   const baseFog = walkMode === 'tutorial'
-    ? 0.008
+    ? tutorialFog()
     : 0.044 + Math.min(0.018, (elapsed / 60) * 0.0035) + Math.min(0.02, depth * 0.0035);
   // 터널 어둠 — 골목 끝(0)에서 터널 한가운데(1)로 갈수록 안개가 검게 차오른다 (v0.11.15).
   // 앞 터널(진입)과 뒤 터널(빠져나옴) 양쪽에서 같은 곡선을 쓰므로, 한가운데의 암흑을 사이에 두고
@@ -753,10 +849,7 @@ function updateWalk(dt: number) {
   // **마지막 구간에는 앞 터널이 없다** — 그 자리에 목적지(가게·집)가 서 있다 (v0.11.33).
   // 어둠 곡선을 그대로 두면 목적지로 다가가는 마지막 4.5m가 새까매져서,
   // 애써 만든 도착지를 정작 코앞에서 못 본다. 암전은 도착 컷이 알아서 한다
-  const lastSeg = done === total - 1;
-  const intoFront = lastSeg ? 0 : Math.max(0, (-L - player.z) / TUNNEL_LEN);
-  const intoBack = Math.max(0, player.z / TUNNEL_LEN);
-  setTunnelDark(refs, Math.min(1, Math.max(intoFront, intoBack) * 2), baseFog);
+  applyTunnelDark(baseFog);
 
   const sin = Math.sin(input.yaw);
   const cos = Math.cos(input.yaw);
@@ -834,8 +927,11 @@ function updateWalk(dt: number) {
     }
   }
 
-  // 뒤 터널 깊숙이 — 골목이 돌려세운다 (전환 직후 나오는 지점 0.5T보다 깊은 0.62T에서만)
-  if (player.z >= TUNNEL_LEN * 0.62) {
+  // 뒤 터널 깊숙이 — 골목이 돌려세운다 (전환 직후 나오는 지점 0.60T보다 깊은 0.72T에서만).
+  // ⚠ 이 값은 `advance()`의 전환 지점과 **함께 움직인다**: 둘의 간격이 곧 "전환 직후 뒤로
+  //   물러설 수 있는 거리"(1.08m)다. 전환 지점을 당기면 여기도 같은 만큼 올린다.
+  // ⚠ 뒤 터널 마감벽이 z +9.1이고 이동 상한이 8.3이라(아래 clamp) 0.72T(6.48)는 넉넉히 안쪽이다
+  if (player.z >= TUNNEL_LEN * 0.72) {
     void turnedAround();
     return;
   }
@@ -864,10 +960,7 @@ function updateWalk(dt: number) {
     player.x = Math.max(-half, Math.min(half, player.x));
   }
 
-  camera.position.set(player.x, 1.65, player.z);
-  camera.rotation.set(0, 0, 0);
-  camera.rotateY(input.yaw);
-  camera.rotateX(input.pitch);
+  syncCamera();
 }
 
 // ---------- 루프 ----------

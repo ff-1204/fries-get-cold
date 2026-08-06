@@ -12,6 +12,11 @@ export interface CorridorRefs {
   /** 퇴근길 하늘 — 그라데이션 돔. 밤에는 숨는다 (setMorning). 안개를 안 받으므로
    *  터널 암전은 setTunnelDark가 재질 색을 곱해 따로 처리한다 */
   skyDome: THREE.Mesh;
+  /** ⭐ 하늘 그림 둘 — 퇴근길 두 구간이 서로 다른 시각이다 (v0.11.61).
+   *  `setMorning`이 `tod`에 따라 돔의 `map`을 갈아 끼운다. 미리 만들어 두는 이유는
+   *  구간 전환마다 캔버스를 다시 그리면 전환에 프레임이 튀기 때문이다 */
+  skyAfternoon: THREE.CanvasTexture;
+  skyDusk: THREE.CanvasTexture;
   tunnel: THREE.Group;           // 다리 밑 터널(앞) — 구간 사이를 잇는다 (마지막 구간엔 숨김)
   backTunnel: THREE.Group;       // 뒤 — 지나온 터널 (끝은 막혀 있다: 돌아가는 길은 없다)
   /** 터널 등 (앞·뒤 하나씩) — setTunnelDark가 어둠 곡선대로 함께 잦아들게 한다 */
@@ -20,6 +25,9 @@ export interface CorridorRefs {
   tunnelLampMat: THREE.MeshStandardMaterial;
   car: THREE.Group;              // 차도(테마 4) — 신호 위반 시 지나간다 (startCar/updateWorld)
   carLight: THREE.PointLight;
+  /** 택시 갓등의 발광 (v0.11.61) — **퇴근길에만 켠다** (updateWorld).
+   *  밤에 켜면 화면에서 유일한 밝은 웜이 되어 '안전·목표'로 읽힌다 (visual-polish §3) */
+  carSignMat: THREE.MeshStandardMaterial;
   ambient: THREE.AmbientLight;   // 깊이 사다리 대상 (applyDepth)
   stretchMark: THREE.Mesh;          // 늘어남 반복 구간의 바닥 분필 자국 (인지 보장 4요소 ④)
   lampLight: THREE.PointLight;

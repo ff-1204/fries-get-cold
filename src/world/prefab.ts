@@ -7,7 +7,7 @@ import { MAIN_GAP_HALF } from '../config';
 import { type CorridorRefs } from './refs';
 import {
   box, boxOf, concrete, shopSignTexture, asphaltTexture, wallTexture, surfaceMat,
-  duskSkyTexture,
+  duskSkyTexture, afternoonSkyTexture, taxiSignTexture, ASPHALT_M, WALL_M,
   type SharedMats,
 } from './kit';
 import { buildShopFront } from './shop';
@@ -15,25 +15,58 @@ import { buildHomeFront } from './home';
 import {
   L, HW, WALL_H, ROAD_Z, ROAD_HALF, TUNNEL_LEN, TUNNEL_H, TUNNEL_IN_HALF,
   TUNNEL_LAMP_AT, TUNNEL_LAMP_COLOR, TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY, FOG_NIGHT,
-  ROAD_TUNNEL_X, ROAD_TUNNEL_LEN, ROAD_TUNNEL_H,
+  ROAD_TUNNEL_X, ROAD_TUNNEL_LEN, ROAD_TUNNEL_H, SUN_FOCUS, SUN_SHADOW_HALF, sunk,
 } from './layout';
 
 // ---------- 다리 밑 터널 (v0.11.21 마감) ----------
 // **콘크리트는 골목 벽과 같은 것을 쓴다** — 옹벽은 왼쪽 벽(0x20263a), 갱구·다리 옆면은
 // 오른쪽 벽(0x232838). 터널이 따로 노는 물건이 아니라 이 동네가 이어진 것으로 읽히게.
-// 텍스처는 쓰지 않는다 (에셋 0 · 로우폴리 + 안개 + 포인트라이트 노선 — visual-polish §5).
 // 싼티는 재질이 아니라 **형태의 결여**에서 온다: 갱구의 두께, 벽의 세로 리듬,
 // 천장의 보, 하늘에 걸리는 난간 실루엣 — 그림자가 걸릴 면을 만들어 주는 것이 전부다.
+//
+// ⭐ **표면 텍스처도 골목과 같은 것을 쓴다** (v0.11.61). 여기 오래 "텍스처는 쓰지 않는다"고
+// 적혀 있었는데, 그것은 v0.11.52가 골목 벽·바닥에 캔버스 표면 텍스처를 넣기 **전**의 기록이다.
+// 색만 같고 질감이 다르면 터널은 여전히 딴 물건으로 읽힌다 — 같은 콘크리트를 쓰겠다는
+// 원래 의도가 절반만 지켜져 있었다. (캔버스 생성이라 **에셋 0은 그대로다**)
+// ⚠ 큰 면만 입힌다: 옹벽·노면·갱구·상판. 걸레받이·물끊기 띠·천장 보·홈은 민짜로 남긴다 —
+//   0.07~0.3m짜리 조각에 256px 타일을 붙이면 질감이 아니라 노이즈고, 재질만 늘어난다
+//   (골목의 전신주도 같은 이유로 `concrete`다)
+/** 표면 텍스처를 입힌 터널 재질 — **보이는 면의 두 변을 직접 넘긴다** (u축, v축 순).
+ *
+ *  ⚠ `BoxGeometry`는 면마다 UV 축이 다르다: ±X면은 (깊이, 높이) · ±Y면은 (폭, 깊이) ·
+ *  ±Z면은 (폭, 높이). 게다가 **골목 터널과 차도 터널은 서로 90° 돌아가 있어서**
+ *  치수만 보고 자동으로 고를 수가 없다 (골목 옹벽은 z로 길고, 차도 옹벽은 x로 길다).
+ *  그래서 호출하는 쪽이 "이 면에서 무엇이 가로이고 무엇이 세로인가"를 정한다.
+ *  ⚠ 벽 텍스처는 **물때가 세로로 흐르는** 결이 있다 (kit.ts wallTexture) — u/v를 뒤집으면
+ *    그 결이 눕는다. 아스팔트는 등방성이라 뒤집혀도 티가 안 난다.
+ *
+ *  ⭐ 같은 치수면 재질을 재사용한다. 터널은 대칭이고(양쪽 옹벽·갱구 기둥 쌍) 앞뒤 터널이
+ *  같은 형태라, 이 캐시가 텍스처 복제를 절반 이하로 줄인다 (`surfaceMat`이 매번 clone한다) */
+function surfRole(color: number, tex: THREE.CanvasTexture, meters: number) {
+  const cache = new Map<string, THREE.MeshStandardMaterial>();
+  return (u: number, v: number) => {
+    const key = `${u.toFixed(2)}|${v.toFixed(2)}`;
+    let m = cache.get(key);
+    if (!m) {
+      m = surfaceMat(color, tex, u / meters, v / meters);
+      cache.set(key, m);
+    }
+    return m;
+  };
+}
+
 function tunnelMats() {
+  const asphalt = asphaltTexture();
+  const wallTex = wallTexture();
   return {
-    wall: concrete(0x20263a),    // 옹벽 = 골목 왼쪽 벽과 같은 콘크리트
-    portal: concrete(0x232838),  // 갱구(액자)·다리 옆면 = 골목 오른쪽 벽과 같은 콘크리트
-    deck: concrete(0x1a1f2b),    // 상판(다리 바닥)
+    wall: surfRole(0x20263a, wallTex, WALL_M),    // 옹벽 = 골목 왼쪽 벽과 같은 콘크리트
+    portal: surfRole(0x232838, wallTex, WALL_M),  // 갱구(액자)·다리 옆면 = 골목 오른쪽 벽
+    deck: surfRole(0x1a1f2b, wallTex, WALL_M),    // 상판(다리 바닥)
     base: concrete(0x161b25),    // 걸레받이 — 때가 타는 아랫단
     trim: concrete(0x252c3d),    // 물끊기 띠·난간 — 빛을 받는 윗단
     girder: concrete(0x141922),  // 천장 보
     groove: concrete(0x11151d),  // 신축이음·측구·노면 이음선 (파인 곳)
-    road: concrete(0x181c28),    // 노면 = 골목 바닥과 같은 아스팔트
+    road: surfRole(0x181c28, asphalt, ASPHALT_M), // 노면 = 골목 바닥과 같은 아스팔트
     // 검은 안개 판 — 겹칠수록 짙어진다 (넷을 합쳐 약 96% 차폐).
     // 조명을 받지 않고(MeshBasic) 장면 안개도 타지 않아 **밤이든 아침이든 똑같이 검다**.
     // DoubleSide 필수 — 앞 터널은 판의 뒷면을 보게 된다
@@ -68,13 +101,15 @@ function buildTunnel(
   const bodyAt = at(mid + 1);
 
   // 노면 — 골목 바닥과 같은 아스팔트가 그대로 이어진다 (바닥은 넉넉히: 이음매를 감춘다)
-  boxOf(M.road, 20, 0.2, TUNNEL_LEN + 6, 0, -0.1, at(mid), t);
+  boxOf(M.road(20, TUNNEL_LEN + 6), 20, 0.2, TUNNEL_LEN + 6, 0, -0.1, at(mid), t); // 윗면: 폭·깊이
   // 노면 이음선 — 통짜 바닥이 가장 싸 보인다. 가로 줄 두 개면 길이가 읽힌다
   for (const u of [2.2, 4.4]) boxOf(M.groove, IH * 2 + 0.6, 0.04, 0.08, 0, 0.02, at(u), t);
 
   for (const side of [-1, 1]) {
     const x = side * (IH + 0.45);            // 옹벽 두께 0.9 — 안쪽면이 IH
-    boxOf(M.wall, 0.9, TUNNEL_H, bodyLen, x, TUNNEL_H / 2, bodyAt, t);
+    // 바닥 아래까지 내린다 (layout.ts sunk) — 근두리에 빛이 새지 않게. 윗면은 TUNNEL_H 그대로
+    const [th, ty] = sunk(TUNNEL_H);
+    boxOf(M.wall(bodyLen, th), 0.9, th, bodyLen, x, ty, bodyAt, t);  // 안쪽면: 깊이·높이
     // 걸레받이 — 0.07 안쪽으로 더 나온 아랫단 (물때가 지는 자리)
     boxOf(M.base, 1.0, 0.5, bodyLen, side * (IH + 0.43), 0.25, bodyAt, t);
     // 물끊기 띠 — 천장 바로 아래, 빛을 받아 벽의 윗선을 그린다
@@ -88,7 +123,7 @@ function buildTunnel(
   }
 
   // 천장(상판) + 보 — 고개를 들면 다리 바닥이 있다
-  boxOf(M.deck, IH * 2 + 2, 0.9, bodyLen, 0, TUNNEL_H + 0.45, bodyAt, t);
+  boxOf(M.deck(IH * 2 + 2, bodyLen), IH * 2 + 2, 0.9, bodyLen, 0, TUNNEL_H + 0.45, bodyAt, t); // 밑면: 폭·깊이
   for (const u of [1.0, 3.0, 5.0, 7.0]) {
     boxOf(M.girder, IH * 2 + 1.2, 0.3, 0.4, 0, TUNNEL_H - 0.13, at(u), t);
   }
@@ -99,16 +134,18 @@ function buildTunnel(
   // 안쪽이라 카메라가 닿지 않는다. **앞뒤가 같은 값** — 터널은 완전한 거울상이다
   const portalU = 0.125;
   for (const side of [-1, 1]) {
-    boxOf(M.portal, 0.78, TUNNEL_H + 0.62, 0.85, side * (IH + 0.39), (TUNNEL_H + 0.62) / 2, at(portalU), t);
+    // 골목을 향한 면(±Z): 폭·높이. 액자의 두께가 읽히는 면이다
+    const [jh, jy] = sunk(TUNNEL_H + 0.62);
+    boxOf(M.portal(0.78, jh), 0.78, jh, 0.85, side * (IH + 0.39), jy, at(portalU), t);
   }
-  boxOf(M.portal, IH * 2 + 1.9, 0.62, 0.9, 0, TUNNEL_H + 0.31, at(portalU), t);          // 상인방
+  boxOf(M.portal(IH * 2 + 1.9, 0.62), IH * 2 + 1.9, 0.62, 0.9, 0, TUNNEL_H + 0.31, at(portalU), t); // 상인방
   boxOf(M.trim, IH * 2 + 2.4, 0.16, 1.12, 0, TUNNEL_H + 0.7, at(portalU - 0.08), t);     // 물끊기 처마
 
   // 다리 옆면 + 난간 — 골목에서 보면 이 실루엣이 "다리 밑"을 말해준다.
   // 하늘(배경색)에 걸리는 기둥 열이 핵심 — 통짜 벽은 그냥 벽으로 읽힌다
   for (const u of [0.1, TUNNEL_LEN - 0.1]) {
-    boxOf(M.portal, 20, 0.62, 0.62, 0, TUNNEL_H + 1.0, at(u), t);   // 상판 가장자리 보
-    boxOf(M.portal, 20, 1.15, 0.44, 0, TUNNEL_H + 1.89, at(u), t);  // 난간 벽
+    boxOf(M.portal(20, 0.62), 20, 0.62, 0.62, 0, TUNNEL_H + 1.0, at(u), t);   // 상판 가장자리 보
+    boxOf(M.portal(20, 1.15), 20, 1.15, 0.44, 0, TUNNEL_H + 1.89, at(u), t);  // 난간 벽
   }
   for (let bx = -3.6; bx <= 3.61; bx += 0.9) {                       // 난간 기둥 (개구부 너비만큼)
     boxOf(M.trim, 0.16, 0.6, 0.3, bx, TUNNEL_H + 2.76, at(0.1), t);
@@ -136,14 +173,26 @@ function buildTunnel(
   // 동심 사각형이 겹친 '검은 액자'로 읽힌다 (실측으로 걸렀다). 크게 만들면 옹벽·천장에
   // 파묻혀(깊이 테스트로 가려져) **개구부 안쪽만 검게** 남는다 — 테두리가 사라진다
   // 앞쪽 판일수록 옅게 — 밝은 벽에서 검정으로 넘어가는 경계를 완만하게 (합성 약 97% 차폐)
-  [3.2, 4.2, 5.2, 6.4, 7.8].forEach((u, i) => {
+  //
+  // ⚠⚠ **판의 배치는 앞뒤가 다르다** (v0.11.61) — 두 터널이 하는 일이 다르기 때문이다.
+  //   앞 터널: 플레이어가 **들어가는** 곳이다. 첫 판이 전환 지점보다 살짝 앞(4.2m)에 있어야
+  //     지나는 순간이 눈에 안 띄고, 갱구에서 보면 깊이가 읽힌다 (위 설명 그대로).
+  //   뒤 터널: 플레이어가 **나오는** 곳이다. 전환 직후 서는 지점(0.60T = 5.4m)에서 골목을 보면
+  //     ⚠ 판 다섯 중 **앞의 세 장만** 시선에 들어와 차폐가 97%가 아니라 **71%** 였다
+  //     (0.78 × 0.68 × 0.55). 그 29%로 다음 구간의 목적지(FF-1204)가 스쳐 보였다 — 제보 2회.
+  //   ⭐ 그래서 뒤 터널은 판을 **갱구 쪽으로 당겨** 다섯 장 전부가 나오는 지점 앞에 서게 한다.
+  //     판은 안개(fog:false)를 안 타는 불투명 검정이라 어둠 곡선과 무관하게 확실히 가린다.
+  //   ⭐ 덤: 골목에서 뒤돌아보면 갱구가 **곧바로 검다** — "돌아가는 길은 없다"가 더 분명해진다
+  const fogAt = s > 0 ? [0.9, 1.7, 2.6, 3.6, 4.6] : [3.2, 4.2, 5.2, 6.4, 7.8];
+  fogAt.forEach((u, i) => {
     const card = new THREE.Mesh(new THREE.PlaneGeometry(14, 11), M.fog[i]);
     card.position.set(0, TUNNEL_H / 2, at(u));
     t.add(card);
   });
 
   // 마감 — 앞 터널은 더 이어지는 것처럼, 뒤 터널은 코앞에서 막는다 (돌아가는 길은 없다)
-  boxOf(M.portal, 20, WALL_H, 1, 0, WALL_H / 2, at(TUNNEL_LEN + capDist), t);
+  const [ch, cy] = sunk(WALL_H);
+  boxOf(M.portal(20, ch), 20, ch, 1, 0, cy, at(TUNNEL_LEN + capDist), t);
 
   return { group: t, light };
 }
@@ -164,8 +213,9 @@ function buildPolesAndWires(group: THREE.Group, mats: { pole: THREE.Material; ar
   const poles: Array<[number, number]> = [  // [x, z]
     [2.85, -L * 0.16], [-2.85, -L * 0.42], [2.85, -L * 0.63], [2.85, -L * 0.93],
   ];
+  const [ph, py] = sunk(POLE_H);   // 밑동을 바닥 아래로 (layout.ts sunk) — 윗선은 그대로
   for (const [px, pz] of poles) {
-    boxOf(mats.pole, 0.26, POLE_H, 0.26, px, POLE_H / 2, pz, group);
+    boxOf(mats.pole, 0.26, ph, 0.26, px, py, pz, group);
     // 완철(crossarm) — 전선을 받는 가로대. 이게 없으면 전봇대가 그냥 기둥이다
     const s = Math.sign(px);
     boxOf(mats.arm, 1.5, 0.1, 0.1, px - s * 0.7, POLE_H - 0.75, pz, group);
@@ -192,13 +242,22 @@ function buildPolesAndWires(group: THREE.Group, mats: { pole: THREE.Material; ar
     }
   };
   const TOP = POLE_H - 0.75;
+  /** 구간 밖으로 전선을 내보내는 거리 — **터널 길이보다 길어야** 다리 위에서 끊기지 않는다.
+   *  터널이 9m라 +8을 더해 갱구에서 8m 더 간다 (안개·원근이 끝을 알아서 지운다) */
+  const WIRE_OUT = TUNNEL_LEN + 8;
   // ① 오른쪽 전봇대들을 잇는 세로 방향 다발 — 골목을 따라 흐른다 (높이를 조금씩 달리해 다발로)
   for (const [dx, dy] of [[-1.3, 0], [-0.7, -0.06], [-0.1, 0.02], [-0.95, -0.72]] as Array<[number, number]>) {
     span(2.85 + dx, TOP + dy, -L * 0.16, 2.85 + dx, TOP + dy, -L * 0.63, 0.55);
     span(2.85 + dx, TOP + dy, -L * 0.63, 2.85 + dx, TOP + dy, -L * 0.93, 0.36);
-    // 구간 입구·출구 밖으로도 이어 보낸다 — 골목이 여기서 시작되고 끝나는 것이 아니게
-    span(2.85 + dx, TOP + dy, -L * 0.16, 2.85 + dx, TOP + dy + 0.3, 1.5, 0.3);
-    span(2.85 + dx, TOP + dy, -L * 0.93, 2.85 + dx, TOP + dy + 0.3, -L - 1.5, 0.3);
+    // 구간 입구·출구 밖으로도 이어 보낸다 — 골목이 여기서 시작되고 끝나는 것이 아니게.
+    // ⚠⚠ **터널을 넘겨 보내야 한다** (v0.11.61). ±1.5m만 내보냈더니 앞쪽 끝(z −37.5)이
+    //   하필 **다리 위 허공**이라, 골목에서 고개를 들면 전선이 거기서 잘려 있었다 (제보).
+    //   전선은 다리(y 3.4~6.5) 한참 위(y ≈ 9)를 지나가므로 넘겨 보내도 부딪히지 않는다 —
+    //   ⭐ 다리 위를 건너 안개 속으로 사라지는 편이 '이 동네가 계속된다'를 만든다.
+    //   ⚠ 중간에 전봇대를 세우지 않는다: 그 자리는 터널 **안**이고, 지하차도 안에 전봇대는 없다.
+    //     받는 기둥이 안 보이는 대신 스팬이 길어지므로 처짐을 그만큼 키운다 (짧은 처짐 = 철사)
+    span(2.85 + dx, TOP + dy, -L * 0.16, 2.85 + dx, TOP + dy + 0.5, WIRE_OUT, 0.9);
+    span(2.85 + dx, TOP + dy, -L * 0.93, 2.85 + dx, TOP + dy + 0.5, -L - WIRE_OUT, 0.9);
   }
   // ② 골목을 **가로지르는** 선 — 이게 있어야 하늘이 갈린다 (레퍼런스의 그 그림)
   span(2.85 - 0.7, TOP, -L * 0.16, -2.85 + 0.7, TOP - 0.9, -L * 0.42, 0.7);
@@ -283,8 +342,40 @@ export function createCorridor(
   const ambient = new THREE.AmbientLight(0x39415e, 2.2);
   scene.add(ambient);
   const moon = new THREE.DirectionalLight(0x8090c0, 0.75);
-  moon.position.set(4, 10, 2);
+  // ⚠ 위치는 **SUN_FOCUS에서의 방향 오프셋**이다 (layout.ts) — target을 구간 중앙으로 옮겼으므로
+  //   position도 같은 만큼 옮겨야 방향(4,10,2)이 그대로 유지된다
+  moon.position.copy(SUN_FOCUS).add(new THREE.Vector3(4, 10, 2));
+  moon.target.position.copy(SUN_FOCUS);
   scene.add(moon);
+  scene.add(moon.target);   // ⚠ target은 씬에 넣어야 matrixWorld가 갱신된다 (three.js 요구)
+  // ---------- ⭐ 해의 그림자 (v0.11.61) — 퇴근길에만 켠다 (setMorning) ----------
+  // ⚠⚠ **light.target을 옮기면 안 된다.** 방향광의 방향은 `position − target`이라,
+  //   프러스텀을 구간 중앙에 맞추려고 target을 (0,0,−L/2)로 옮기면 **빛의 방향이 통째로 바뀐다**
+  //   (밤의 달 (4,10,2)이 거의 정면광이 되어 버린다). 방향은 세 시간대가 각자 실측으로 잡은 값이다.
+  //   ⭐ 그래서 target은 원점에 두고 **프러스텀만 크게** 잡는다: 그림자 카메라는 target을 중심으로
+  //   빛 방향을 따라 서므로, 원점 중심으로 구간 전체(z 0 → −36)와 벽(7m)을 덮을 크기가 필요하다.
+  const sh = moon.shadow;
+  sh.camera.left = -SUN_SHADOW_HALF;   // SUN_FOCUS(구간 중앙) 기준 ±28 = 56m → 2.7cm/texel
+  sh.camera.right = SUN_SHADOW_HALF;
+  sh.camera.top = SUN_SHADOW_HALF;
+  sh.camera.bottom = -SUN_SHADOW_HALF;
+  sh.camera.near = 0.5;
+  sh.camera.far = 90;
+  sh.mapSize.set(2048, 2048);
+  // ⚠⚠ **normalBias가 벽 밑에 빛을 새게 만들었다** (v0.11.61 실측 — 관리자 모드 제보).
+  //   normalBias는 깊이를 재는 지점을 **법선 방향으로 밀어** acne를 없애는 값인데, 그러면
+  //   벽과 바닥이 맞닿은 자리에서 그림자가 벽에서 떨어져(peter-panning) **밝은 실선**이 남는다.
+  //   0.035(3.5cm)였고, 4.1cm짜리 거친 texel이 그 틈을 한 줄로 굳혀 놨다.
+  //
+  //   ⭐ **해법은 값이 아니라 해상도였다.** 그림자 카메라를 원점이 아니라 구간 중앙(SUN_FOCUS)에
+  //   세워 프러스텀을 ±42 → ±28로 좁히자 texel이 4.1cm → 2.7cm가 됐고, **acne 압력이 그만큼
+  //   줄어 normalBias가 필요 없어졌다** (0으로 두고 재확인: 벽 밑 실선 사라짐 · acne 없음).
+  //   bias/normalBias는 **해상도와 한 몸**이다 — 맵을 그대로 두고 값만 만지면 둘 중 하나를 잃는다.
+  // ⚠ 그러니 프러스텀을 다시 넓히려면 acne부터 다시 봐야 한다. 두 스크린샷으로 확인한다:
+  //   ① 벽·바닥이 맞닿은 근두리(빛 새는 실선) ② 해를 받는 넓은 면(줄무늬 얼룩)
+  sh.bias = -0.00025;
+  sh.normalBias = 0;
+  moon.castShadow = false;      // 밤에는 꺼 둔다 — 켜는 것은 퇴근길뿐이다
 
   const group = new THREE.Group();
   scene.add(group);
@@ -298,10 +389,14 @@ export function createCorridor(
   //    대신 터널 암전은 setTunnelDark가 **재질 색을 직접 곱해** 따로 처리한다.
   // ⚠ `depthWrite: false` + `renderOrder: -1` — 가장 먼저 그리고 아무것도 가리지 않는다.
   //    반지름 80, 골목 중앙에 두면 어느 지점에서도 카메라 far(120) 안에 들어온다
+  // ⭐ 하늘 그림 둘 — 퇴근길 1구간(맑은 오후) / 2구간(노을). setMorning이 map을 갈아 끼운다.
+  //    미리 만들어 둔다: 구간 전환마다 캔버스를 다시 그리면 그 프레임이 튄다
+  const skyDusk = duskSkyTexture();
+  const skyAfternoon = afternoonSkyTexture();
   const skyDome = new THREE.Mesh(
     new THREE.SphereGeometry(80, 24, 16),
     new THREE.MeshBasicMaterial({
-      map: duskSkyTexture(), side: THREE.BackSide, fog: false, depthWrite: false,
+      map: skyAfternoon, side: THREE.BackSide, fog: false, depthWrite: false,
     }),
   );
   skyDome.position.set(0, 0, -L / 2);
@@ -311,10 +406,9 @@ export function createCorridor(
 
   // ---------- 복도 골격 ----------
   // ⭐ **표면 텍스처** (v0.11.52) — 벽과 바닥이 민짜라 빛이 걸릴 데가 없었다.
-  // 타일 한 변을 실측 미터로 잡아 두고(아스팔트 2.5m · 벽 3m) 면 길이로 반복 수를 나눈다:
+  // 타일 한 변을 실측 미터로 잡아 두고(ASPHALT_M · WALL_M) 면 길이로 반복 수를 나눈다:
   // 조각마다 길이가 다르므로 **반복 수를 손으로 적으면 반드시 어긋난다**
-  const ASPHALT_M = 2.5;
-  const WALL_M = 3;
+  // (타일 크기는 모듈 상수다 — 터널이 같은 값을 써야 갱구에서 결이 이어진다)
   const asphalt = asphaltTexture();
   const wallTex = wallTexture();
 
@@ -329,18 +423,27 @@ export function createCorridor(
   // (벽으로 막힌 골목 한가운데 횡단보도가 그려져 있던 기존 모순도 함께 해소)
   const nearLen = -(ROAD_Z + ROAD_HALF);      // 구간 입구 ~ 도로 앞
   const farLen = L + (ROAD_Z - ROAD_HALF);    // 도로 뒤 ~ 구간 끝
-  // 벽면(±X)의 UV는 u=깊이 · v=높이다 — 반복 수를 그 축에 맞춘다
+  // 벽면(±X)의 UV는 u=깊이 · v=높이다 — 반복 수를 그 축에 맞춘다.
+  // ⚠ 높이는 **파고든 높이**(wh)로 센다 — WALL_H로 세면 타일이 SUNK만큼 늘어난다 (layout.ts sunk)
+  const [wh, wy] = sunk(WALL_H);
   const wallMat = (color: number, len: number) =>
-    surfaceMat(color, wallTex, len / WALL_M, WALL_H / WALL_M);
+    surfaceMat(color, wallTex, len / WALL_M, wh / WALL_M);
   for (const [wx, color] of [[HW + 0.5, 0x232838], [-HW - 0.5, 0x20263a]] as Array<[number, number]>) {
-    boxOf(wallMat(color, nearLen), 1, WALL_H, nearLen, wx, WALL_H / 2, -nearLen / 2, group);
-    boxOf(wallMat(color, farLen), 1, WALL_H, farLen, wx, WALL_H / 2, ROAD_Z - ROAD_HALF - farLen / 2, group);
+    boxOf(wallMat(color, nearLen), 1, wh, nearLen, wx, wy, -nearLen / 2, group);
+    boxOf(wallMat(color, farLen), 1, wh, farLen, wx, wy, ROAD_Z - ROAD_HALF - farLen / 2, group);
   }
 
   // 전신주와 전선 — 하늘을 가른다 (v0.11.54). 벽과 같은 콘크리트 계열로 두어 동네가 이어지게
   buildPolesAndWires(group, { pole: concrete(0x2b3040), arm: concrete(0x232838) });
   // 초록 — 사람이 사는 동네의 표시 (v0.11.55)
-  buildGreenery(group);
+  // ⚠⚠ **일단 껐다** (v0.11.61, 요청). 담 위로 넘어온 나무 셋이 마지막 초록이었고
+  //   (화분 다섯은 v0.11.58에 이미 걷어냈다) 이제 골목에 **채도 있는 것이 하나도 없다.**
+  //   ⭐ 함수는 지우지 않는다 — 배치·잎 실루엣 만드는 법이 여기 다 들어 있고,
+  //   `keepColor`(노을 보정 제외) 장치도 이 잎들 때문에 있는 것이다. 되살릴 때 이 한 줄만 켠다.
+  //   ⚠ 되살릴 거라면 v0.11.58의 결론부터 읽는다: 통행선 옆에 늘어선 초록은 "많다"는 인상만
+  //     남기고, 담 위 실루엣은 눈에 한 번 들어오고 끝난다 — 그래서 후자만 남겼던 것이다
+  const GREENERY = false;
+  if (GREENERY) buildGreenery(group);
 
   // 끝 벽 — 개구부(중앙)를 남기고 2조각. **골목 양 끝에 같은 것이 하나씩** (v0.11.22):
   // 뒤에는 이게 없어서 골목 벽이 z=0에서 그냥 끊겼고, 돌아보면 터널 옆구리 너머로
@@ -348,7 +451,7 @@ export function createCorridor(
   const endWallW = HW - MAIN_GAP_HALF + 1;
   for (const ez of [-L - 0.5, 0.5]) {
     for (const s of [-1, 1]) {
-      box(endWallW, WALL_H, 1, 0x232838, s * (MAIN_GAP_HALF + endWallW / 2), WALL_H / 2, ez, group);
+      box(endWallW, wh, 1, 0x232838, s * (MAIN_GAP_HALF + endWallW / 2), wy, ez, group);
     }
   }
 
@@ -463,17 +566,64 @@ export function createCorridor(
   // ---------- 차 — 신호를 어기면 지나간다 (v0.11.7) ----------
   // 정물성 원칙(추격 없음)과 충돌하지 않는다: 쫓아오지 않고, 규칙 위반에 대한 1회성 환경 반응이다
   const car = new THREE.Group();
+  // ---------- ⭐ 검정 모범택시 — 고급스럽게 (v0.11.61) ----------
+  // ⚠ **여기는 검정이 아니라 남색이었다** (`0x161a24` — 파랑이 빨강보다 두 단 높다).
+  //   밤 팔레트(한색)에 맞춘 값이었는데, 그래서 '검은 택시'가 아니라 '어두운 남색 차'로 읽혔다.
+  //   ⭐ 중성 흑색으로 내린다. 다만 **순검정(0x000000)은 쓰지 않는다** — 로우폴리는 면의
+  //   명암만으로 형태를 말하므로 0이면 실루엣만 남고 차체가 뭉개진다.
+  //
+  // ⭐ **고급스러움은 색이 아니라 반사에서 온다.** 이 렌더러에서 쓸 수 있는 손잡이는 셋이다:
+  //   ① `roughness`를 낮춰 **날카로운 하이라이트**를 만든다 (0.7 → 0.26. 무광 검정은 관용차,
+  //      유광 검정이 고급차다. 어두운 차체에서 형태를 읽게 해 주는 것도 이 하이라이트다)
+  //   ② 크롬 트림 한 줄 — 유리와 차체를 가르는 밝은 선. 이 한 줄이 '급'을 정한다
+  //   ③ 유리는 차체보다 더 매끈하고 더 어둡게 (roughness 0.1) — 검정 위의 검정이 갈린다
+  //   ⚠ `metalness`는 낮게(0.15) 둔다. 환경맵이 없어서 metalness를 올리면 반사할 것이 없어
+  //     **오히려 새까맣게** 죽는다 (금속은 환경을 반사하는 재질이다)
+  const PAINT = { roughness: 0.26, metalness: 0.15 };
   const carBody = new THREE.Mesh(
     new THREE.BoxGeometry(4.1, 0.95, 1.75),
-    new THREE.MeshStandardMaterial({ color: 0x161a24, roughness: 0.7 }),
+    new THREE.MeshStandardMaterial({ color: 0x0f1012, ...PAINT }),
   );
   carBody.position.y = 0.72;
   const carRoof = new THREE.Mesh(
     new THREE.BoxGeometry(2.1, 0.62, 1.6),
-    new THREE.MeshStandardMaterial({ color: 0x11141d, roughness: 0.7 }),
+    new THREE.MeshStandardMaterial({ color: 0x0c0d0f, ...PAINT }),
   );
   carRoof.position.set(-0.25, 1.45, 0);
   car.add(carBody, carRoof);
+  // 유리 — 지붕 아랫단을 살짝 안쪽으로 물려 두른다. 차체보다 매끈하고 어둡다
+  const glass = new THREE.Mesh(
+    new THREE.BoxGeometry(2.16, 0.3, 1.64),
+    new THREE.MeshStandardMaterial({ color: 0x090a0c, roughness: 0.1, metalness: 0.2 }),
+  );
+  glass.position.set(-0.25, 1.3, 0);
+  car.add(glass);
+  // 크롬 트림 — 유리 밑선을 따라 한 줄. **고급을 만드는 것은 이 한 줄이다**
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xb9bec7, roughness: 0.18, metalness: 0.5 });
+  for (const gz of [-0.83, 0.83]) {
+    boxOf(chrome, 2.16, 0.045, 0.03, -0.25, 1.15, gz, car);
+  }
+  // ---------- ⭐ 검정 택시 (v0.11.61) ----------
+  // 차는 진작 검정이었다. 택시로 읽히게 하는 것은 **지붕의 갓등**과 **옆구리 띠** 둘이다.
+  // ⚠ 새벽 한 시에 유일하게 지나가는 차가 택시인 것은 사실에 가깝다 — 밤에도 같은 형태를 쓴다.
+  //   다만 **갓등은 퇴근길에만 켠다** (등이 먼저 들어오는 시간 — runtime.ts updateWorld):
+  //   밤에 갓등이 켜지면 그것이 화면에서 유일하게 밝은 웜이 되어 '안전·목표'로 읽힌다
+  //   (visual-polish §3 의미색 고정). 밤의 택시는 **불 꺼진 갓등을 얹은 검은 덩어리**다
+  const carSignMat = new THREE.MeshStandardMaterial({
+    map: taxiSignTexture(), emissiveMap: taxiSignTexture(), emissive: 0x000000, roughness: 0.6,
+  });
+  const carSign = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.17, 0.3), carSignMat);
+  carSign.position.set(-0.25, 1.85, 0);      // 지붕 윗면(y 1.76) 위에 얹는다
+  car.add(carSign);
+  // 옆구리 띠 — 모범택시의 금색 선. 채도는 낮게 잡아 **트림으로만** 읽히게 하고
+  // (밝은 금색은 웜=목표 신호와 헷갈린다) 대신 **광택으로** 급을 낸다: 무광 금색은 스티커,
+  // 유광 금색은 도장이다. 양쪽 면에 하나씩
+  const goldTrim = new THREE.MeshStandardMaterial({
+    color: 0x9a8149, roughness: 0.3, metalness: 0.45,
+  });
+  for (const sz of [-0.88, 0.88]) {
+    boxOf(goldTrim, 3.5, 0.07, 0.03, 0, 0.62, sz, car);
+  }
   // 헤드라이트 — 어둠 속에서 먼저 보이는 것은 빛이다 (경고이자 공포)
   const headMat = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c8 });
   for (const hz of [-0.6, 0.6]) {
@@ -490,8 +640,8 @@ export function createCorridor(
 
   return {
     refs: {
-      group, scene, moon, skyDome, tunnel, backTunnel, tunnelLights, tunnelLampMat,
-      car, carLight, ambient, stretchMark, lampLight, lampHeadMat, shopGlow, shopSign, shopSignMat,
+      group, scene, moon, skyDome, skyAfternoon, skyDusk, tunnel, backTunnel, tunnelLights, tunnelLampMat,
+      car, carLight, carSignMat, ambient, stretchMark, lampLight, lampHeadMat, shopGlow, shopSign, shopSignMat,
       shopTex, shopFront, homeFront, shopBack, figure,
     },
     hit: {
@@ -515,22 +665,28 @@ export function buildRoadTunnel(dir: 1 | -1, parent: THREE.Object3D) {
   const LEN = ROAD_TUNNEL_LEN;
   const at = (u: number) => dir * (ROAD_TUNNEL_X + u);  // 갱구에서 u미터 들어간 x
   const mid = at(LEN / 2 + 1);
+  // 바닥에 서는 것들 — 바닥 아래까지 내린다 (layout.ts sunk). 윗면은 원래 높이 그대로
+  const [rth, rty] = sunk(H);              // 옹벽
+  const [rjh, rjy] = sunk(H + 0.62);       // 갱구 기둥
+  const [rch, rcy] = sunk(WALL_H);         // 마감벽
 
   for (const s of [-1, 1]) {
-    boxOf(M.wall, LEN + 2, H, 0.9, mid, H / 2, ROAD_Z + s * (RH + 0.45), parent);      // 옹벽
+    // ⚠ 차도 터널은 **x로 길다** — 안쪽면이 ±Z라 (폭, 높이)다. 골목 터널과 축이 다르다
+    boxOf(M.wall(LEN + 2, rth), LEN + 2, rth, 0.9, mid, rty, ROAD_Z + s * (RH + 0.45), parent); // 옹벽
     boxOf(M.base, LEN + 2, 0.5, 1.0, mid, 0.25, ROAD_Z + s * (RH + 0.43), parent);     // 걸레받이
   }
-  boxOf(M.deck, LEN + 2, 0.9, RH * 2 + 2, mid, H + 0.45, ROAD_Z, parent);              // 천장(상판)
+  boxOf(M.deck(LEN + 2, RH * 2 + 2), LEN + 2, 0.9, RH * 2 + 2, mid, H + 0.45, ROAD_Z, parent); // 천장(상판)
   for (const u of [1.4, 4.0]) {
     boxOf(M.girder, 0.4, 0.3, RH * 2 + 1.2, at(u), H - 0.13, ROAD_Z, parent);          // 천장 보
   }
 
   // 갱구 액자 — 골목 터널과 같은 모양. 도로 쪽으로 살짝 내밀어 두께가 읽히게
   for (const s of [-1, 1]) {
-    boxOf(M.portal, 0.85, H + 0.62, 0.78, at(0.1), (H + 0.62) / 2,
+    // 도로를 향한 면(±X): 깊이(0.78)·높이
+    boxOf(M.portal(0.78, rjh), 0.85, rjh, 0.78, at(0.1), rjy,
       ROAD_Z + s * (RH + 0.39), parent);
   }
-  boxOf(M.portal, 0.9, 0.62, RH * 2 + 1.9, at(0.1), H + 0.31, ROAD_Z, parent);         // 상인방
+  boxOf(M.portal(RH * 2 + 1.9, 0.62), 0.9, 0.62, RH * 2 + 1.9, at(0.1), H + 0.31, ROAD_Z, parent); // 상인방
   boxOf(M.trim, 1.12, 0.16, RH * 2 + 2.4, at(0.02), H + 0.7, ROAD_Z, parent);          // 물끊기 처마
 
   // 등기구 — 광원 없이 발광 몸체만. 안개 앞에 하나 걸어 "안에 뭔가 있다"만 남긴다
@@ -542,7 +698,8 @@ export function buildRoadTunnel(dir: 1 | -1, parent: THREE.Object3D) {
 
   // 갱구 위 마감 — 터널 천장(5.5)에서 도로 벽 높이(7)까지 막는다.
   // 이게 없으면 그 틈으로 **안개 판과 저 안쪽 마감벽이 비쳐** 검은 띠가 생긴다 (실측으로 걸렀다)
-  boxOf(M.portal, 1, WALL_H - (H + 0.9), RH * 2 + 2, at(0.5), (H + 0.9 + WALL_H) / 2, ROAD_Z, parent);
+  boxOf(M.portal(RH * 2 + 2, WALL_H - (H + 0.9)), 1, WALL_H - (H + 0.9), RH * 2 + 2,
+    at(0.5), (H + 0.9 + WALL_H) / 2, ROAD_Z, parent);
 
   // 검은 안개 — 골목 터널과 같은 판. 법선을 x축으로 돌린다.
   // 첫 판(1.2m)은 차가 출발하는 지점(±22)보다 바깥이라 **차는 안개 속에서 나온다**.
@@ -556,11 +713,12 @@ export function buildRoadTunnel(dir: 1 | -1, parent: THREE.Object3D) {
   });
 
   // 마감 — 안개 너머는 보이지 않지만, 뚫린 채로 두지 않는다
-  boxOf(M.portal, 1, WALL_H, RH * 2 + 2, at(LEN + 2), WALL_H / 2, ROAD_Z, parent);
+  boxOf(M.portal(RH * 2 + 2, rch), 1, rch, RH * 2 + 2, at(LEN + 2), rcy, ROAD_Z, parent);
 }
 
 /** 차도 구멍 메우기 — 벽은 공용이라 뚫려 있다. 테마 4(교차로)만 열어 두고 나머지는 막는다 (v0.11.7) */
 export function patchRoadWall(theme: THREE.Group) {
-  box(1, WALL_H, ROAD_HALF * 2, 0x232838, HW + 0.5, WALL_H / 2, ROAD_Z, theme);
-  box(1, WALL_H, ROAD_HALF * 2, 0x20263a, -HW - 0.5, WALL_H / 2, ROAD_Z, theme);
+  const [pwh, pwy] = sunk(WALL_H);   // 공용 벽과 같은 치수로 파고들어야 이음매가 안 벌어진다
+  box(1, pwh, ROAD_HALF * 2, 0x232838, HW + 0.5, pwy, ROAD_Z, theme);
+  box(1, pwh, ROAD_HALF * 2, 0x20263a, -HW - 0.5, pwy, ROAD_Z, theme);
 }

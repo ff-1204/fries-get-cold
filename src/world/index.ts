@@ -78,6 +78,29 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   };
   fillKeys(corridor.refs.group, '');
 
+  // ---------- ⭐ 그림자 — **퇴근길의 해 하나만** (v0.11.61) ----------
+  // 여기서 하는 일은 "누가 그림자를 만들고 받는가"를 한 번 정하는 것뿐이다.
+  // **켜고 끄는 것은 광원 쪽**이다 (`setMorning`이 `moon.castShadow`를 토글) —
+  // 밤에는 그림자가 한 장도 그려지지 않는다.
+  //
+  // ⚠ **포인트라이트에는 절대 켜지 않는다.** 큐브 섀도라 광원 하나가 6패스다:
+  //   이 씬의 포인트라이트가 10개(가로등·터널·부스·전조등·가게·테마별)라 전부 켜면 61패스가 된다.
+  //   밤은 그 등들이 만드는 시간인데, 하필 가장 비싸고 가장 안 보인다 — 그래서 밤은 아예 뺀다
+  //
+  // ⚠ `MeshStandardMaterial`만 대상이다. 조명을 안 받는 것들(하늘 돔 · 터널의 검은 안개 판)은
+  //   그림자를 받을 수도 없고, 캐스터로 넣으면 반지름 80m 돔이 세계를 덮어 버린다
+  corridor.refs.group.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const list = Array.isArray(m.material) ? m.material : [m.material];
+    const lit = list.some(
+      (x) => (x as THREE.Material & { isMeshStandardMaterial?: boolean })?.isMeshStandardMaterial,
+    );
+    if (!lit) return;
+    m.castShadow = true;
+    m.receiveShadow = true;
+  });
+
   // 지적 히트 대상 — effect마다 "짚을 수 있는 사물". 여섯 조각을 합쳐 전 effect를 덮는다:
   // data.ts에 effect를 추가하면 어느 테마에도 없을 때 **여기서 컴파일 에러**가 난다
   const hit: Record<AnomalyEffect, THREE.Object3D[]> = {
@@ -99,6 +122,7 @@ export {
   setSegmentTheme, applyDepth, setMorning, setTunnelDark, setStretchMark, setShopNear,
   setBackScene, setBannerSide, setThemeMirror, updateWorld, startCar, stopCar, carInCorridor,
 } from './runtime';
+export type { TimeOfDay } from './runtime';
 export {
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, TRAFFIC_CYCLE, isGreen, isFlashing,
   TUNNEL_LEN, TUNNEL_H, TUNNEL_SWAP_Z, TUNNEL_IN_HALF, SPAWN_ANCHORS, CAR_SEC,
