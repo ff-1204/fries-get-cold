@@ -1,7 +1,7 @@
 // 처음부터 끝까지 자동 플레이 — 저장 없는 첫 방문에서 밤 2 진입까지.
 //
 // verify:balance와 다른 점: **?a= 없이 실제 확률로** 돌고, 튜토리얼부터 시작하며,
-// 이상현상에 사람처럼 반응한다 (응시가 쌓이면 눈을 돌리고, 흔적은 다가가 짚는다).
+// 이상현상에 사람처럼 반응한다 (응시가 쌓이면 눈을 돌린다 — 짚는 반응은 v0.11.50에 사라졌다).
 // "동작하는가"를 끝에서 끝까지 확인하는 유일한 검증이다 — 재미 판단은 사람이 해야 한다.
 //
 // 사용: node scripts/playthrough.mjs [출력폴더]   (dev 서버가 5199에 떠 있어야 한다)
@@ -50,29 +50,17 @@ const turn = (rad) => page.evaluate((r) => {
   c.dispatchEvent(mk('pointerup', 640 + dx));
 }, rad);
 
-/** 화면의 한 점을 탭 = 직시. 기본은 중앙, aim이 있으면 **그 대상을 조준해서** 한 번만 */
-const tap = (aim = null) => page.evaluate((a) => {
-  const c = document.querySelector('canvas');
-  const x = a ? a.x * window.innerWidth : window.innerWidth / 2;
-  const y = a ? a.y * window.innerHeight : window.innerHeight / 2;
-  const mk = (t) => new PointerEvent(t, { pointerId: 9, pointerType: 'touch', clientX: x, clientY: y, bubbles: true });
-  c.dispatchEvent(mk('pointerdown'));
-  c.dispatchEvent(mk('pointerup'));
-}, aim);
-
 /**
  * 사람처럼 한 구간을 걷는다.
  *  - 응시(stare)가 쌓이면 **눈을 돌린다** — 붙잡히지 않는 것이 avert의 정답
- *  - 미확인 흔적이 있으면 주기적으로 짚어 본다 (직시는 4.5m 안에서만 성립하므로 근접 시 성립)
  *  - 차도(테마 4)에서는 초록불이 아니면 정지선 앞에서 기다린다
+ *  - **흔적에는 아무것도 하지 않는다** (v0.11.50): 짚는 동사가 없다. 그냥 지나간다
  * @returns {'passed'|'stuck'|'ended'}
  */
 async function walkSegment(maxSec = 90) {
   const start = await st();
   let looked = 0;         // 눈을 돌린 횟수
-  let taps = 0;
   let waited = 0;
-  let lastTap = 0;
   const t0 = Date.now();
   await page.keyboard.down('KeyW');
 
@@ -81,11 +69,11 @@ async function walkSegment(maxSec = 90) {
     const s = await st();
     if (s.phase !== 'walk') {            // 전환·도착 컷
       await page.keyboard.up('KeyW');
-      return { r: 'ended', s, looked, taps, waited };
+      return { r: 'ended', s, looked, waited };
     }
     if (s.done !== start.done || s.total !== start.total) {
       await page.keyboard.up('KeyW');
-      return { r: 'passed', s, looked, taps, waited };
+      return { r: 'passed', s, looked, waited };
     }
 
     // ① 사람 형태를 보고 있다 → 눈을 돌린다 (경고 0.4초보다 먼저 반응)
@@ -107,21 +95,10 @@ async function walkSegment(maxSec = 90) {
       await page.keyboard.down('KeyW');
       continue;
     }
-
-    // ③ **직시 대상을 조준해서 한 번 짚는다.**
-    //    ⚠ 두 번 틀리면 안 된다 — 빗나간 지적은 빈 지적(깊이 +1)이고, 정면만 두들기면
-    //    바닥의 핏자국은 영영 못 짚어 빈 지적만으로 깊이 한계에 닿는다 (실측에서 soft fail).
-    //    avert 부류는 영원히 checked에 안 들어가므로 active/checked 차이로 판단해서도 안 된다
-    if (s.gazeNear !== null && s.gazeNear < 4.3 && s.gazeAim &&
-        s.gazeAim.x > 0.04 && s.gazeAim.x < 0.96 && s.gazeAim.y > 0.04 && s.gazeAim.y < 0.96 &&
-        Date.now() - lastTap > 900) {
-      await tap(s.gazeAim);
-      taps += 1;
-      lastTap = Date.now();
-    }
+    // ③ 흔적을 만나면 — **아무것도 하지 않는다.** 그것이 지금의 정답이다
   }
   await page.keyboard.up('KeyW');
-  return { r: 'stuck', s: await st(), looked, taps, waited };
+  return { r: 'stuck', s: await st(), looked, waited };
 }
 
 // ============================================================
@@ -188,7 +165,7 @@ while (guard++ < 24) {
   const before = await st();
   const r = await walkSegment(150);
   say(`      밤1 구간 ${before.done + 1}/${before.total} (테마 ${before.theme}) → ${r.r}` +
-      ` · 이상 ${before.active}종 · 눈돌림 ${r.looked} · 지적 ${r.taps} · 신호대기 ${r.waited}`);
+      ` · 이상 ${before.active}종 · 눈돌림 ${r.looked} · 신호대기 ${r.waited}`);
   if (r.r === 'stuck') { ok(false, `구간 ${before.done + 1}에서 전진하지 못함`, `z=${r.s.z}`); await shot('XX-stuck'); break; }
   if (r.r === 'ended') {
     // 도착인가 soft fail인가 — soft fail은 깊이 한계로 같은 밤을 다시 시작하는 정상 경로다.

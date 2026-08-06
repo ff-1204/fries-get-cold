@@ -2,7 +2,8 @@
 //
 // 준비: npm run dev -- --port 5199 --strictPort  (별도 터미널)
 // 사용: npm run verify:shots    — 이상현상 정상/이상 비교 + 구간 테마 스크린샷 → verify-shots/
-//       npm run verify:balance  — 무결점 밤·늘어남→입구 리셋·정당 우회 실측 (늘어나는 골목 판정)
+//       npm run verify:balance  — 무결점 밤 · **흔적 지나침 무비용** · 늘어남 3회→입구 리셋 ·
+//                                 외면 통과 무비용 (v0.11.50 기준 4케이스)
 //
 // 원리: main.ts의 읽기 전용 훅 window.__fries.state()로 위치·상태를 읽으며
 // page.keyboard로 주파한다 (WASD 리스너는 포인터락과 무관).
@@ -97,8 +98,33 @@ async function passMain(page) {
   }
 }
 
-/** 지적 — ?a= 디버그 한정 검증 훅으로 결정적 재현 (이상 있으면 성공, 없으면 빈 지적) */
-const debugSpot = (page) => page.evaluate(() => globalThis.__fries.debugSpot());
+/** 차도 한복판에 서서 차를 맞는다 → 늘어남 1회.
+ *
+ *  ⭐ 클릭 판정이 사라진 뒤(v0.11.50) **늘어남을 결정적으로 만드는 유일한 방법**이다.
+ *  응시 붙잡힘은 형체의 자리와 시선 각도에 좌우돼 재현이 흔들리지만, 차는 규칙이 세계의
+ *  것이라 **빨간불마다 반드시 한 대** 온다 (주기 9초). 늘어남 뒤에는 같은 테마가 반복되므로
+ *  다시 걸어 들어가면 몇 번이든 되풀이할 수 있다 — 깊이 사다리를 그대로 오른다 */
+async function takeCarHit(page) {
+  // 직전 늘어남의 페이드가 끝나고 **구간 입구에 다시 서 있을 때까지** 기다린다.
+  // 이걸 빼면 두 번째 호출이 phase='transition' 상태로 들어가 걷지도 않고 대기만 한다
+  await page.waitForFunction(
+    () => { const s = globalThis.__fries.state(); return s.phase === 'walk' && s.z > -2; },
+    { polling: 100, timeout: 30000 },
+  );
+  const s0 = await state(page);
+  const { segLength } = await page.evaluate(() => globalThis.__fries.config());
+  const roadZ = -segLength * 0.68; // layout.ts ROAD_Z — 차가 지나는 z (치임은 ±2.4m)
+  await page.keyboard.down('KeyW');
+  await page.waitForFunction(
+    (t) => { const s = globalThis.__fries.state(); return s.z <= t || s.phase !== 'walk'; },
+    { polling: 60, timeout: 30000 }, roadZ + 0.5,
+  );
+  await page.keyboard.up('KeyW');
+  await page.waitForFunction(
+    (n) => globalThis.__fries.state().stretches > n,
+    { polling: 100, timeout: 30000 }, s0.stretches,
+  );
+}
 
 /** z 목표 지점까지만 전진 (스크린샷용) */
 async function walkTo(page, z) {
@@ -184,14 +210,21 @@ async function shots() {
     }
     await browser.close();
   }
-  // 늘어남 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛)
+  // 늘어남 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛).
+  // ⚠ 늘어남을 부르는 방법이 바뀌었다 (v0.11.50): 흔적을 지나치는 것은 이제 무비용이라
+  // **차도(테마 4)에서 차를 맞아** 만든다. 늘어남은 같은 테마를 반복시키므로 결과는 같다
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=drag_mark'); // 귀갓길 첫 구간(테마 5)의 흔적 — 바로 판정에 걸린다
-    await passMain(page); // 늘어남 1회 → 같은 구간 반복 (depth 2)
+    await startGame(page, 'a=none');
+    await passMain(page);      // 테마 5 → 4 (차도)
+    await takeCarHit(page);    // 늘어남 1회 → 같은 구간 반복 (depth 2)
+    await page.waitForFunction(
+      () => { const s = globalThis.__fries.state(); return s.phase === 'walk' && s.z > -2; },
+      { polling: 100, timeout: 30000 },
+    );
     await walkTo(page, -3.2); // 분필 자국(z=-5.5)이 전방 바닥에 보이는 지점
     await shot(page, 'stretch-repeat-mark');
-    await walkTo(page, -12); // 가로등(z=-16.2) 앞 — 감광 확인
+    await walkTo(page, -12);  // 가로등 앞 — 감광 확인
     await shot(page, 'stretch-depth2-lamp');
     await browser.close();
   }
@@ -235,17 +268,33 @@ async function balance() {
     await browser.close();
   }
 
-  // 2) 늘어남 3회 = 깊이 한계 → 골목 입구 리셋 (?a=drag_mark — 귀갓길 첫 구간 흔적, 지나치기 강행)
+  // 2) ⭐ **흔적을 지나쳐도 아무 일도 없다** (v0.11.50 — 클릭 판정 제거의 직접 증거).
+  //    v0.11.49까지 이 주행은 늘어남 1회 + 깊이 2였다. 지금은 0이어야 한다
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=drag_mark');
-    for (let i = 0; i < 2; i++) {
-      await passMain(page);
+    await startGame(page, 'a=drag_mark'); // 귀갓길 첫 구간(테마 5)의 흔적
+    const s0 = await state(page);
+    await passMain(page);                 // 아무것도 하지 않고 그냥 통과
+    const s = await state(page);
+    console.log('흔적 지나침:', JSON.stringify({
+      active: s0.active, stretches: s.stretches, total: s.total, depth: s.depth, theme: s.theme,
+    }));
+    await browser.close();
+  }
+
+  // 3) 늘어남 3회 = 깊이 한계 → 골목 입구 리셋.
+  //    ⚠ 예전에는 흔적을 지나치는 것으로 늘어남을 만들었다 — 그 판정이 사라져 **차도**로 잰다.
+  //    늘어남은 같은 테마를 반복시키므로 테마 4에 한 번 들어가면 세 번을 그 자리에서 채운다
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=none');
+    await passMain(page); // 테마 5 → 4 (차도)
+    for (let i = 0; i < 3; i++) {
+      await takeCarHit(page);
       const s = await state(page);
-      console.log(`[늘어남 ${i + 1}] ${JSON.stringify({ done: s.done, total: s.total, depth: s.depth, stretches: s.stretches })}`);
+      console.log(`[늘어남 ${i + 1}] ${JSON.stringify({ done: s.done, total: s.total, depth: s.depth, stretches: s.stretches, theme: s.theme })}`);
     }
-    await passMain(page); // 3번째 늘어남 → depth 6 → soft fail 오버레이
-    await clickOverlayButton(page); // …다시 걷는다
+    await clickOverlayButton(page); // 깊이 6 → soft fail → …다시 걷는다
     await page.waitForFunction(
       () => { const s = globalThis.__fries.state(); return s.phase === 'walk' && s.done === 0; },
       { timeout: 15000 },
@@ -255,89 +304,16 @@ async function balance() {
     await browser.close();
   }
 
-  // 3) 직시 성공 = 무비용 통과 (?a=drag_mark — 흔적을 직시하고 직진)
-  {
-    const { browser, page } = await launch();
-    await startGame(page, 'a=drag_mark');
-    await debugSpot(page);
-    const checked = (await state(page)).checked;
-    await passMain(page);
-    const s = await state(page);
-    console.log('확인 통과:', JSON.stringify({ checked, done: s.done, total: s.total, depth: s.depth, stretches: s.stretches, theme: s.theme }));
-    await browser.close();
-  }
-
-  // 4) 빈 지적 = 깊이 +1 (?a=none — 이상 없는 구간에서 짚기)
-  {
-    const { browser, page } = await launch();
-    await startGame(page, 'a=none');
-    await debugSpot(page);
-    const s = await state(page);
-    console.log('빈 지적 확인:', JSON.stringify({ depth: s.depth, done: s.done, stretches: s.stretches }));
-    await browser.close();
-  }
-
-  // 5) avert — 사람 형태를 짚으면 즉시 붙잡힌다 = 늘어남 (v0.11.0 괴담 규칙)
-  {
-    const { browser, page } = await launch();
-    await startGame(page, 'a=bus_figure'); // 구간 4 = 귀갓길 두 번째
-    await passMain(page);                  // 테마 5 → 4 (여기서 등장)
-    const s0 = await state(page);
-    await debugSpot(page);                 // 손가락질 → grabbed
-    await page.waitForFunction(() => globalThis.__fries.state().phase === 'walk',
-      { polling: 120, timeout: 15000 });
-    const s = await state(page);
-    console.log('손가락질 붙잡힘:', JSON.stringify({
-      avert: s0.avert, stretches: s.stretches, total: s.total, depth: s.depth, theme: s.theme,
-    }));
-    await browser.close();
-  }
-
-  // 6) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (늘어남 없음)
+  // 4) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (아직 남아 있는 유일한 규칙)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=bus_figure&avert=off'); // 응시 정지 = '눈을 마주치지 않은' 상태
     await passMain(page);
     const s0 = await state(page);
-    await passMain(page); // 확인 없이 통과 — avert는 늘어남 대상이 아니다
+    await passMain(page);
     const s = await state(page);
     console.log('외면 통과:', JSON.stringify({
       avert: s0.avert, stretches: s.stretches, total: s.total, depth: s.depth,
-    }));
-    await browser.close();
-  }
-
-  // 7) 손가락질 임계 (v0.11.42) — **거리로 갈린다.** 케이스 5는 force 경로라 조준·거리를
-  //    건너뛰므로 이 판정을 전혀 검증하지 않는다. 여기서는 실제 입력 경로(debugSpotAt)로
-  //    형체를 정확히 조준해 짚고, 응시 판정 거리(config.avertDistance) 안팎을 갈라 잰다.
-  //    `avert=off`는 응시 누적만 멈춘다 — 손가락질 판정은 살아 있다
-  {
-    const { browser, page } = await launch();
-    await startGame(page, 'a=bus_figure&avert=off');
-    await passMain(page);                            // 테마 5 → 4 (형체 등장)
-    const { avertDistance } = await page.evaluate(() => globalThis.__fries.config());
-
-    // (a) 판정 거리 밖에서 정조준하고 짚는다 → 무비용이어야 한다
-    const far = await state(page);
-    const aimFar = far.avertAim;
-    await page.evaluate((p) => globalThis.__fries.debugSpotAt(p.x, p.y), aimFar);
-    await page.waitForFunction(() => true, { polling: 60 });
-    const sFar = await state(page);
-    console.log('손가락질 — 판정 거리 밖:', JSON.stringify({
-      dist: far.avertNear, limit: avertDistance,
-      stretches: sFar.stretches, depth: sFar.depth, phase: sFar.phase,
-    }));
-
-    // (b) 판정 거리 안까지 걸어가서 같은 짓을 한다 → 붙잡혀야 한다
-    await walkTo(page, far.z - (far.avertNear - avertDistance) - 2.5);
-    const near = await state(page);
-    await page.evaluate((p) => globalThis.__fries.debugSpotAt(p.x, p.y), near.avertAim);
-    await page.waitForFunction(() => globalThis.__fries.state().phase === 'walk',
-      { polling: 120, timeout: 15000 });
-    const sNear = await state(page);
-    console.log('손가락질 — 판정 거리 안:', JSON.stringify({
-      dist: near.avertNear, limit: avertDistance,
-      stretches: sNear.stretches, depth: sNear.depth,
     }));
     await browser.close();
   }

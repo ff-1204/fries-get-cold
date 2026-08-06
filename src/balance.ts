@@ -14,11 +14,11 @@ export function tasteFromStretches(stretches: number): Taste {
 
 // ---------- 밤 시뮬레이션 (테스트 전용 — 게임은 실이동으로 같은 값에 도달한다) ----------
 // 거리 모델은 main.ts 판정 트리거 좌표에서 파생 (손계산 금지):
-//   구간 통과: z=0 스폰 → 트리거 z < -(segLength+0.5). 지적은 거리 비용이 없다 (걷다가 짚는다)
+//   구간 통과: z=0 스폰 → 트리거 z < -(segLength+0.5)
 
 const SEG_DIST = CONFIG.segLength + 0.5;
 
-/** 증식 — 확인 없이 지나칠 때마다 이상이 하나씩 늘어난다 (상한 CONFIG.swarmMax) */
+/** 증식 — 늘어남마다 이상이 하나씩 늘어난다 (상한 CONFIG.swarmMax) */
 export function swarmAfterStretches(stretches: number): number {
   return Math.min(CONFIG.swarmMax, stretches);
 }
@@ -29,18 +29,17 @@ export function activeCount(swarm: number): number {
 }
 
 export interface NightPlan {
-  /** 늘어남(이상을 못 보고 지나침) 횟수 — 각각 구간 반복 1회 = 총 걸음 +1 */
+  /** 늘어남 횟수 — 각각 구간 반복 1회 = 총 걸음 +1.
+   *  **깊이를 쌓는 유일한 항이다** (v0.11.50: 빈 지적이 사라져 `wastes` 항도 함께 없어졌다) */
   stretches?: number;
-  /** 빈 지적(아무것도 아닌 것을 짚음) 횟수 — 깊이만 지불, 거리 비용 없음 */
-  wastes?: number;
 }
 
 /** 밤 하나를 수식으로 주파한 결과. softFail이면 도착 전에 골목 입구로 리셋된다 */
 export function simulateNight(plan: NightPlan = {}): {
   depth: number; softFail: boolean; total: number; taste: Taste; seconds: number;
 } {
-  const { stretches = 0, wastes = 0 } = plan;
-  const depth = stretches * CONFIG.stretchDepthCost + wastes * CONFIG.wasteDepthCost;
+  const { stretches = 0 } = plan;
+  const depth = stretches * CONFIG.stretchDepthCost;
   const total = CONFIG.segments + stretches; // 늘어남마다 남은 거리 +1
   const seconds = (total * SEG_DIST) / CONFIG.walkSpeed;
   return {

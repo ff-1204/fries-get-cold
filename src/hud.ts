@@ -5,17 +5,11 @@ export class Hud {
   private msg = document.getElementById('msg')!;
   private fade = document.getElementById('fade')! as HTMLElement;
   private touchHint = document.getElementById('touch-hint')! as HTMLElement;
-  private reticle = document.getElementById('reticle')! as HTMLElement;
-  private reticleShown = false;
   private msgTimer = 0;
   private hintTimer = 0;
 
-  /** 지적 크로스헤어 — 걷는 동안만. 매 프레임 호출돼도 DOM 쓰기는 변화 시에만 */
-  setReticle(show: boolean) {
-    if (show === this.reticleShown) return;
-    this.reticleShown = show;
-    this.reticle.style.opacity = show ? '0.5' : '0';
-  }
+  // 지적 크로스헤어(setReticle)는 v0.11.50에 사라졌다 — 조준할 것이 없으면
+  // 화면 한가운데의 점은 **거짓 어포던스**다: "여기를 짚으라"고 말하는 표식이었다
 
   setStatus(text: string) {
     this.status.textContent = text;

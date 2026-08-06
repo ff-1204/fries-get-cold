@@ -1,5 +1,7 @@
-// 튀김이 식기 전에 — 늘어나는 골목 (docs/game.md 판정)
-// 직진 + 확인(무섭지만 다가가서 짚어야 한다) + 늘어남(지나침=연장+증식) + 깊이(가로등 소등·soft fail)
+// 튀김이 식기 전에 — 늘어나는 골목 (docs/game.md)
+// ⭐ **동사는 걷기 하나다** (v0.11.50 — M3 전환 1/3: 클릭 판정 제거).
+// 흔적을 짚는 동사가 사라졌다: 이상현상은 처리할 과제가 아니라 **지나가는 풍경**이다.
+// 남은 판정은 응시 붙잡힘(외면)과 차도뿐이고, 그 둘도 M3 전환에서 머무름→자람으로 교체된다
 
 import * as THREE from 'three';
 import { ANOMALIES, CONFIG, TEXT, STAGE_COUNT, stageOf, pressureOf, type AnomalyDef } from './data';
@@ -113,8 +115,7 @@ let theme = 1;              // 현재 걷는 구간 테마 1..5 — 늘어남은
 let depth = 0;              // 골목이 나를 붙잡은 정도 — 가로등이 게이지 (config.depthLimit)
 let stretches = 0;              // 이 밤의 늘어남 횟수 — 시식 서사·노미스 추적
 let stretchRepeat = false;     // 지금 구간이 늘어남 반복인가 (분필 자국 표시)
-let swarm = 0;              // 증식 — 확인 없이 지나칠 때마다 +1, 동시 이상 = 1+swarm (balance.ts)
-let spotCooldown = 0;       // 지적 연타 방지 (config.spotCooldownSec)
+let swarm = 0;              // 증식 — 늘어남마다 +1, 동시 이상 = 1+swarm (balance.ts)
 let stare = 0;              // avert — 사람 형태를 화면에 담고 있는 누적 시간 (붙잡힘까지)
 let stareWarned = false;    // 경고 자막 1회 (눈을 뗄 시간을 준다 — 공정성)
 let carCycle = -1;          // 차를 보낸 신호 주기 번호 — 빨간불마다 정확히 한 대
@@ -122,7 +123,6 @@ let tutBeat = 0;            // 튜토리얼 자막 진행 — 걸음이 지점�
 let nightBeat = 0;          // 밤별 걸음 모놀로그 진행 (stages.json beats, v0.11.45)
 let elapsed = 0;            // 이 밤의 경과 시간(초) — 새벽이 깊을수록 위험
 let anomalies: AnomalyDef[] = [];        // 이 구간의 활성 이상 (0~1+swarm)
-const checked = new Set<string>();       // 이 구간에서 확인을 마친 이상 id
 let lastIds = new Set<string>();         // 직전 구간의 이상 id — 연속 등장 방지
 let tripAnomalies = 0; // 이 밤에 등장한 이상 수 (밤 1 온보딩 보장용)
 
@@ -167,7 +167,8 @@ const adminHost: ConstructorParameters<typeof Admin>[0] = {
   nights: STAGE_COUNT,
   anomalies: ANOMALIES.map((a) => ({
     id: a.id, effect: a.effect, segment: a.segment,
-    label: `${a.id} ${a.effect} (${a.rule === 'avert' ? '외면' : '직시'})`,
+    // 규칙이 아니라 **부류**를 적는다 — 짚는 판정이 사라졌으므로 '직시'라는 대응은 없다
+    label: `${a.id} ${a.effect} (${a.rule === 'avert' ? '형체' : '흔적'})`,
   })),
   snapshot: () => ({
     night, done, total, theme, depth, stretches, morning: walkMode === 'tutorial',
@@ -202,9 +203,8 @@ function rollSegment(stretchStatus = false) {
   const tutorial = walkMode === 'tutorial';
 
   // 이 테마·이 밤에 가능한 풀 — 테마 사물 고정형 + 스폰 포인트 랜덤형(segment 0)
-  // 같은 이상현상 연속 등장 방지 (공정성 — 늘어남 반복 구간에서 특히 중요)
-  // `untilNight`은 밤 5의 규칙 배신을 위한 것 — 같은 사물이 rule만 바꿔 다시 등록되고,
-  // 옛 항목은 여기서 끊긴다. 둘이 겹치면 정답이 둘이 되어 판정이 거짓말을 한다 (v0.11.46)
+  // 같은 이상현상 연속 등장 방지 (늘어남 반복 구간에서 같은 것이 두 번 서면 김이 샌다)
+  // `untilNight`은 같은 사물을 다른 항목으로 갈아 끼울 때 옛 항목을 끊는 수단이다
   const pool = ANOMALIES.filter(
     (a) => (a.segment === theme || a.segment === 0) && a.night <= night &&
       (a.untilNight === undefined || night <= a.untilNight) && !lastIds.has(a.id),
@@ -236,14 +236,13 @@ function rollSegment(stretchStatus = false) {
     // 증식 — 지나칠수록 동시 이상이 늘어난다 (풀에서 서로 다른 것을 뽑는다)
     const n = Math.min(activeCount(swarm + nightPressure().swarmFloor), pool.length);
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    // ⭐ **규칙이 다른 것부터 번갈아 뽑는다** (v0.11.44) — 흔적 둘보다 흔적+형체가 무섭다.
+    // ⭐ **부류가 다른 것부터 번갈아 뽑는다** (v0.11.44) — 흔적 둘보다 흔적+형체가 무섭다.
     //
-    // 이 게임에는 여태 '고민'이 없었다: 흔적은 명백하니 보면 바로 알고, 다가가 짚으면 무비용.
-    // 사람 형태는 실루엣으로 즉시 갈린다. 즉 **판단해야 하는 순간이 구조적으로 없었다.**
-    // 둘을 한 구간에 함께 세우면 그 순간이 공짜로 생긴다 —
-    // 흔적을 직시하려면 4.5m까지 다가가야 하는데, 그 자리가 형체의 응시 판정(11m·12°) 안이면
-    // **짚으러 갈 것인가, 늘어남을 받을 것인가**를 처음으로 고르게 된다.
-    // 판정도 새 부류도 필요 없다. 선택 순서만 바꾼 것이다
+    // ⚠ 이 장치의 원래 명분은 판정이었다 (흔적을 짚으러 4.5m까지 다가가면 그 자리가 형체의
+    // 응시권 안 — "짚으러 갈 것인가"). **그 딜레마는 클릭과 함께 사라졌다** (v0.11.50).
+    // 그래도 남긴다: 같은 부류 둘은 한 번 읽으면 두 번째가 그냥 반복이지만,
+    // 바닥의 흔적과 서 있는 형체는 **눈이 가는 높이가 달라** 구간을 두 번 훑게 만든다.
+    // 멈춰 세우는 것이 이상현상의 유일한 일이므로, 시선을 나누는 배치가 곧 효과다
     const byRule: Record<string, typeof pool> = {
       gaze: shuffled.filter((a) => a.rule === 'gaze'),
       avert: shuffled.filter((a) => a.rule === 'avert'),
@@ -263,7 +262,6 @@ function rollSegment(stretchStatus = false) {
     anomalies = [];
   }
   lastIds = new Set(anomalies.map((a) => a.id));
-  checked.clear();
   // 스폰 포인트 랜덤형 — 이번 출현 지점을 고른다 (world의 figure 핸들러가 읽는다).
   // ?a= 디버그는 앵커 고정 — 스크린샷 검증의 결정성 (가로등 시야권 지점)
   if (anomalies.some((a) => a.effect === 'figure')) {
@@ -313,12 +311,13 @@ function rollSegment(stretchStatus = false) {
 
 // ---------- 온보딩 — 조작은 타이틀이 아니라 골목 안에서 배운다 (v0.9.1) ----------
 // 걷기 힌트: 시작 직후 표시, 실제로 몇 걸음 걸으면 사라진다 (해보면 배운 것).
-// 직시 힌트: 첫 흔적에 다가가는 순간 한 번만. 규칙 학습은 첫날 아침 표지판이 담당.
+// ⭐ **가르칠 것이 거의 없다** (v0.11.50) — 동사가 걷기 하나뿐이라 직시 힌트는 사라졌고,
+// 남은 것은 걷기와 (아직 판정이 있는) 외면 둘뿐이다.
 // 온보딩 힌트 1회 표시 상태. hintZ = 걷기 힌트를 띄운 지점 —
 // **해제는 절대 좌표가 아니라 '그 지점에서 얼마나 걸었는가'로 판정한다** (v0.11.27).
 // 절대 좌표(z < -6)로 재던 시절, 퇴근길 튜토리얼은 z=-8.64에서 시작하는 탓에
 // 첫 프레임에 조건이 이미 참이라 **힌트가 뜨자마자 사라졌다** — 가르쳐야 할 구간에서만 안 보였다
-const onboard = { move: false, gaze: false, avert: false, hintZ: 0 };
+const onboard = { move: false, avert: false, hintZ: 0 };
 const usesTouch = () => input.usesTouch || 'ontouchstart' in window;
 
 function resetTrip() {
@@ -495,25 +494,13 @@ async function grabbed(reason: string) {
   await hud.fadeIn(700);
 }
 
-/** 구간 통과 처리 — 출구는 하나뿐. 판정은 이미 걷는 동안 끝났다(전부 확인했는가) */
+/** 구간 통과 처리 — 출구는 하나뿐. **여기에는 판정이 없다** (v0.11.50).
+ *
+ *  ⭐ 예전에는 여기서 "확인 안 한 흔적이 있는가"를 세어 늘어남을 매겼다. 그 판정이
+ *  클릭과 함께 사라졌다 — 이상현상을 그냥 지나치는 것에는 아무 대가가 없다.
+ *  지금 늘어남을 만드는 것은 응시 붙잡힘과 차도뿐이고, 둘 다 `grabbed()`가 처리한다.
+ *  (다음 단계에서 그 자리를 **머무름 → 자람**이 대신한다 — game.md M3) */
 async function passSegment() {
-  let repeat = false;
-  // avert(사람 형태)는 지나치는 것이 정답 — 늘어남 대상이 아니다. 흔적(gaze)만 확인 의무 (v0.11.0)
-  const missed = anomalies.filter((a) => a.rule === 'gaze' && !checked.has(a.id));
-
-  if (missed.length > 0) {
-    // 늘어남 — 확인 없이 지나침은 죽음이 아니라 연장 + 증식 (game.md 판정)
-    stretches += 1;
-    total += 1;
-    depth += CONFIG.stretchDepthCost;
-    swarm = Math.min(CONFIG.swarmMax, swarm + 1); // 지나칠수록 골목의 어긋남이 늘어난다
-    save.misses += 1; // 노미스(히든 엔딩) 추적 — 늘어남 = 미스
-    persist();
-    repeat = true;
-    hud.say(`${missed[0].reveal}\n${TEXT.stretchNotice}`, 3800); // reveal 암시 (인지 4요소 ②)
-    audio.duck(true); // 정적 — 사운드 드랍 (인지 4요소 ③, rollSegment가 이어받는다)
-  }
-
   done += 1;
   if (depth >= CONFIG.depthLimit) {
     await softFail();
@@ -524,40 +511,22 @@ async function passSegment() {
     else await reachHome();
     return;
   }
-  stretchRepeat = repeat;
-  // 늘어남은 같은 테마를 반복. 귀갓길은 테마 역순 (먹자골목 → 원룸), 아침 편도는 정순
-  if (!repeat) {
-    theme = walkMode === 'return'
-      ? Math.max(theme - 1, 1)
-      : Math.min(theme + 1, CONFIG.segments);
-  }
+  stretchRepeat = false;
+  // 귀갓길은 테마 역순 (먹자골목 → 원룸), 아침 편도는 정순.
+  // 늘어남(=같은 테마 반복)은 여기가 아니라 grabbed()가 만든다
+  theme = walkMode === 'return'
+    ? Math.max(theme - 1, 1)
+    : Math.min(theme + 1, CONFIG.segments);
   // 전환은 **터널 한가운데의 암흑 속에서** 일어난다 (v0.11.15) — 화면 페이드 없음.
   // 들어간 만큼(앞 터널 절반) 나온다(뒤 터널 절반): 걸음이 끊기지 않는다
-  rollSegment(repeat);
+  rollSegment();
   player.z = TUNNEL_LEN / 2;   // 지나온 터널의 한가운데 — 여기서 계속 걸어 나온다
 }
 
-// ---------- 확인 — 무섭지만, 다가가서 직접 짚어야 한다 (판정의 동사, game.md 2026-08-02) ----------
-const raycaster = new THREE.Raycaster();
-const ndc = new THREE.Vector2();
+// ---------- 대상 거리·조준 — **판정이 아니라 관측이다** (v0.11.50) ----------
+// 짚는 동사가 사라지면서 레이캐스트 히트 판정(`hitAnomaly`)도 함께 없어졌다.
+// 여기 남은 것은 응시(외면) 판정과 온보딩 힌트, 그리고 검증 훅이 쓰는 계산뿐이다
 const projPos = new THREE.Vector3();
-
-/** 조준이 대상에 닿았는가.
- *  `tolerant`(기본) — 가는 사물(그네 줄·전단지)도 근처를 짚으면 인정한다. 모바일 손가락 오차 대응.
- *  ⚠ **벌을 주는 판정에는 관용을 쓰지 않는다** (v0.11.42) — 관용은 "짚기 쉽게" 하려는 것이고,
- *  붙잡힘처럼 대가가 큰 쪽에 그대로 적용하면 조준하지 않은 것까지 손가락질로 친다 */
-function hitAnomaly(targets: THREE.Object3D[], tolerant = true): boolean {
-  raycaster.setFromCamera(ndc, camera);
-  if (raycaster.intersectObjects(targets, true).length > 0) return true;
-  if (!tolerant) return false;
-  for (const t of targets) {
-    t.getWorldPosition(projPos);
-    if (projPos.distanceTo(camera.position) > 45) continue;
-    projPos.project(camera);
-    if (projPos.z < 1 && Math.hypot(projPos.x - ndc.x, projPos.y - ndc.y) < 0.12) return true;
-  }
-  return false;
-}
 
 function targetDistance(targets: THREE.Object3D[]): number {
   let min = Infinity;
@@ -575,28 +544,9 @@ const aimCenter = new THREE.Vector3();
 const camFwd = new THREE.Vector3();
 const toTarget = new THREE.Vector3();
 
-/** 아직 안 짚은 직시(gaze) 대상 중 **가장 가까운 개별 메시**와 그 거리.
- *  그룹 원점이 아니라 메시로 잡는다 — 핏자국처럼 부품이 흩어진 대상은 그룹 원점이 빈 공간이다.
- *  자동 플레이 훅(`state().gazeNear` / `gazeAim`) 전용 (검증 도구, 읽기 전용) */
-function nearestGaze(): { obj: THREE.Object3D; dist: number } | null {
-  let best: { obj: THREE.Object3D; dist: number } | null = null;
-  for (const a of anomalies) {
-    if (a.rule !== 'gaze' || checked.has(a.id)) continue;
-    for (const t of refs.hit[a.effect]) {
-      t.traverse((o) => {
-        if (!(o as THREE.Mesh).isMesh) return;
-        o.getWorldPosition(projPos);
-        const d = projPos.distanceTo(camera.position);
-        if (!best || d < best.dist) best = { obj: o, dist: d };
-      });
-    }
-  }
-  return best;
-}
-
-/** 외면(avert) 대상 중 **가장 가까운 개별 메시**와 그 거리. `nearestGaze`의 대칭짝.
- *  avert는 `checked`에 영원히 안 들어가므로 거를 것이 없다 (지나치는 것이 정답).
- *  검증 훅(`state().avertNear` / `avertAim`) 전용 — 손가락질 임계 실측용 (v0.11.42) */
+/** 외면(avert) 대상 중 **가장 가까운 개별 메시**와 그 거리.
+ *  그룹 원점이 아니라 메시로 잡는다 — 부품이 흩어진 대상은 그룹 원점이 빈 공간이다.
+ *  검증 훅(`state().avertNear`) 전용 — 응시 임계 실측용 */
 function nearestAvert(): { obj: THREE.Object3D; dist: number } | null {
   let best: { obj: THREE.Object3D; dist: number } | null = null;
   for (const a of anomalies) {
@@ -698,78 +648,6 @@ function occlusionReport() {
       blockedAt: anyClear ? null : blockedAt, rects };
   });
 }
-
-/** 확인 시도. force는 검증 훅 전용(?a= 디버그 한정) — 히트·거리 테스트를 생략한다 */
-function tryPoint(px: number, py: number, force = false) {
-  if (phase !== 'walk' || spotCooldown > 0) return;
-  // 관리자 모드에서는 클릭이 판정에 닿지 않는다 — 날아다니며 짚으면 '빈 지적'으로 깊이가
-  // 쌓여, 보러 들어간 것만으로 상태가 오염된다 (실측에서 깊이 1이 붙어 있었다)
-  if (admin.active) return;
-  spotCooldown = CONFIG.spotCooldownSec;
-  ndc.set((px / window.innerWidth) * 2 - 1, -(py / window.innerHeight) * 2 + 1);
-
-  // 첫날 아침 — 무엇을 짚어도 무비용 (안전한 연습장. 어긋난 것은 밤에만 있다)
-  if (walkMode === 'tutorial') {
-    hud.say(TEXT.spotMorning, 2600);
-    return;
-  }
-
-  // 직시 = 소멸 — 남은(미확인) 것만 다시 적용해 방금 본 것을 지운다
-  // ("똑바로 보면 걷힌다" — 직시의 즉각 보상. avert 부류는 checked에 들어가지 않아 그대로 남는다)
-  const dispel = () => {
-    applyAnomalies(refs, anomalies.filter((x) => !checked.has(x.id)).map((x) => x.effect));
-  };
-
-  // 사람 형태를 짚는 것 = 손가락질. 최악의 대응이다 — 즉시 붙잡힌다 (avert 규칙)
-  //
-  // ⚠ **정타만, 그리고 응시 판정 거리 안에서만** (v0.11.42). 예전에는 관용 반경(NDC 0.12·45m)을
-  // 거리 조건 없이 그대로 썼다 — 직시는 4.5m를 요구하는데 붙잡힘만 무제한이라 비대칭이 10배였고,
-  // **30m 밖 흔적을 짚으려다 형체가 화면 몇 도 안쪽에 있었을 뿐인데 즉사**했다.
-  // 증식(동시 이상 최대 3)으로 gaze와 avert가 공존할수록 잦아지므로 밤이 깊을수록 억울해진다.
-  // 손가락질을 처벌하려면 **손가락질이었음이 확실해야** 한다 (design-principles §0)
-  const avertHere = anomalies.find((a) => a.rule === 'avert');
-  if (avertHere && (force || hitAnomaly(refs.hit[avertHere.effect], false))) {
-    // force = 검증 훅 (?a= 한정) — 조준·거리 없이 결정적으로 재현
-    if (force || targetDistance(refs.hit[avertHere.effect]) <= CONFIG.avertDistance) {
-      void grabbed(TEXT.avertPoint);
-      return;
-    }
-    // 응시 판정 거리(11m) 밖 — 무비용. **문구는 흔적의 원거리 지적과 같은 것을 쓴다**:
-    // 부류마다 다른 반응을 주면 그것이 또 하나의 공짜 판별기가 된다 (anomalies.md 구조적 사실 ②)
-    hud.say(TEXT.tooFar, 2200);
-    return;
-  }
-
-  const unchecked = anomalies.filter((a) => a.rule === 'gaze' && !checked.has(a.id));
-  if (force && unchecked.length > 0) {
-    checked.add(unchecked[0].id);
-    dispel();
-    hud.say(TEXT.spotOk, 3000);
-    return;
-  }
-  for (const a of unchecked) {
-    if (!hitAnomaly(refs.hit[a.effect])) continue;
-    // 확인은 근접해야 성립 — 무서운 쪽으로 걸어가는 것이 이 게임의 공포 코어
-    if (targetDistance(refs.hit[a.effect]) > CONFIG.checkDistance) {
-      hud.say(TEXT.tooFar, 2200); // 비용 없음 — 다가가라는 지시일 뿐
-      return;
-    }
-    checked.add(a.id);
-    dispel(); // 트윈 없이 그냥 없어져 있다 — "원래 없던 것이다"
-    hud.say(TEXT.spotOk, 3000);
-    return;
-  }
-  // 흔적을 전부 직시한 뒤의 재지적은 무반응 (avert만 남은 구간에서는 빈 지적 비용이 그대로)
-  if (anomalies.some((a) => a.rule === 'gaze') && unchecked.length === 0) return;
-  // 빈 지적 — 과잉 의심의 비용. 통증과 함께 가로등이 어두워진다 (즉각 인과, theory §9)
-  depth += CONFIG.wasteDepthCost;
-  applyDepth(refs, depth);
-  applyPain(depth);
-  hud.say(TEXT.spotWaste, 3000);
-  if (depth >= CONFIG.depthLimit) void softFail();
-}
-
-input.onPoint = (x, y) => tryPoint(x, y);
 
 // ---------- 걷기 버튼 (모바일 #walk-btn) — 홀드는 전진, 쥔 채로 끌면 그쪽으로 ----------
 // 홀드 = 걷기, 손을 떼면 그 자리에서 관찰 (responsive-design §1).
@@ -894,9 +772,6 @@ function updateWalk(dt: number) {
   // 안전망으로 막힌 끝 앞에서만 멈춘다 (연출이 안 걸리는 예외 상황 대비)
   player.z = Math.min(TUNNEL_LEN - 0.7, player.z);
 
-  // 지적 쿨다운
-  spotCooldown = Math.max(0, spotCooldown - dt);
-
   // ---------- 튜토리얼 자막 — 본 것을 본 자리에서 (v0.11.11) ----------
   // 한꺼번에 쏟지 않는다: 정류장에서 "힘든 하루였다", 신호등 앞에서 "현수막이 보인다",
   // 건너고 나서 "감자튀김이다". 걸음이 문장을 끌고 간다
@@ -980,21 +855,12 @@ function updateWalk(dt: number) {
   // 심박은 눈을 감아도 들리고, 물러나면 함께 잦아든다
   audio.setStare(stare / CONFIG.avertGrabSec);
 
-  // 온보딩 힌트 — 걷기 힌트는 몇 걸음 걸으면 해제, 직시 힌트는 첫 흔적 접근 시 한 번
+  // 온보딩 힌트 — 걷기 힌트는 몇 걸음 걸으면 해제 (직시 힌트는 v0.11.50에 사라졌다:
+  // 짚는 동사가 없으므로 흔적 앞에서 가르칠 것이 없다)
   if (stageOf(night).onboarding) {
     if (!onboard.move && onboard.hintZ - player.z > 6) {
       onboard.move = true;   // 6m를 직접 걸어보면 조작을 익힌 것으로 본다
       hud.hideHint();
-    }
-    if (onboard.move && !onboard.gaze) {
-      const near = anomalies.some(
-        (a) => a.rule === 'gaze' && !checked.has(a.id) &&
-          targetDistance(refs.hit[a.effect]) < 12,
-      );
-      if (near) {
-        onboard.gaze = true;
-        hud.showHint(usesTouch() ? TEXT.hintGazeTouch : TEXT.hintGazePc, 5600);
-      }
     }
     // 사람 형태 첫 조우 — 붙잡히기 전에(응시 누적 거리 11m보다 멀리서) 규칙을 알려준다
     if (onboard.move && !onboard.avert) {
@@ -1050,8 +916,7 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.1); // 백그라운드 복귀 시 델타 클램프 (responsive-design §4)
   time += dt;
   if (phase === 'walk') updateWalk(dt);
-  hud.setReticle(phase === 'walk'); // 지적 크로스헤어 — 걷는 동안만
-  admin.update();                   // 관리자 HUD (꺼져 있으면 즉시 반환)
+  admin.update();                 // 관리자 HUD (꺼져 있으면 즉시 반환)
   updateWorld(refs, time);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
@@ -1205,50 +1070,18 @@ window.addEventListener('resize', () => {
 });
 
 // 헤드리스 플레이테스트 훅 — 상태 읽기 전용 (development.md '검증 방법', 밸런싱 실측용)
-// 예외: debugSpot은 ?a= 디버그 모드 한정의 검증용 조작 훅 (지적을 결정적으로 재현)
+// v0.11.50부터 **조작 훅이 하나도 없다** — 짚는 입력이 사라졌으므로 검증은 키보드로만 한다
 (window as unknown as Record<string, unknown>).__fries = {
   state: () => ({
     phase, mode: walkMode, night, done, total, theme, depth, stretches, swarm,
-    active: anomalies.length, checked: checked.size,
+    active: anomalies.length,
     avert: anomalies.filter((a) => a.rule === 'avert').length,
-    // 아직 안 짚은 **직시** 대상까지의 최단 거리 (없으면 null).
-    // 자동 플레이가 "언제 짚어야 하는가"를 알 유일한 방법 — active/checked 차이만 보면
-    // avert 부류가 영원히 checked에 안 들어가서 무한히 헛짚는다 (playthrough.mjs)
-    gazeNear: (() => {
-      const t = nearestGaze();
-      return t ? Math.round(t.dist * 10) / 10 : null;
-    })(),
-    // 그 대상이 화면 어디에 있는가 — 정규화 좌표(0~1, 좌상단 원점).
-    // 자동 플레이가 **조준하고 한 번 짚게** 하려면 필요하다. 이게 없으면 정면만 두들기게 되고,
-    // 바닥의 핏자국처럼 시선 아래 있는 흔적은 영영 못 짚어 빈 지적만 쌓인다 (실측에서 soft fail)
-    gazeAim: (() => {
-      const t = nearestGaze();
-      if (!t) return null;
-      t.obj.getWorldPosition(projPos);
-      projPos.project(camera);
-      if (projPos.z >= 1) return null;                       // 카메라 뒤
-      return {
-        x: Math.round(((projPos.x + 1) / 2) * 1000) / 1000,
-        y: Math.round(((1 - projPos.y) / 2) * 1000) / 1000,
-      };
-    })(),
-    // **외면** 대상까지의 최단 거리와 화면 위치 — gazeNear/gazeAim의 대칭짝 (v0.11.42).
-    // 손가락질 판정이 정타·거리 조건을 갖게 되면서, 그 임계를 **실측으로** 확인하려면
-    // "지금 저 형체가 몇 m에 있고 화면 어디인가"를 헤드리스가 알아야 한다
+    // **외면** 대상까지의 최단 거리 — 응시 임계(config.avertDistance)를 실측으로 확인하는 값.
+    // 직시 쪽 짝(`gazeNear`/`gazeAim`)은 v0.11.50에 사라졌다: 짚을 것이 없으므로
+    // 자동 플레이도 "언제 짚는가"를 알 필요가 없다
     avertNear: (() => {
       const t = nearestAvert();
       return t ? Math.round(t.dist * 10) / 10 : null;
-    })(),
-    avertAim: (() => {
-      const t = nearestAvert();
-      if (!t) return null;
-      t.obj.getWorldPosition(projPos);
-      projPos.project(camera);
-      if (projPos.z >= 1) return null;                       // 카메라 뒤
-      return {
-        x: Math.round(((projPos.x + 1) / 2) * 1000) / 1000,
-        y: Math.round(((1 - projPos.y) / 2) * 1000) / 1000,
-      };
     })(),
     stare: Math.round(stare * 100) / 100,
     green: isGreen(time),                                        // 보행 신호 (차도 검증용)
@@ -1267,16 +1100,9 @@ window.addEventListener('resize', () => {
      *  구간을 걸어서 도달하려면 이상현상 하나 재는 데 1분이 걸린다 (구간 전환 ×4) */
     jump: (j: Parameters<typeof adminHost.jump>[0]) => adminHost.jump(j),
   },
+  // 지적 훅(`debugSpot`·`debugSpotAt`)은 v0.11.50에 사라졌다 — 짚는 입력 경로가 없다
   ...(DEBUG_ANOMALY !== null
-    ? {
-        debugSpot: () => tryPoint(window.innerWidth / 2, window.innerHeight / 2, true),
-        // **실제 입력 경로**로 짚는다 (force 없음) — 조준 정타·거리 조건을 그대로 통과시킨다.
-        // debugSpot은 그 둘을 건너뛰므로 손가락질 임계를 검증할 수 없다 (v0.11.42).
-        // 인자는 state().avertAim/gazeAim과 같은 정규화 좌표(0~1, 좌상단 원점)
-        debugSpotAt: (nx: number, ny: number) =>
-          tryPoint(nx * window.innerWidth, ny * window.innerHeight),
-        occlusion: () => occlusionReport(), // 가림 검사 (배치 3원칙 ② 검증)
-      }
+    ? { occlusion: () => occlusionReport() } // 가림 검사 (배치 3원칙 ② 검증)
     : {}),
 };
 

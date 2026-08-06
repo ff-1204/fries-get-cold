@@ -7,15 +7,14 @@ import assert from 'node:assert/strict';
 import { CONFIG } from './config.ts';
 import { tasteFromStretches, simulateNight, swarmAfterStretches, activeCount } from './balance.ts';
 
-// 증식 (game.md 판정): 확인 없이 지나칠수록 동시 이상이 늘어난다 — 상한 1+swarmMax
-test('증식 — 지나침 0회=1개, 1회=2개, 2회 이상=3개 상한', () => {
+// 증식 (game.md): 늘어날수록 동시 이상이 늘어난다 — 상한 1+swarmMax
+test('증식 — 늘어남 0회=1개, 1회=2개, 2회 이상=3개 상한', () => {
   assert.equal(activeCount(swarmAfterStretches(0)), 1);
   assert.equal(activeCount(swarmAfterStretches(1)), 2);
   assert.equal(activeCount(swarmAfterStretches(2)), 1 + CONFIG.swarmMax);
   assert.equal(activeCount(swarmAfterStretches(5)), 1 + CONFIG.swarmMax);
 });
 
-// 판정 비대칭 (game.md): 늘어남(놓침) 리스크 vs 빈 지적 비용
 test('무결점 밤 — 깊이 0, 아직 따뜻하다(바삭)', () => {
   const r = simulateNight({});
   assert.equal(r.depth, 0);
@@ -24,11 +23,11 @@ test('무결점 밤 — 깊이 0, 아직 따뜻하다(바삭)', () => {
   assert.equal(r.total, CONFIG.segments);
 });
 
-test('정확한 지적은 무비용 — 깊이도 거리도 지불하지 않는다 (공정성)', () => {
-  const spotless = simulateNight({});
-  // 지적은 NightPlan에 항이 없다 = 모델상 비용 0. 빈 지적만 깊이를 지불한다
-  assert.equal(spotless.depth, 0);
-  assert.equal(simulateNight({ wastes: 1 }).depth, CONFIG.wasteDepthCost);
+// ⭐ 이상현상을 지나치는 것에는 대가가 없다 (v0.11.50 — 클릭 판정 제거).
+// 깊이를 쌓는 항이 늘어남 하나뿐임을 모델에 박아 둔다: 항이 다시 늘면 이 테스트가 깨진다
+test('깊이를 쌓는 것은 늘어남뿐 — 지나침에는 대가가 없다', () => {
+  assert.equal(simulateNight({}).depth, 0);
+  assert.equal(simulateNight({ stretches: 1 }).depth, CONFIG.stretchDepthCost);
 });
 
 test('늘어남 1회 = 남은 거리 +1, 미지근', () => {
@@ -38,20 +37,15 @@ test('늘어남 1회 = 남은 거리 +1, 미지근', () => {
   assert.equal(r.softFail, false);
 });
 
-test('늘어남 2회 + 빈 지적 1회 = 깊이 5 — 아직 걸을 수 있다', () => {
-  const r = simulateNight({ stretches: 2, wastes: 1 });
-  assert.equal(r.depth, 5);
+test('늘어남 2회 = 깊이 4 — 아직 걸을 수 있다', () => {
+  const r = simulateNight({ stretches: 2 });
+  assert.equal(r.depth, 4);
   assert.equal(r.softFail, false);
 });
 
 test('늘어남 3회 = 깊이 한계 — 골목 입구 리셋', () => {
   const r = simulateNight({ stretches: 3 });
   assert.equal(r.depth, CONFIG.depthLimit);
-  assert.equal(r.softFail, true);
-});
-
-test('빈 지적만 6회 = 리셋 — 전부 의심하면 밤이 끝나지 않는다', () => {
-  const r = simulateNight({ wastes: 6 });
   assert.equal(r.softFail, true);
 });
 

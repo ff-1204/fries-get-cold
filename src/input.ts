@@ -1,6 +1,8 @@
 // 입력 추상화 레이어 — docs/responsive-design.md §1
 // PC: Pointer Lock + WASD / 모바일: 걷기 버튼 홀드(전진, **쥔 채로 끈 방향으로 게걸음·뒷걸음**) +
-//     화면 어디든 드래그(시점) + 탭(지적)
+//     화면 어디든 드래그(시점)
+// ⭐ **동사는 걷기 하나다** (v0.11.50) — 짚는 입력(클릭·탭 → onPoint)이 통째로 사라졌다.
+// 마우스 클릭에 남은 일은 포인터락 재획득뿐이고, 터치의 탭에는 아무 일도 일어나지 않는다
 // 달리기 없음 (v0.11.2) — 이 게임의 속도는 하나뿐이다
 // 길이 직진뿐이라 조향이 필요 없다 — 조이스틱·반분할 폐지 (v0.7.0)
 // 기기 고정 감지 대신 pointerType으로 런타임 전환
@@ -12,9 +14,6 @@ export class Input {
   yaw = 0;
   pitch = 0;
 
-  /** 지적 콜백 — 화면 좌표(px). PC(포인터락)는 화면 중앙, 모바일은 탭 지점 (main.ts tryPoint) */
-  onPoint: ((x: number, y: number) => void) | null = null;
-
   /** 걷기 버튼 (모바일 #walk-btn) — main.ts가 홀드/끈 방향을 넣는다. 키보드와 같은 −1/0/+1 */
   touchForward = 0;
   touchStrafe = 0;
@@ -23,9 +22,8 @@ export class Input {
   private canvas: HTMLCanvasElement;
   private locked = false;
 
-  // 터치 상태 — 시점 드래그는 화면 어디서든 (첫 손가락), 탭은 지적 후보
+  // 터치 상태 — 시점 드래그는 화면 어디서든 (첫 손가락)
   private lookTouch: { id: number; x: number; y: number } | null = null;
-  private tapCandidate: { id: number; x: number; y: number; t: number } | null = null;
   usesTouch = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -64,16 +62,12 @@ export class Input {
 
   private onPointerDown(e: PointerEvent) {
     if (e.pointerType === 'mouse') {
-      if (!this.locked) {
-        this.canvas.requestPointerLock?.();
-        return;
-      }
-      // 포인터락 중 클릭 = 화면 중앙(크로스헤어)을 짚는다
-      this.onPoint?.(window.innerWidth / 2, window.innerHeight / 2);
+      // 클릭에 남은 일은 포인터락 재획득뿐이다 (v0.11.50 — 짚는 동사 제거).
+      // 락이 걸린 상태의 클릭은 **아무 일도 하지 않는다**
+      if (!this.locked) this.canvas.requestPointerLock?.();
       return;
     }
     this.usesTouch = true;
-    this.tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
     if (!this.lookTouch) {
       this.lookTouch = { id: e.pointerId, x: e.clientX, y: e.clientY };
     }
@@ -88,14 +82,6 @@ export class Input {
   }
 
   private onPointerEnd(e: PointerEvent) {
-    // 짧게, 거의 안 움직인 터치 = 탭 = 지적 (드래그 이동/시점과 자연 구분)
-    if (this.tapCandidate && e.pointerId === this.tapCandidate.id) {
-      const c = this.tapCandidate;
-      const quick = performance.now() - c.t < 350;
-      const still = Math.hypot(e.clientX - c.x, e.clientY - c.y) < 14;
-      if (quick && still) this.onPoint?.(e.clientX, e.clientY);
-      this.tapCandidate = null;
-    }
     if (this.lookTouch && e.pointerId === this.lookTouch.id) this.lookTouch = null;
   }
 

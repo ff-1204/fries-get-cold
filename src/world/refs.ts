@@ -107,7 +107,9 @@ export interface Theme5Refs {
 export interface SegmentRefs
   extends CorridorRefs, Theme1Refs, Theme2Refs, Theme3Refs, Theme4Refs, Theme5Refs {
   themes: THREE.Group[]; // index = 구간 - 1
-  /** 지적(포인팅) 히트 대상 — effect별 클릭 가능한 사물 (main.ts tryPoint 판정) */
+  /** effect별 대상 메시 — 응시(외면) 조준·거리와 가림/가시성 검증이 읽는다.
+   *  ⚠ 이름의 `hit`은 클릭 판정의 잔재다 (v0.11.50에 짚기가 사라졌다).
+   *  응시 판정까지 빠지면 검증 전용이 되므로 그때 함께 개명한다 */
   hit: Record<AnomalyEffect, THREE.Object3D[]>;
 }
 
