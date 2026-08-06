@@ -36,10 +36,8 @@
       border-left: 2px solid rgba(255, 178, 62, 0.35); padding-left: 9px; /* 이정표 — 웜 = 목표 (visual-polish §3) */
       transition: opacity 0.32s; /* 늘어남 카운터 교체 페이드 (hud.setStatusStretch) */
     }
-    #reticle { /* 지적 크로스헤어 — 어포던스: 짚을 수 있다는 신호 (걷는 동안만, hud.setReticle) */
-      position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px;
-      border-radius: 50%; background: #d8d8e0; opacity: 0; transition: opacity 0.4s;
-    }
+    /* 크로스헤어(#reticle)는 v0.11.50에 사라졌다 — 짚을 것이 없는 화면의 중앙 점은
+       거짓 어포던스다. 화면 한가운데를 비워 두는 것이 "걷기만 하면 된다"의 표시다 */
     #msg {
       position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%);
       max-width: min(86vw, 640px); text-align: center; white-space: pre-line;
@@ -180,8 +178,8 @@
     }
 
     /* ---------- 걷기 버튼 (모바일) — 직진뿐이라 조향이 필요 없다: 누르는 동안 걷는다 ----------
-       왼손 엄지 = 걷기 홀드, 오른손(화면 어디든) 드래그 = 시점, 탭 = 확인.
-       달리기 없음 — 조작은 홀드 하나 (v0.11.2). 조이스틱 폐지 (responsive-design §1) */
+       왼손 엄지 = 걷기 홀드, 오른손(화면 어디든) 드래그 = 시점. **탭은 아무것도 하지 않는다**
+       (v0.11.50 — 짚는 동사 제거). 달리기 없음, 조이스틱 없음 (responsive-design §1) */
     #walk-btn {
       pointer-events: auto; display: none; position: absolute;
       left: max(22px, env(safe-area-inset-left)); bottom: max(26px, env(safe-area-inset-bottom));
@@ -195,24 +193,21 @@
     }
     #walk-btn.held { border-color: rgba(255, 178, 62, 0.6); background: rgba(18, 20, 32, 0.55); }
 
-    /* 터치 기기: 걷기 버튼 표시, 크로스헤어 숨김(지적은 탭 지점 — 중앙 점은 오해를 만든다),
-       안내 문구는 터치용으로 교체 */
+    /* 터치 기기: 걷기 버튼 표시, 안내 문구는 터치용으로 교체 */
     .touch-only { display: none; }
     @media (pointer: coarse) {
       #walk-btn { display: flex; }
-      #reticle { display: none; }
       .pc-only { display: none; }
       .touch-only { display: block; }
     }
   </style>
-  <script type="module" crossorigin src="/fries-get-cold/assets/index-Cj6V7q1K.js"></script>
+  <script type="module" crossorigin src="/fries-get-cold/assets/index-DRH71UDo.js"></script>
 </head>
 <body>
   <div id="app"></div>
 
   <div id="hud">
     <div id="status"></div>
-    <div id="reticle"></div>
     <div id="msg"></div>
     <div id="touch-hint"></div>
     <button id="walk-btn" aria-label="누르는 동안 걷기">걷는다</button>
@@ -263,8 +258,8 @@
       </div>
       <!-- 조작 전체 참조 — 기본 학습은 밤 1 인게임 힌트가 담당, 여기는 다시 볼 사람용 -->
       <div class="set-item">
-        <div class="set-help pc-only">조작 — WASD 이동 · 마우스 시점 · 클릭 = 직시 · M 소리</div>
-        <div class="set-help touch-only">조작 — 버튼 홀드 = 걷기 · 드래그 = 시점 · 탭 = 직시</div>
+        <div class="set-help pc-only">조작 — WASD 이동 · 마우스 시점 · M 소리</div>
+        <div class="set-help touch-only">조작 — 버튼 홀드 = 걷기 · 드래그 = 시점</div>
       </div>
     </div>
     <div class="fineprint">진행 기록과 설정은 이 기기의 브라우저에만 저장됩니다.</div>
