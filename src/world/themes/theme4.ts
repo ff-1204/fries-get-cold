@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { type Build, type Theme4Refs } from '../refs';
 import {
-  box, boxOf, bannerTexture, surfaceMat, asphaltTexture, wallTexture, friesAdTexture, missingAdTexture,
+  box, boxOf, surfaceMat, asphaltTexture, wallTexture, friesAdTexture, missingAdTexture,
   ASPHALT_M, WALL_M, type SharedMats,
 } from '../kit';
 import { buildRoadTunnel } from '../prefab';
@@ -105,10 +105,18 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   // ⚠ 레퍼런스의 시간표판은 **흰 종이**다 (0x8d94a2 중간 회색 → 밝게). 부스 안이 환한 이유가
   //   천장·광고·이 판 셋이 다 밝기 때문이고, 그 대비로 골조가 검게 읽힌다
   box(0.04, 0.72, 1.1, 0xd2d6dc, BACK_X - 0.05, 1.58, Z0, t4);
-  // ⭐ 정류장 이름 세로 띠 — 레퍼런스에서 왼쪽 기둥에 붙은 그 파란 막대.
-  //   골목을 향해(−x) 세운다. 한색이라 의미색 고정(웜=목표 / 저채도 적=이상)을 건드리지 않는다
-  const nameStrip = new THREE.MeshStandardMaterial({ color: 0x1b3a6b, roughness: 0.45 });
-  nameStrip.emissive.setHex(0x28518f);
+  // ⭐ 정류장 이름 세로 띠 — 레퍼런스에서 왼쪽 기둥에 붙은 그 막대. 골목을 향해(−x) 세운다.
+  //
+  // ⚠⚠ **파랑 → 노랑으로 바꿨다** (v0.11.61 — 요청). 짚어 둘 것이 있다:
+  //   원래 한색(남색 `#1b3a6b`)이었던 이유가 **의미색 고정**이었다 (visual-polish §3):
+  //   웜은 **안전·목표 전용**이고 이 골목에서 목표는 FF-1204 하나다. 노랑은 그 규칙의 색이다.
+  //   ⭐ 그래서 발광을 **한 단 낮춰** 목표와 경쟁하지 않게 했다:
+  //     FF-1204 간판 발광 `#ffffff` · 가게 안 기름 `#ffb23e` ↔ 이 띠 `#8a7024` (그보다 훨씬 어둡다)
+  //   즉 '노란 물건'이지 '노란 빛'은 아니다 — 칠한 띠가 약하게 비치는 정도다.
+  // ⚠ 밤에 이 띠가 눈에 걸리면(가로등이 비추므로) 발광을 아예 빼고 칠한 색만 남기면 된다.
+  //   그러면 팔레트 규칙과 완전히 어긋나지 않는다 — 색이 있어도 **빛나지 않으면** 신호가 아니다
+  const nameStrip = new THREE.MeshStandardMaterial({ color: 0x6a5a1c, roughness: 0.45 });
+  nameStrip.emissive.setHex(0x8a7024);
   boxOf(nameStrip, 0.03, 1.15, 0.16, HW - 0.4, 1.62, Z0 - (BOOTH_Z / 2 - 0.12), t4);
 
   // 부스 형광등 — **정류장은 제 빛을 가진다.**
@@ -226,54 +234,12 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   //   받침이 부스보다 **짧아져** 양 끝 광고판이 허공에 선 것처럼 됐다
   box(0.5, 0.14, BOOTH_Z + 1.6, 0x232838, HW - 0.25, 0.07, Z0, t4);
 
-  // 개업 현수막 — **다리 밑 터널 위, 난간에 걸었다** (v0.11.28).
-  // 왜 옮겼나: 벽면 밀착(v0.11.13)은 통행을 안 덮는 대신 **다가갈수록 비스듬해져
-  // 오히려 안 읽혔다** (모바일 실측: 12m 또렷 → 4m 프레임 밖). 난간에 걸면 정면을 향해
-  // 접근 내내 읽히고, 골목의 소실점(터널 입구)에 놓여 눈이 이미 가 있는 자리를 쓴다.
-  // 고가·지하차도 난간의 개업 현수막은 이 동네의 실제 그림이기도 하다.
-  // 통행 위를 덮지 않는다는 v0.11.13의 조건은 그대로다 — y 4.7~5.8, 머리 한참 위.
-  // ⚠ 터널은 공용 지오메트리지만 이 현수막은 **t4 소유**다 (구간 4에서만 걸려 있다)
-  // ⭐ **처지게 만든다** (v0.11.61) — 완전한 평면은 '걸린 현수막'이 아니라 '떠 있는 판'이다.
-  // 비닐은 양 끝 두 점에 묶여 가운데가 내려앉는다. 가로 12칸으로 나눠 포물선으로 눌러 주면
-  // 걷는 동안 각도가 바뀌면서 **면이 살아 있는 것**으로 읽힌다 — 그림자도 같이 휜다.
-  // ⚠ 양 끝(u=±1)의 높이는 그대로 둔다: 난간에 묶인 지점이라 거기가 움직이면 붕 뜬다.
-  // ⚠ 처짐은 **텍스처의 그로밋 위치와 맞아야** 한다 (귀퉁이가 가장 높은 자리)
-  // ⚠⚠ **폭은 골목 안폭에 갇힌다** (v0.11.61 좌표 검산 — 관리자 모드 제보).
-  //   벽이 x ±(HW+0.5)에 두께 1이라 **안쪽면이 x ±3.0**, 즉 통과 가능한 안폭은 6.0뿐이다.
-  //   그런데 현수막이 6.4였다 → 양 끝이 각각 **0.2m씩 벽에 박혀** 있었다 (v0.11.28에 난간으로
-  //   옮긴 뒤로 계속). 어두운 붉은색이던 동안은 묻힌 끝이 눈에 안 띄었고, 미색 + 처짐이 되면서
-  //   드러났다. ⭐ **양쪽 0.2m를 띄운다** — 끝이 벽에 닿지 않고 난간에 묶인 것으로 읽힌다.
-  //   높이도 같은 비율로 줄여 캔버스 비(1024×176 = 5.82)를 지킨다: 안 그러면 글자가 눕는다
-  const BW = 5.6;
-  const BH = 0.96;
-  const SAG = 0.13;
-  const bannerGeo = new THREE.PlaneGeometry(BW, BH, 12, 2);
-  const bp = bannerGeo.attributes.position;
-  for (let i = 0; i < bp.count; i++) {
-    const u = bp.getX(i) / (BW / 2);                  // −1 … +1
-    bp.setY(i, bp.getY(i) - (1 - u * u) * SAG);       // 가운데가 가장 많이 내려앉는다
-    // ⚠ 배부른 방향을 **앞(+z, 보는 쪽)** 으로 뒤집었다 (v0.11.61). 처음엔 −z로 눌러
-    //   가운데가 난간·상판 보 쪽으로 파고들고 있었다 — 물리적으로도 바람은 앞으로 부풀린다
-    bp.setZ(i, bp.getZ(i) + (1 - u * u) * 0.05);
-  }
-  bannerGeo.computeVertexNormals();                   // 법선을 다시 — 안 하면 휘어도 평평하게 음영진다
-  const bannerMat = new THREE.MeshStandardMaterial({ map: bannerTexture(), roughness: 0.95 });
-  // ⚠ 한 장짜리 면이라 그림자를 앞뒤 어느 쪽으로 드리울지 정해 줘야 한다 (기본은 뒷면)
-  bannerMat.shadowSide = THREE.DoubleSide;
-  const banner = new THREE.Mesh(bannerGeo, bannerMat);
-  // 높이는 **다리 난간**(y 4.7~5.8). 갱구 바로 위(y4.5)로 내려봤더니 두 가지가 나빠졌다:
-  // ① 낮을수록 근접에서 프레임에 오래 남아 HUD를 더 가린다 ② 갱구 상인방(y 3.4~4.0)과
-  // y가 겹쳐 아랫줄 글자가 상한다. 난간 높이에서는 상인방과 y가 안 겹쳐 가려지지 않는다
-  // ⚠ **어느 쪽 갱구에 거느냐는 진행 방향이 정한다** (v0.11.36, setBannerSide).
-  //   현수막은 FF-1204를 가리키는 물건이다. 퇴근길은 가게로 **가는** 길이라 앞(-L)이 맞지만,
-  //   귀갓길은 가게에서 **나오는** 길이다 — 그런데 밤에도 앞에 걸려 있어서,
-  //   집 쪽을 향해 걷는 내내 가게 광고가 정면에 있었다. 앞뒤 터널은 거울상이라 뒤 난간도 같다
-  // ⚠ **앞으로 0.3m 더 내밀었다** (v0.11.61 좌표 검산). 0.25에서는 뒤에 있는 것들과 너무 붙었다:
-  //   상판 가장자리 보의 앞면이 z −35.79(y 4.09~4.71)인데 현수막이 −35.75였고, 처짐으로
-  //   내려온 아랫변(y 4.64~)이 그 y와 겹쳐 **가운데가 보에 파고들고** 있었다.
-  //   −L+0.55면 0.34m가 떠서 배부른 가운데까지 여유가 남는다
-  banner.position.set(0, 5.25, -L + 0.55);
-  t4.add(banner);
+  // ⚠⚠ **개업 현수막을 공용(prefab.ts)으로 올렸다** (v0.11.61 — 요청 "현수막 하나로").
+  //   여기(테마 4)에 있으면 t4의 자식이라 **먹자골목에서는 보이지 않는다** — 그래서 가게 쪽에도
+  //   같은 현수막을 따로 만들어 두 개가 됐고, 규격을 맞춰도 여전히 물건이 둘이었다.
+  //   ⭐ 공용으로 올리면 하나가 두 구간을 다 맡는다 (setBannerSide가 앞/뒤로 옮긴다).
+  // ⚠ 옮기면서 **좌우 되돌리기가 필요 없어졌다**: 여기 있을 때는 t4가 뒤집히니 글자를
+  //   되돌려야 했는데(setThemeMirror), 공용 그룹은 뒤집히지 않는다
 
   // ---------- H-016 벤치 위의 신발 한 켤레 (밤 4, 직시) ----------
   // H-010(계단 앞 신발)의 변주다. **같은 사물이 다른 자리에 있는 것**이 부재를 강화한다 —
@@ -295,7 +261,7 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
 
   return {
     group: t4,
-    refs: { trafficRed, trafficGreen, busFigure, banner, boothLight, boothTubeMat, acrossFigure, benchShoes },
+    refs: { trafficRed, trafficGreen, busFigure, boothLight, boothTubeMat, acrossFigure, benchShoes },
     hit: {
       traffic_red: trafficHeads,
       bus_figure: [busFigure],

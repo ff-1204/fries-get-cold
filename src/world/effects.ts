@@ -114,10 +114,16 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
     reset: (r) => { r.realtyMat.map = r.realtyTex[0]; },
     apply: (r) => { r.realtyMat.map = r.realtyTex[1]; },
   },
-  shop_typo: {
-    reset: (r) => { r.shopSignMat.map = r.shopTex[0]; r.shopSignMat.emissiveMap = r.shopTex[0]; },
-    apply: (r) => { r.shopSignMat.map = r.shopTex[1]; r.shopSignMat.emissiveMap = r.shopTex[1]; },
-  },
+  // ⚠⚠ **A-012(간판 오탈자)는 대상을 잃었다** (v0.11.61). 이 핸들러는 `shopSignMat.map`을
+  //   간판 텍스처(`shopTex`)로 갈아 오탈자를 만들었는데, 그 자리의 물건이 **개업 현수막**으로
+  //   바뀌었다 (prefab.ts — 간판 상자 → 현수막, 그리고 테마 4의 것과 하나로 합쳤다).
+  //
+  //   ⚠ **그대로 두면 매 구간 현수막 그림이 간판 텍스처로 덮인다** — `applyAnomalies`가
+  //   구간마다 **모든** effect의 `reset`을 부르기 때문이다 (이 파일 맨 아래). 즉 퇴역 effect의
+  //   reset도 매번 돌고, 그것이 현수막을 망가뜨린다. 실제로 그렇게 돌고 있었다.
+  //   ⭐ `shop_typo`는 풀에서 빠진 퇴역 effect이므로(data.ts) **아무 일도 하지 않게** 둔다.
+  //   되살릴 거라면 현수막용 텍스처 쌍(정상/오탈자)을 새로 만들어 여기에 물린다
+  shop_typo: { reset: () => {} },
   figure: {
     reset: (r) => { r.figure.visible = false; },
     apply: (r) => {

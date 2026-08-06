@@ -30,12 +30,25 @@ export interface CorridorRefs {
   carSignMat: THREE.MeshStandardMaterial;
   ambient: THREE.AmbientLight;   // 깊이 사다리 대상 (applyDepth)
   stretchMark: THREE.Mesh;          // 늘어남 반복 구간의 바닥 분필 자국 (인지 보장 4요소 ④)
+  /** 전봇대 4본 + 전선 전체 — **먹자골목에서는 통째로 숨긴다** (setMarketLight, 밤에도).
+   *  시장 골목에는 전봇대가 없고 그 머리 위는 시장의 전구줄이 맡는다.
+   *  ⚠ 전선만 남기면 매달릴 데가 없다 — 둘은 함께 숨겨야 한다 */
+  poles: THREE.Group;
+  /** 가로등 전체 (기둥·암·갓·광원) — 먹자골목 퇴근길에서는 통째로 숨긴다 (setMarketLight) */
+  lamp: THREE.Group;
   lampLight: THREE.PointLight;
   /** 가로등 등기구의 발광부 — 퇴근길에는 노을빛으로, 밤에는 원래 값으로 (setMorning) */
   lampHeadMat: THREE.MeshStandardMaterial;
   shopGlow: THREE.PointLight;
-  shopSign: THREE.Mesh;
-  shopSignMat: THREE.MeshStandardMaterial;
+  /** ⭐ 개업 현수막 — **공용이고, 하나다** (v0.11.61). FF-1204를 가리키는 물건이라
+   *  `setBannerSide`가 **가게가 있는 쪽 갱구**에 건다: 퇴근길은 앞(가게로 간다),
+   *  귀갓길은 뒤(가게에서 나왔다 — v0.11.36).
+   *
+   *  ⚠ 예전에는 테마 4 소유였고, 그래서 먹자골목(테마 5)에서는 보이지 않아 **가게 쪽에
+   *  같은 현수막을 하나 더** 만들어야 했다. 공용으로 올려 하나가 두 구간을 다 맡는다.
+   *  ⚠ 공용 그룹은 `setThemeMirror`가 뒤집지 않으므로 **좌우 되돌리기가 필요 없다** */
+  banner: THREE.Mesh;
+  bannerMat: THREE.MeshStandardMaterial;
   /** FF-1204 가게 — 개구부 너머. **퇴근길 도착에서만** 보인다 (v0.11.32).
    *  그 전에는 터널을 숨기면 개구부 너머가 빈 하늘이었다 */
   shopFront: THREE.Group;
@@ -45,7 +58,6 @@ export interface CorridorRefs {
   /** 뒤의 FF-1204 — **밤의 첫 구간에서만** 뒤 터널 대신 선다 (v0.11.35).
    *  "튀김을 먹고 나왔다"는 인트로와 뒤에 있는 것을 맞춘다 (setBackScene) */
   shopBack: THREE.Group;
-  shopTex: [THREE.CanvasTexture, THREE.CanvasTexture];    // A-012 간판 오탈자
   figure: THREE.Group;           // 전 구간: H-009 그림자 사람 (스폰 앵커 랜덤 — HUM)
 }
 
@@ -96,9 +108,10 @@ export interface Theme4Refs {
   trafficRed: THREE.MeshStandardMaterial[]; // A-011 (양쪽 빨간등)
   trafficGreen: THREE.MeshStandardMaterial[];
   busFigure: THREE.Group;                   // H-007 정류장의 앉은 형체
-  /** 개업 현수막 — FF-1204를 가리키는 물건이라 **가게가 있는 쪽 갱구**에 건다.
-   *  퇴근길은 앞(가게로 간다), 귀갓길은 뒤(가게에서 나왔다) — setBannerSide (v0.11.36) */
-  banner: THREE.Mesh;
+  // (`banner` — 개업 현수막은 v0.11.61에 **공용(CorridorRefs)** 으로 올라갔다. 테마 4의 자식이면
+  //  먹자골목에서 안 보여 가게 쪽에 같은 것을 하나 더 만들어야 했다)
+
+
   /** 부스 형광등 — 정류장이 가진 제 빛. 낮에는 꺼지고, 깊이에는 가로등보다 둔하게 반응한다
    *  (깊이 게이지는 어디까지나 가로등이다). H-007의 광원 보장을 겸한다 */
   boothLight: THREE.PointLight;
@@ -115,6 +128,15 @@ export interface Theme5Refs {
    *  겹쳐 두면 닫힌 쪽이 그대로 덮는다 (실측에서 아무것도 안 보였다) */
   openShutter: THREE.Group;
   closedShutter: THREE.Group;
+  /** ⭐ 글씨가 있는 간판들 (v0.11.61) — 시장 간판 여섯 + 게이트 이름판.
+   *
+   *  `setThemeMirror`가 테마 5를 뒤집을 때(`scale.x = -1`) **텍스처까지 좌우로 뒤집히므로**
+   *  글씨를 되돌려야 한다. ⚠ **그룹으로 묶어 되돌리면 위치까지 되돌아간다** — 벽에 붙은 간판이
+   *  뒤집힌 가게와 반대쪽 벽에 남는다. 그래서 **메시 자신의 `scale.x`** 를 뒤집는다:
+   *  스케일은 자기 원점 기준이라 자리는 그대로고 면 방향·UV만 되돌아간다.
+   *  (현수막 `banner`가 그룹 방식으로 되는 것은 x=0 중앙선이라 자리가 안 움직이기 때문이다) */
+  lettering: THREE.Mesh[];
+  // (`globeMat` — 시장 전구줄의 공용 재질이었다. v0.11.61에 전구줄을 걷어내며 함께 지웠다)
 }
 
 export interface SegmentRefs

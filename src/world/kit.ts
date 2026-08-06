@@ -337,6 +337,37 @@ export function missingAdTexture(): THREE.CanvasTexture {
   });
 }
 
+/** 시장 간판 (v0.11.61) — 먹자골목 가게 전면에 붙는 글씨 판.
+ *
+ *  ⭐ **시장을 시장으로 만드는 것은 글씨의 밀도다.** 레퍼런스(아케이드 전통시장) 두 장에서
+ *  벽면은 전부 간판이고, 그 간판마다 큰 한글이 박혀 있다. 여태 이 골목의 간판은
+ *  **글씨 없는 검은 상자**였다 — 밤에는 실루엣으로 통했지만 퇴근길(밝은 구간)에서는 빈 판이었다.
+ *
+ *  ⚠⚠ **발광은 넣지 않는다.** 이 구간의 정상은 '전부 소등'이고 유일하게 켜진 것은 FF-1204다
+ *  (웜 10% 원칙 — theme5 주석). 간판은 **칠한 물건**이라 낮에는 빛을 받아 읽히고 밤에는 어둡다.
+ *  ⭐ 덤: 텍스처가 있는 재질은 노을 보정에서 데칼로 취급되어 제외되므로(runtime.ts
+ *  setDuskMaterials) 칠한 색이 두 시간대에 그대로 남는다 — 간판은 시간대를 타지 않는 것이 맞다.
+ *
+ *  ⚠ 바탕에 **저채도 적(`#7a1010` 계열)은 쓰지 않는다** — 이상현상 전용색이다 (visual-polish §3).
+ *    시장 간판의 빨강이 그립긴 하지만, 그 색은 이 게임에서 이미 다른 말을 하고 있다 */
+export function marketSignTexture(text: string, ground: string, ink: string): THREE.CanvasTexture {
+  const w = 512;
+  const h = 128;
+  return canvasTex(w, h, (c) => {
+    c.fillStyle = ground;
+    c.fillRect(0, 0, w, h);
+    c.strokeStyle = ink;                      // 테두리 — 아크릴 간판의 프레임
+    c.lineWidth = 6;
+    c.strokeRect(9, 9, w - 18, h - 18);
+    c.textAlign = 'center';
+    c.fillStyle = ink;
+    // 글자 수에 맞춰 크기를 잡는다 — 두 글자와 네 글자가 같은 크기면 판이 어색해진다
+    const size = text.length <= 2 ? 74 : text.length === 3 ? 64 : 54;
+    c.font = `bold ${size}px ${KR_FONT}`;
+    c.fillText(text, w / 2, h / 2 + size * 0.36);
+  });
+}
+
 /** 택시 갓등 (v0.11.61) — 지붕 위의 그 상자. **차를 택시로 만드는 것은 이것 하나다.**
  *
  *  차체는 이미 검정(`0x161a24`)이었다 — 검은 세단과 검은 택시를 가르는 것은 색이 아니라

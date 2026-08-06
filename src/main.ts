@@ -16,7 +16,7 @@ import {
   createWorld, applyAnomalies, applyDepth, setStretchMark, setShopNear, setBackScene, setBannerSide,
   setThemeMirror,
   setSegmentTheme,
-  setMorning, type TimeOfDay, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
+  setMorning, type TimeOfDay, setMarketLight, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
   setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z, TUNNEL_IN_HALF,
   ROAD_Z, ROAD_HALF, STOP_LINE_Z, MAIN_GAP_HALF, SPAWN_ANCHORS, CAR_SEC,
 } from './world';
@@ -318,6 +318,10 @@ function rollSegment(stretchStatus = false, spawnZ = -0.5) {
   // 첫 구간은 맑은 늦은 오후, 마지막(가게 앞)은 해가 넘어간 노을. 전환은 터널의 암흑 속이라
   // 화면에 보이지 않는다 (setTunnelDark). 관리자 모드의 강제 낮(`j.daylight`)은 여기 안 걸린다
   if (tutorial) setMorning(refs, true, tutorialTod());
+  // ⭐ 먹자골목의 조명·전봇대 — 조건이 **둘로 갈린다** (runtime.ts setMarketLight 주석):
+  //   전봇대·전선은 시장이면 **밤에도** 숨기고(장소의 사실),
+  //   가로등을 숨기고 시장 등을 켜는 것은 **퇴근길에만**(밤에는 깊이 게이지 + H-008 광원)
+  setMarketLight(refs, theme === CONFIG.segments, tutorial);
   applyDepth(refs, depth);            // 꺼져가는 빛 — 이상 리셋보다 먼저 (lampBase 기준 제공)
   applyPain(depth);                   // 통증 비네트 동기화
   applyAnomalies(refs, anomalies.map((a) => a.effect));

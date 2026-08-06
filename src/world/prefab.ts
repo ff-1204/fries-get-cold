@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { MAIN_GAP_HALF } from '../config';
 import { type CorridorRefs } from './refs';
 import {
-  box, boxOf, concrete, shopSignTexture, asphaltTexture, wallTexture, surfaceMat,
+  box, boxOf, concrete, bannerTexture, asphaltTexture, wallTexture, surfaceMat,
   duskSkyTexture, afternoonSkyTexture, taxiSignTexture, ASPHALT_M, WALL_M,
   type SharedMats,
 } from './kit';
@@ -434,7 +434,15 @@ export function createCorridor(
   }
 
   // 전신주와 전선 — 하늘을 가른다 (v0.11.54). 벽과 같은 콘크리트 계열로 두어 동네가 이어지게
-  buildPolesAndWires(group, { pole: concrete(0x2b3040), arm: concrete(0x232838) });
+  // ⭐ **한 그룹으로 묶는다** (v0.11.61) — 먹자골목에서는 통째로 숨긴다 (setMarketLight):
+  //   시장 골목에는 전봇대가 서 있지 않고, 그 자리의 머리 위는 **시장의 전구줄**이 맡는다.
+  //   ⚠ 전선만 남기면 매달릴 데가 없어지므로 전봇대와 전선은 **함께** 숨겨야 한다.
+  //   ⚠ 이건 밤에도 숨긴다 — "이 길에는 전봇대가 없다"는 장소의 사실이지 시간대가 아니다.
+  //     v0.11.54가 "하늘을 가르는 선은 밤에는 밤대로 불안하다"며 밤에도 남긴 것을 이 구간에서만
+  //     내주는 셈인데, 대신 그 구간에는 전구줄이 같은 높이를 지나간다
+  const poles = new THREE.Group();
+  group.add(poles);
+  buildPolesAndWires(poles, { pole: concrete(0x2b3040), arm: concrete(0x232838) });
   // 초록 — 사람이 사는 동네의 표시 (v0.11.55)
   // ⚠⚠ **일단 껐다** (v0.11.61, 요청). 담 위로 넘어온 나무 셋이 마지막 초록이었고
   //   (화분 다섯은 v0.11.58에 이미 걷어냈다) 이제 골목에 **채도 있는 것이 하나도 없다.**
@@ -481,15 +489,20 @@ export function createCorridor(
   // ⚠ 예전에는 기둥 하나(0.15×5×0.15)뿐이었고 광원은 x 2.1·y 4.8에 따로 떠 있었다.
   //   기둥과 빛이 이어져 보이지 않아 **정체를 알 수 없는 막대**로 읽혔다.
   //   암(arm)과 등기구를 달아 빛이 나오는 자리를 눈에 보이게 잇는다 — 광원 위치는 그대로다
+  // ⭐ **한 그룹으로 묶는다** (v0.11.61) — 먹자골목의 퇴근길에서는 이 등을 통째로 숨긴다
+  //   (아케이드 시장은 제 등으로 밝다 — runtime.ts setMarketLight).
+  //   그룹으로 숨기면 three가 서브트리째 건너뛰므로 **광원 비용도 0**이 된다
   const lampZ = -L * 0.45;
-  const lampPole = box(0.15, 5, 0.15, 0x3a4157, HW - 0.4, 2.5, lampZ, group);
-  box(0.62, 0.1, 0.1, 0x3a4157, HW - 0.7, 4.95, lampZ, group);        // 등을 내미는 암
-  const lampHead = box(0.5, 0.14, 0.26, 0x2a3142, HW - 0.9, 4.86, lampZ, group); // 등기구 갓
+  const lamp = new THREE.Group();
+  group.add(lamp);
+  const lampPole = box(0.15, 5, 0.15, 0x3a4157, HW - 0.4, 2.5, lampZ, lamp);
+  box(0.62, 0.1, 0.1, 0x3a4157, HW - 0.7, 4.95, lampZ, lamp);         // 등을 내미는 암
+  const lampHead = box(0.5, 0.14, 0.26, 0x2a3142, HW - 0.9, 4.86, lampZ, lamp); // 등기구 갓
   const lampHeadMat = lampHead.material as THREE.MeshStandardMaterial;
   lampHeadMat.emissive.setHex(0x3a2a12);
   const lampLight = new THREE.PointLight(0xffc687, 22, 18, 1.8);
   lampLight.position.set(HW - 0.9, 4.8, lampZ);
-  group.add(lampLight);
+  lamp.add(lampLight);
 
   // 구간 끝 개구부 너머의 "다음 골목" 어렴풋한 빛
   const shopGlow = new THREE.PointLight(0xffb23e, 0, 26, 2);
@@ -530,24 +543,55 @@ export function createCorridor(
   stretchMark.visible = false;
   group.add(stretchMark);
 
-  // FF-1204 간판(개구부 위) — 마지막 구간에서만 점등. 글자는 캔버스 텍스처 (A-012 오탈자 타깃)
-  const shopTex: [THREE.CanvasTexture, THREE.CanvasTexture] = [
-    shopSignTexture('감자튀김 전문점!!\nff-1204'),
-    // 이상 — 간판이 **묻지도 않은 말에 대답한다** (원래 "24시" → "24시간요"가 하던 일)
-    shopSignTexture('감자튀김 전문점이요\nff-1204'),
-  ];
-  const shopSignMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff, map: shopTex[0], emissiveMap: shopTex[0], emissive: 0x000000,
+  // ---------- ⭐ 개업 현수막 — **공용이고, 하나다** (v0.11.61) ----------
+  // 여기에는 원래 **FF-1204 상자 간판**이 있었고(3.4×0.9×0.3 + A-012 오탈자 텍스처 쌍),
+  // 테마 4에는 **따로 만든 개업 현수막**(5.6×0.96)이 있었다. 둘이 z 0.2m 차이로 같은 자리에
+  // 걸려 있었고 — 동시에 보이지는 않았지만 — 관리자 시점에서는 두 겹으로 보였다.
+  //
+  // ⭐ 하나로 합쳤다. 현수막이 공용으로 올라오면서 **하나가 두 구간을 맡는다**:
+  //   정류장 구간에서는 "저 앞에 현수막이 보인다"의 그것, 가게 앞에서는 도착지의 그것.
+  //   같은 물건이라 **"저기가 거기다"** 가 성립한다 (story.md — 그 현수막을 보고 걸음을 돌린다).
+  // ⚠ `shopTex`(간판 오탈자 텍스처 쌍)는 함께 지웠다 — 그 자리의 물건이 현수막이 되면서
+  //   쓸 데가 없어졌고, 남겨 두면 `shop_typo.reset`이 매 구간 현수막 그림을 덮어썼다
+  //   (effects.ts의 그 주석 참조 — 실제로 그렇게 돌고 있었다)
+  const bannerTex = bannerTexture();
+  const bannerMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: bannerTex, emissiveMap: bannerTex, emissive: 0x000000,
   });
-  // **글자는 플레이어를 향한 앞면(+Z)에만.** BoxGeometry에 map을 그냥 주면 여섯 면에
-  // 다 발려 아랫면·옆면으로 글자가 비쳤다 (v0.11.32 실측). 면별 재질 배열로 앞면만 준다
-  const signSide = concrete(0x140d05);
-  const shopSign = new THREE.Mesh(
-    new THREE.BoxGeometry(3.4, 0.9, 0.3),
-    [signSide, signSide, signSide, signSide, shopSignMat, signSide],
-  );
-  shopSign.position.set(0, 4.6, -L + 0.2); // 끝벽(z=-L~-L-1)보다 앞 — 벽 기둥에 좌우가 가리지 않게
-  group.add(shopSign);
+  // ---------- ⭐ 간판이 아니라 **현수막**이다 (v0.11.61 — 요청) ----------
+  // 딱딱한 상자 간판(3.4×0.9×0.3)이 개구부 위에 걸려 있었는데, 이 가게의 얼굴은
+  // **신장개업 현수막**이다 (story.md: 퇴근길에 그 현수막을 보고 걸음을 돌린다).
+  // 도착지에도 같은 물건이 걸려 있는 편이 앞뒤가 맞는다 — 정류장 구간에서 본 그 현수막이
+  // 가게 앞에 다시 있는 것이고, 그래서 "저기가 거기다"가 성립한다.
+  //
+  // ⭐ 형태는 테마 4의 현수막과 같은 문법이다 (theme4.ts): **처지는 비닐** + 두께 없는 면.
+  //   평면이면 '떠 있는 판'이라 처짐을 준다 — 여기서는 개구부 너비(2.8)에 맞춰 폭 3.4를 유지한다.
+  // ⚠ 재질은 **그대로 쓴다** (`bannerMat` · `shopTex`): A-012(`shop_typo`)가 이 재질의 map을
+  //   갈아 오탈자를 만드는 배선이고, `hit.shop_typo`도 이 메시를 가리킨다.
+  //   (그 effect는 퇴역이라 실제로는 안 나오지만, 배선을 끊으면 `hit` 완전성에서 컴파일이 막힌다)
+  // ⚠ 발광은 그대로 — 튜토리얼 자막이 "현수막에 불이 비친다"고 말하고, setShopNear가 아침에도 켠다
+  // ⚠ 치수·처짐을 **테마 4와 같은 값으로** 맞춘다 (theme4.ts BW/BH/SAG): 5.6 × 0.96 · 처짐 0.13 ·
+  //   앞으로 0.05 배부름. 숫자가 하나라도 다르면 "닮은 현수막 둘"이 되고, 같아야 "그 현수막"이 된다
+  const BW = 5.6;
+  const BH = 0.96;
+  const signGeo = new THREE.PlaneGeometry(BW, BH, 12, 2);
+  const sp = signGeo.attributes.position;
+  for (let i = 0; i < sp.count; i++) {
+    const u = sp.getX(i) / (BW / 2);                   // −1 … +1
+    sp.setY(i, sp.getY(i) - (1 - u * u) * 0.13);       // 가운데가 내려앉는다
+    sp.setZ(i, sp.getZ(i) + (1 - u * u) * 0.05);       // 앞으로 살짝 배부르게 (바람)
+  }
+  signGeo.computeVertexNormals();
+  bannerMat.shadowSide = THREE.DoubleSide;           // 한 장짜리 면 — 그림자 방향을 정해 준다
+  const banner = new THREE.Mesh(signGeo, bannerMat);
+  // 끝벽(z=-L~-L-1)보다 앞 — 벽 기둥에 좌우가 가리지 않게.
+  // ⚠ 폭 5.6은 x ±2.8이라 개구부(±1.4) 양옆의 끝벽까지 덮는다 — 골목 안폭(±3.0) 안이라 문제없다
+  banner.position.set(0, 4.6, -L + 0.45);
+  group.add(banner);
+  // 현수막을 매단 줄 — 없으면 공중에 뜬 천이 된다 (양 끝을 벽에 묶은 것)
+  for (const sx of [-1, 1]) {
+    boxOf(concrete(0x14171d), 0.04, 0.04, 0.55, sx * (BW / 2), 5.05, -L + 0.45, group);
+  }
 
   // 목적지 둘 — 개구부 너머. 마지막 구간에서 **둘 중 하나만** 켜진다 (setShopNear)
   const shopFront = buildShopFront();   // 퇴근길 끝 = FF-1204
@@ -641,12 +685,12 @@ export function createCorridor(
   return {
     refs: {
       group, scene, moon, skyDome, skyAfternoon, skyDusk, tunnel, backTunnel, tunnelLights, tunnelLampMat,
-      car, carLight, carSignMat, ambient, stretchMark, lampLight, lampHeadMat, shopGlow, shopSign, shopSignMat,
-      shopTex, shopFront, homeFront, shopBack, figure,
+      car, carLight, carSignMat, ambient, stretchMark, lamp, lampLight, lampHeadMat, poles, shopGlow, banner, bannerMat,
+      shopFront, homeFront, shopBack, figure,
     },
     hit: {
       lamp_flicker: [lampPole],
-      shop_typo: [shopSign],
+      shop_typo: [banner],
       figure: [figure],
     },
   };

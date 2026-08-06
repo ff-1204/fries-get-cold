@@ -56,6 +56,21 @@ const CSS = `
 #adm-hud .k { color: #7f9bbd; }
 #adm-hud .v { color: #ffd48a; }
 #adm-hud .o { color: #8ef0b4; }
+/* ⭐ 정중앙 조준점 (v0.11.61) — 아래 '조준' 줄이 **무엇을 겨눈 것인지** 화면에서 보이게.
+   레이캐스트는 화면 정중앙에서 쏘는데(this.center = (0,0)) 그 지점에 표시가 없어서,
+   좌표를 뜨려면 감으로 겨눠야 했다.
+   ⚠ 게임 화면에는 십자선을 두지 않는다 — 짚는 동사가 없어진 뒤(v0.11.50) 십자선은
+     '조준할 것이 있다'는 거짓말이 되기 때문이다 (hud.ts 주석). 그래서 **관리자 모드 전용**이고
+     이 요소는 모드를 켤 때만 붙는다.
+   ⚠ 가는 십자 + 가운데 점. 점만 두면 어두운 배경에서 사라지고, 십자만 두면 정확한 한 픽셀이
+     어디인지 모른다. mix-blend-mode: difference 로 밝은 벽에서도 어두운 골목에서도 남는다.
+   ⚠⚠ 이 CSS는 템플릿 리터럴이다 — 주석에 백틱을 쓰면 문자열이 거기서 끊긴다 (실제로 겪었다) */
+#adm-cross { position: fixed; z-index: 61; left: 50%; top: 50%; width: 21px; height: 21px;
+  transform: translate(-50%, -50%); pointer-events: none; mix-blend-mode: difference; }
+#adm-cross i { position: absolute; background: #fff; }
+#adm-cross .h { left: 0; top: 10px; width: 21px; height: 1px; }
+#adm-cross .v { left: 10px; top: 0; width: 1px; height: 21px; }
+#adm-cross .d { left: 9px; top: 9px; width: 3px; height: 3px; }
 #adm-badge { position: fixed; z-index: 61; right: 10px; top: 44px; padding: 3px 8px;
   border-radius: 4px; background: #7a1010; color: #ffe3e3; letter-spacing: .12em;
   font: 700 11px/1.4 ui-monospace, Consolas, monospace; pointer-events: none; }
@@ -89,6 +104,8 @@ export class Admin {
   private host: AdminHost;
   private hud!: HTMLDivElement;
   private badge!: HTMLDivElement;
+  /** 정중앙 조준점 — 관리자 모드에서만 붙는다 (게임 화면에 십자선을 두지 않는 이유는 CSS 주석) */
+  private cross!: HTMLDivElement;
   private panel: HTMLDivElement | null = null;
   private ray = new THREE.Raycaster();
   private center = new THREE.Vector2(0, 0);
@@ -107,6 +124,10 @@ export class Admin {
     this.badge = document.createElement('div');
     this.badge.id = 'adm-badge';
     this.badge.textContent = 'ADMIN';
+    // 정중앙 조준점 — 레이캐스트를 쏘는 그 지점(this.center)을 화면에 표시한다 (CSS 주석 참조)
+    this.cross = document.createElement('div');
+    this.cross.id = 'adm-cross';
+    this.cross.innerHTML = '<i class="h"></i><i class="v"></i><i class="d"></i>';
 
     window.addEventListener('keydown', (e) => this.onKey(e));
     // 휠로 기본 비행 속도 — 포인터락 중에도 들어온다
@@ -148,11 +169,12 @@ export class Admin {
   toggle() {
     this.active = !this.active;
     if (this.active) {
-      document.body.append(this.hud, this.badge);
+      document.body.append(this.hud, this.badge, this.cross);
     } else {
       this.closePanel();
       this.hud.remove();
       this.badge.remove();
+      this.cross.remove();
     }
   }
 
@@ -267,6 +289,8 @@ export class Admin {
   // ---------- 패널 (Esc) ----------
   private openPanel() {
     document.exitPointerLock?.();
+    // 패널은 화면 정중앙에 뜬다 — 조준점을 켜 둔 채로 열면 패널 위에 십자가 겹친다
+    this.cross.style.display = 'none';
     const s = this.host.snapshot();
     const el = document.createElement('div');
     el.id = 'adm-panel';
@@ -349,6 +373,7 @@ export class Admin {
   private closePanel() {
     this.panel?.remove();
     this.panel = null;
+    this.cross.style.display = '';   // 패널을 닫으면 조준점을 되돌린다
     if (this.active) this.host.relock();
   }
 }

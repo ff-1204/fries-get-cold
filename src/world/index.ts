@@ -53,8 +53,7 @@ export function createWorld(scene: THREE.Scene): SegmentRefs {
   corridor.refs.homeFront.name = '집';
   corridor.refs.figure.name = '그림자사람';
   corridor.refs.car.name = '차';
-  corridor.refs.shopSign.name = 'FF-1204 간판';
-  t4.refs.banner.name = '개업 현수막';
+  corridor.refs.banner.name = '개업 현수막';
   t4.refs.busFigure.name = '정류장의 형체';
   t5.refs.sign.name = '입간판';
   t5.refs.dragMark.name = '끌린 자국';
@@ -119,7 +118,7 @@ export { MAIN_GAP_HALF }; // 기존 import 경로(main.ts) 유지
 export type { SegmentRefs };
 export { applyAnomalies } from './effects';
 export {
-  setSegmentTheme, applyDepth, setMorning, setTunnelDark, setStretchMark, setShopNear,
+  setSegmentTheme, applyDepth, setMorning, setTunnelDark, setStretchMark, setShopNear, setMarketLight,
   setBackScene, setBannerSide, setThemeMirror, updateWorld, startCar, stopCar, carInCorridor,
 } from './runtime';
 export type { TimeOfDay } from './runtime';

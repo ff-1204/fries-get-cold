@@ -332,6 +332,29 @@ export function setTunnelDark(refs: SegmentRefs, dark: number, baseDensity: numb
   refs.ambient.intensity = ab * (1 - d * 0.92);
 }
 
+/** ⭐ 먹자골목의 조명 (v0.11.61) — **퇴근길 이 구간에서는 가로등을 숨기고 시장 등을 켠다.**
+ *
+ *  아케이드 시장은 제 등으로 밝다: 시장 안에 가로등이 서 있는 것이 오히려 어색하고,
+ *  둘이 같이 켜지면 광원이 둘이라 그림자도 둘이 된다.
+ *
+ *  ⚠⚠ **밤에는 절대 숨기지 않는다.** 밤의 이 가로등은 두 가지 일을 겸한다:
+ *    ① **깊이 게이지** — 숫자 없이 남은 여유를 밝기로 말한다 (LAMP_LADDER · applyDepth)
+ *    ② **H-008(끌린 자국)의 광원** — 그 자국은 "가로등 불빛에서 시작해" 배치돼 있고
+ *       v0.11.49·57에 그 자리를 찾느라 두 번 옮겼다 (배치 3원칙 ① 광원 안쪽)
+ *  ⭐ 반대로 **퇴근길에는 둘 다 없다**: 깊이가 쌓이지 않고(spec) 이상현상이 0이다(튜토리얼).
+ *    그래서 이 구간·이 모드에서만 끄는 것은 무엇도 깨지 않는다 — 조건을 좁힌 이유가 이것이다.
+ *
+ *  @param on 퇴근길 먹자골목인가 (main.ts rollSegment가 판단해 넘긴다) */
+export function setMarketLight(refs: SegmentRefs, market: boolean, daylight: boolean) {
+  // ⚠ **전봇대·전선은 시장이면 밤에도 숨긴다** — "이 길에는 전봇대가 없다"는 장소의 사실이고
+  //   시간대와 무관하다. 그 머리 위는 시장의 전구줄이 맡는다 (theme5)
+  refs.poles.visible = !market;
+  // 가로등은 **퇴근길 시장에서만** 숨긴다 (밤에는 깊이 게이지 + H-008 광원 — 위 주석)
+  // ⚠ 시장 전구줄이 v0.11.61에 걷혔으므로, 퇴근길 이 구간에는 **인공 광원이 하나도 없다** —
+  //   노을(해+앰비언트)이 골목을 밝히고 켜진 것은 FF-1204 하나다 (웜 10% 원칙의 극단)
+  refs.lamp.visible = !(market && daylight);
+}
+
 /** 늘어남 반복 구간 여부 — 바닥 분필 자국 표시 */
 export function setStretchMark(refs: SegmentRefs, show: boolean) {
   refs.stretchMark.visible = show;
@@ -351,12 +374,16 @@ export function setShopNear(refs: SegmentRefs, near: boolean, showSign = true) {
   // 아침에도 가게 안은 켜져 있어야 한다: 대낮의 켜진 간판이 "왜 24시간을 하지"의 첫 단서
   refs.shopGlow.intensity = near ? (showSign ? 26 : 30) : morning ? 0 : 4;
   // 간판은 마지막 구간에만 존재 — 다른 구간 끝에서 글자가 어렴풋이 보이면 혼란 (명확성)
-  refs.shopSign.visible = near && showSign;
+  // ⚠⚠ **현수막은 여기서 숨기지 않는다** (v0.11.61). 공용으로 올라오면서 이 하나가
+  //   정류장 구간(저 앞에 보이는 그것)과 가게 앞(도착지)을 **둘 다** 맡는다 —
+  //   `near`로 숨기면 정류장에서 걸음을 돌리게 만드는 그 물건이 사라진다 (story.md).
+  //   자리는 `setBannerSide`가 진행 방향에 따라 앞/뒤 갱구로 옮긴다
   // emissiveMap(글자 텍스처) × emissive 색 — 점등 시 글자만 발광한다.
-  // **아침에도 켠다** (v0.11.32): 튜토리얼 마지막 자막이 "간판에 불이 켜져 있다"라고
+  // **아침에도 켠다** (v0.11.32): 튜토리얼 마지막 자막이 "현수막에 불이 비친다"라고
   // 말하는데 코드가 아침엔 꺼서 자막이 거짓말이었다. 게다가 대낮에 켜진 24시 간판은
   // story.md 밤 1의 비트("새 가게가 왜 24시간을 하지")를 그대로 보여주는 첫 단서다
-  refs.shopSignMat.emissive.setHex(near && showSign ? 0xffffff : 0x000000);
+  // ⚠ **점등만** near를 탄다 — 물건은 늘 걸려 있고, 불이 들어오는 것은 가게 앞에서다
+  refs.bannerMat.emissive.setHex(near && showSign ? 0xffffff : 0x000000);
 }
 
 /** 뒤에 무엇이 있는가 — 지나온 터널 / 방금 나온 FF-1204 (v0.11.35).
@@ -385,7 +412,10 @@ export function setBackScene(refs: SegmentRefs, shop: boolean) {
  *  여전히 고정**이고, 그것을 뒤집으려면 차도 판정(ROAD_Z·STOP_LINE_Z)과 공용 그룹의 차까지
  *  같이 뒤집어야 한다 — spec.md '방향' 항목에 알려진 제약으로 적어 둔다 */
 export function setBannerSide(refs: SegmentRefs, ahead: boolean) {
-  refs.banner.position.z = ahead ? -L + 0.25 : -0.25;
+  // ⚠ y도 함께 정한다 (v0.11.61): 앞 갱구에서는 **난간 높이**(5.25 — 다리 위에 걸린 것),
+  //   뒤 갱구에서는 그대로 5.25. 예전 가게용 현수막이 4.60이던 것은 개구부 바로 위였는데,
+  //   하나로 합치면서 난간 높이 하나로 통일했다 (통행 위를 덮지 않는 조건은 그대로 — v0.11.13)
+  refs.banner.position.set(0, 5.25, ahead ? -L + 0.25 : -0.25);
   refs.banner.rotation.y = ahead ? 0 : Math.PI;
 }
 
@@ -408,7 +438,14 @@ export function setThemeMirror(refs: SegmentRefs, ret: boolean) {
   };
   flip(refs.themes[3], ret);    // 테마 4 — 퇴근길 저작 → 귀갓길에서 뒤집는다
   flip(refs.themes[4], !ret);   // 테마 5 — 귀갓길 저작 → 퇴근길에서 뒤집는다
-  refs.banner.scale.x = ret ? -1 : 1;   // 뒤집힌 그룹 안에서 글자를 되돌린다
+  // ⭐ 뒤집힌 그룹 안에서 **글자를 되돌린다** — 음수 스케일은 텍스처까지 좌우로 뒤집는다.
+  //   되돌리는 값은 **부모의 뒤집기와 같다**(둘을 곱하면 +1). 그래서 테마마다 부호가 다르다:
+  // ⚠ **현수막은 이제 되돌릴 필요가 없다** (v0.11.61) — 공용(prefab)으로 올라가면서
+  //   뒤집히는 테마 그룹 밖으로 나왔다. 여기서 scale을 만지면 오히려 글자가 거울이 된다
+  // ⚠ 시장 간판은 **메시마다** 되돌린다 (테마 5는 그 반대 부호다). 그룹으로 묶어 되돌리면
+  //   위치까지 되돌아가 간판만 반대쪽 벽에 남는다 — 현수막은 x=0이라 그 함정에 안 걸렸다
+  const letterFlip = !ret ? -1 : 1;
+  for (const m of refs.lettering) m.scale.x = letterFlip;
 }
 
 const TRAFFIC_RED_ON = 0x8a1616;
