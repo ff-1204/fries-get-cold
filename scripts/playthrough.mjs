@@ -50,17 +50,29 @@ const turn = (rad) => page.evaluate((r) => {
   c.dispatchEvent(mk('pointerup', 640 + dx));
 }, rad);
 
+/** 무서운 것을 보면 **사람은 멈춘다** — 그 반응을 몇 초로 흉내 낼 것인가 (v0.11.51).
+ *
+ *  ⚠ **이 값에는 근거가 없다.** 사람이 실제로 몇 초를 멈추는지는 아무도 재 본 적이 없고,
+ *  머무름 임계(config.stillGrowSec)가 맞는지는 전적으로 이 값에 달려 있다.
+ *  그래서 고정하지 않고 밖에서 넣게 뒀다 — 두 값을 돌려 비교하는 것이 이 하네스의 쓸모다:
+ *      LOOK_SEC=5 node scripts/playthrough.mjs
+ *  진짜 값은 사람이 걸어야 나온다 (docs/game.md '남은 가장 큰 구멍') */
+const LOOK_SEC = Number(process.env.LOOK_SEC ?? 2.5);
+
 /**
  * 사람처럼 한 구간을 걷는다.
  *  - 응시(stare)가 쌓이면 **눈을 돌린다** — 붙잡히지 않는 것이 avert의 정답
  *  - 차도(테마 4)에서는 초록불이 아니면 정지선 앞에서 기다린다
- *  - **흔적에는 아무것도 하지 않는다** (v0.11.50): 짚는 동사가 없다. 그냥 지나간다
+ *  - **흔적에는 아무것도 하지 않는다** (v0.11.50): 짚는 동사가 없다
+ *  - ⭐ 다만 **이상현상이 있는 구간에서는 한 번 멈춰 선다** (v0.11.51) —
+ *    그게 이 게임이 기대하는 반응이고, 멈춘 만큼 골목이 자란다. 그 대가를 여기서 잰다
  * @returns {'passed'|'stuck'|'ended'}
  */
 async function walkSegment(maxSec = 90) {
   const start = await st();
   let looked = 0;         // 눈을 돌린 횟수
   let waited = 0;
+  let stopped = false;    // 이 구간에서 이상현상을 보고 멈춘 적이 있는가
   const t0 = Date.now();
   await page.keyboard.down('KeyW');
 
@@ -69,11 +81,15 @@ async function walkSegment(maxSec = 90) {
     const s = await st();
     if (s.phase !== 'walk') {            // 전환·도착 컷
       await page.keyboard.up('KeyW');
-      return { r: 'ended', s, looked, waited };
+      return { r: 'ended', s, looked, waited, stopped };
     }
-    if (s.done !== start.done || s.total !== start.total) {
+    // ⚠ **`total` 변화를 통과로 읽으면 안 된다** (v0.11.51): 머무름으로 자라면 걷는 도중에도
+    //    total이 오른다. 구간을 넘어간 것은 `done`뿐이 말해 준다 —
+    //    예전 조건(`s.total !== start.total`)을 그대로 뒀다면 서 있다가 자란 순간
+    //    하네스가 "통과했다"고 착각해 매 구간을 반쯤만 걷는다
+    if (s.done !== start.done) {
       await page.keyboard.up('KeyW');
-      return { r: 'passed', s, looked, waited };
+      return { r: 'passed', s, looked, waited, stopped };
     }
 
     // ① 사람 형태를 보고 있다 → 눈을 돌린다 (경고 0.4초보다 먼저 반응)
@@ -95,10 +111,17 @@ async function walkSegment(maxSec = 90) {
       await page.keyboard.down('KeyW');
       continue;
     }
-    // ③ 흔적을 만나면 — **아무것도 하지 않는다.** 그것이 지금의 정답이다
+    // ③ 이상현상이 있는 구간 — 한가운데쯤에서 **한 번 멈춰 본다.**
+    //    짚을 수는 없다(v0.11.50). 할 수 있는 것은 보는 것뿐이고, 보는 동안 골목이 자란다
+    if (!stopped && s.active > 0 && s.z < -12) {
+      stopped = true;
+      await page.keyboard.up('KeyW');
+      await wait(LOOK_SEC * 1000);
+      await page.keyboard.down('KeyW');
+    }
   }
   await page.keyboard.up('KeyW');
-  return { r: 'stuck', s: await st(), looked, waited };
+  return { r: 'stuck', s: await st(), looked, waited, stopped };
 }
 
 // ============================================================
@@ -165,7 +188,8 @@ while (guard++ < 24) {
   const before = await st();
   const r = await walkSegment(150);
   say(`      밤1 구간 ${before.done + 1}/${before.total} (테마 ${before.theme}) → ${r.r}` +
-      ` · 이상 ${before.active}종 · 눈돌림 ${r.looked} · 신호대기 ${r.waited}`);
+      ` · 이상 ${before.active}종 · 멈춰봄 ${r.stopped ? 'O' : '—'}` +
+      ` · 자람 ${before.grown}→${r.s.grown} · 눈돌림 ${r.looked} · 신호대기 ${r.waited}`);
   if (r.r === 'stuck') { ok(false, `구간 ${before.done + 1}에서 전진하지 못함`, `z=${r.s.z}`); await shot('XX-stuck'); break; }
   if (r.r === 'ended') {
     // 도착인가 soft fail인가 — soft fail은 깊이 한계로 같은 밤을 다시 시작하는 정상 경로다.
@@ -195,7 +219,8 @@ await shot('05-home-arrival');
 const homeMsg = await msg();
 say(`      도착 자막: ${JSON.stringify(homeMsg)}`);
 s = await st();
-say(`      밤 1 결과: 늘어남 ${s.stretches}회 · 깊이 ${s.depth} · 총 ${s.total}구간`);
+say(`      밤 1 결과: 늘어남 ${s.stretches}회 · 깊이 ${s.depth} · 총 ${s.total}구간` +
+    ` (기본 5 + 자람 ${s.grown})`);
 
 // ---------- 귀가 연출 → 밤 2 ----------
 // ⚠ 버튼이 사라지는 것이 끝이 아니다 — 도착 연출은 마지막 박자에서 버튼을 **비활성화한 채**

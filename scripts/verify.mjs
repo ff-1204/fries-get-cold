@@ -210,6 +210,22 @@ async function shots() {
     }
     await browser.close();
   }
+  // ⭐ **마지막 구간에서 자라면 집이 물러난다** (v0.11.51) — 이 변경의 가장 대담한 그림이고,
+  // 팝으로 읽히면 버그로 보인다 (visual-polish §7). 그래서 눈으로 본다: 서기 직전 / 자란 뒤
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=none');
+    for (let i = 0; i < 4; i++) await passMain(page); // 테마 1 = 귀갓길 마지막 구간(집)
+    await walkTo(page, -24);                          // 집이 정면에 들어오는 자리
+    await shot(page, 'grow-last-before');
+    await page.waitForFunction(                       // 서 있으면 자란다 (임계 4초)
+      () => globalThis.__fries.state().grown > 0, { polling: 60, timeout: 25000 },
+    );
+    await sleep(900);
+    await shot(page, 'grow-last-after');              // 집이 사라지고 앞 터널이 돌아왔는가
+    await browser.close();
+  }
+
   // 늘어남 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛).
   // ⚠ 늘어남을 부르는 방법이 바뀌었다 (v0.11.50): 흔적을 지나치는 것은 이제 무비용이라
   // **차도(테마 4)에서 차를 맞아** 만든다. 늘어남은 같은 테마를 반복시키므로 결과는 같다
@@ -304,7 +320,50 @@ async function balance() {
     await browser.close();
   }
 
-  // 4) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (아직 남아 있는 유일한 규칙)
+  // 4) ⭐ **머무름 → 자람** (v0.11.51 — 이 게임의 유일한 인과).
+  //    가만히 서서 임계를 세 번 넘긴다. 재는 것은 넷 —
+  //    ① 정말 그 초에 자라는가 ② 총 구간·깊이가 함께 오르는가
+  //    ③ **걷는 동안에는 자라지 않는가** ④ 자란 만큼 같은 골목이 되풀이되는가
+  {
+    const { browser, page } = await launch();
+    await startGame(page, 'a=none');
+    const { stillGrowSec, segments } = await page.evaluate(() => globalThis.__fries.config());
+
+    // (a) 서 있는다 — 자람 3회까지
+    const marks = [];
+    for (let i = 0; i < 3; i++) {
+      const t0 = Date.now();
+      await page.waitForFunction(
+        (n) => globalThis.__fries.state().total > n,
+        { polling: 60, timeout: 30000 }, segments + i,
+      );
+      const s = await state(page);
+      marks.push({ sec: +((Date.now() - t0) / 1000).toFixed(2), total: s.total, depth: s.depth });
+    }
+    console.log(`머무름 → 자람 (임계 ${stillGrowSec}s):`, JSON.stringify(marks));
+
+    // (b) 걸으면 자라지 않는다 — 임계의 3배를 걸어도 total이 그대로여야 한다
+    const before = await state(page);
+    await page.keyboard.down('KeyW');
+    await new Promise((r) => setTimeout(r, stillGrowSec * 3000));
+    await page.keyboard.up('KeyW');
+    const after = await state(page);
+    console.log('걷는 동안:', JSON.stringify({
+      sec: stillGrowSec * 3, total: `${before.total}→${after.total}`,
+      done: `${before.done}→${after.done}`, still: after.still,
+    }));
+
+    // (c) 자란 만큼 같은 골목이 되풀이되는가 — 테마가 바뀌지 않은 채 done만 오른다
+    const t1 = await state(page);
+    await passMain(page);
+    const t2 = await state(page);
+    console.log('되풀이:', JSON.stringify({
+      theme: `${t1.theme}→${t2.theme}`, done: `${t1.done}→${t2.done}`, total: t2.total,
+    }));
+    await browser.close();
+  }
+
+  // 5) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (아직 남아 있는 유일한 규칙)
   {
     const { browser, page } = await launch();
     await startGame(page, 'a=bus_figure&avert=off'); // 응시 정지 = '눈을 마주치지 않은' 상태

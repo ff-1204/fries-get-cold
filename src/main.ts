@@ -113,8 +113,10 @@ let done = 0;               // 이 밤에 지나온 걸음(구간) 수 — 늘�
 let total = CONFIG.segments; // 이 밤의 총 구간 수 — 늘어날 때마다 +1 (카운터는 정직하다)
 let theme = 1;              // 현재 걷는 구간 테마 1..5 — 늘어남은 테마를 반복시킨다
 let depth = 0;              // 골목이 나를 붙잡은 정도 — 가로등이 게이지 (config.depthLimit)
-let stretches = 0;              // 이 밤의 늘어남 횟수 — 시식 서사·노미스 추적
+let stretches = 0;              // 이 밤의 늘어남 횟수 — 귀가 등급·기록 추적
 let stretchRepeat = false;     // 지금 구간이 늘어남 반복인가 (분필 자국 표시)
+let still = 0;              // ⭐ 머무름 — 걷지 않고 서 있는 누적 시간 (config.stillGrowSec마다 자람)
+let repeatsPending = 0;     // 자라 놓고 아직 걷지 않은 구간 수 — 전환 때 하나씩 갚는다
 let swarm = 0;              // 증식 — 늘어남마다 +1, 동시 이상 = 1+swarm (balance.ts)
 let stare = 0;              // avert — 사람 형태를 화면에 담고 있는 누적 시간 (붙잡힘까지)
 let stareWarned = false;    // 경고 자막 1회 (눈을 뗄 시간을 준다 — 공정성)
@@ -297,16 +299,49 @@ function rollSegment(stretchStatus = false) {
   input.yaw = 0;
   input.pitch = 0;
 
-  const label = tutorial
+  if (stretchStatus) {
+    hud.setStatusStretch(segmentLabel()); // 늘어남 — 카운터 강조 교체 (인지 4요소 ①)
+    audio.stretch();             // …그리고 그 순간의 소리 (v0.11.47). 놀래키지 않고 가라앉는다
+  }
+  else hud.setStatus(segmentLabel());
+}
+
+/** HUD 카운터 문구. **골목이 자라면 걷는 도중에도 다시 그려야 하므로** 따로 뗐다 */
+function segmentLabel(): string {
+  return walkMode === 'tutorial'
     ? `퇴근길 — ${TEXT.segLabel(done + 1, total, theme)}`
     : walkMode === 'return'
       ? `${TEXT.nightLabel(night)} — 돌아가는 길 ${TEXT.segLabel(done + 1, total, theme)}`
       : `${TEXT.nightLabel(night)} — ${TEXT.segLabel(done + 1, total, theme)}`;
-  if (stretchStatus) {
-    hud.setStatusStretch(label); // 늘어남 — 카운터 강조 교체 (인지 4요소 ①)
-    audio.stretch();             // …그리고 그 순간의 소리 (v0.11.47). 놀래키지 않고 가라앉는다
-  }
-  else hud.setStatus(label);
+}
+
+/** ⭐ **골목이 한 구간 자란다** — 머무름의 결과다 (game.md 코어 1, M3 ②).
+ *
+ *  벌이 아니므로 **암전도 자막도 실패 판정도 없다.** 걷는 도중 그 자리에서 일어나고,
+ *  세 가지가 동시에 말해 준다 — 전부 이미 있던 수단이다:
+ *   ① 카운터가 3/5 → 3/6으로 바뀐다 (페이드 교체. 카운터는 거짓말하지 않는다)
+ *   ② **그 자리에서 가로등이 한 단 어두워진다** — 자기강화 나선의 첫 바퀴가 눈에 보인다
+ *   ③ 저역이 1.5초에 걸쳐 가라앉는다 (놀래키지 않는다)
+ *
+ *  ⭐ **마지막 구간에서 자라면 집이 사라지고 그 자리에 골목이 이어진다.**
+ *  `setShopNear`가 목적지를 감추고 앞 터널을 되살리므로, "카운터가 조작되는 것이 아니라
+ *  앞의 골목이 실제로 길어진다"가 문자 그대로 성립하는 유일한 자리다 */
+function grow() {
+  total += 1;
+  repeatsPending += 1;        // 자란 만큼 **같은 골목을 다시 걷는다** (전환 때 하나씩)
+  stretches += 1;
+  swarm = Math.min(CONFIG.swarmMax, swarm + 1);
+  depth += CONFIG.growDepthCost;
+  save.misses += 1;
+  persist();
+  // 마지막 구간이었다면 목적지가 물러난다 — 집이 있던 자리에 앞 터널이 돌아온다.
+  // (total이 늘어 `done === total - 1`이 방금 거짓이 됐다. 이걸 안 하면 도착지 안으로 걸어 들어간다)
+  setShopNear(refs, done === total - 1, walkMode !== 'return');
+  applyDepth(refs, depth);    // ② 그 자리에서 한 단 어두워진다
+  applyPain(depth);
+  hud.setStatusStretch(segmentLabel()); // ① 카운터
+  audio.stretch();                      // ③ 소리
+  if (depth >= CONFIG.depthLimit) void softFail();
 }
 
 // ---------- 온보딩 — 조작은 타이틀이 아니라 골목 안에서 배운다 (v0.9.1) ----------
@@ -333,6 +368,8 @@ function resetTrip() {
   tripAnomalies = 0;
   stare = 0;
   stareWarned = false;
+  still = 0;
+  repeatsPending = 0;
   carCycle = -1;
 }
 
@@ -498,8 +535,8 @@ async function grabbed(reason: string) {
  *
  *  ⭐ 예전에는 여기서 "확인 안 한 흔적이 있는가"를 세어 늘어남을 매겼다. 그 판정이
  *  클릭과 함께 사라졌다 — 이상현상을 그냥 지나치는 것에는 아무 대가가 없다.
- *  지금 늘어남을 만드는 것은 응시 붙잡힘과 차도뿐이고, 둘 다 `grabbed()`가 처리한다.
- *  (다음 단계에서 그 자리를 **머무름 → 자람**이 대신한다 — game.md M3) */
+ *  여기가 하는 일은 **자라 놓은 구간을 갚는 것**뿐이다: 머무름으로 늘어난 만큼
+ *  같은 골목이 다시 온다 (`repeatsPending`, v0.11.51). 자람 자체는 걷는 도중에 일어났다 */
 async function passSegment() {
   done += 1;
   if (depth >= CONFIG.depthLimit) {
@@ -511,12 +548,17 @@ async function passSegment() {
     else await reachHome();
     return;
   }
-  stretchRepeat = false;
-  // 귀갓길은 테마 역순 (먹자골목 → 원룸), 아침 편도는 정순.
-  // 늘어남(=같은 테마 반복)은 여기가 아니라 grabbed()가 만든다
-  theme = walkMode === 'return'
-    ? Math.max(theme - 1, 1)
-    : Math.min(theme + 1, CONFIG.segments);
+  // 자란 만큼 같은 테마를 되풀이한다 — 두 번 자랐으면 두 번 온다.
+  // ⚠ 불리언이던 시절에는 세 번 자라도 반복이 한 번이라 **카운터와 골목이 어긋났다**
+  const repeat = repeatsPending > 0;
+  if (repeat) repeatsPending -= 1;
+  stretchRepeat = repeat;
+  // 귀갓길은 테마 역순 (먹자골목 → 원룸), 아침 편도는 정순
+  if (!repeat) {
+    theme = walkMode === 'return'
+      ? Math.max(theme - 1, 1)
+      : Math.min(theme + 1, CONFIG.segments);
+  }
   // 전환은 **터널 한가운데의 암흑 속에서** 일어난다 (v0.11.15) — 화면 페이드 없음.
   // 들어간 만큼(앞 터널 절반) 나온다(뒤 터널 절반): 걸음이 끊기지 않는다
   rollSegment();
@@ -740,6 +782,27 @@ function updateWalk(dt: number) {
   const moving = Math.abs(move.forward) + Math.abs(move.strafe) > 0.1;
   audio.update(dt, moving);
 
+  // ---------- ⭐ 머무름 → 자람 (v0.11.51) — 이 게임의 유일한 인과 ----------
+  // 걸으면 남은 거리가 줄고, 서 있으면 골목이 자란다. 조건도 예외도 없다:
+  // 이상현상이 있든 없든, 무엇을 보고 있든 상관없다. **규칙이 하나뿐이라 가르칠 것도 없다.**
+  //
+  // ⚠ 첫날 퇴근길은 제외한다 — 밝고 아무 일도 없는 구간에서 자라면 그 자체가 괴담 누출이고,
+  //   자막을 읽으려고 선 것에 값을 물린다 (튜토리얼은 정상 상태를 배우는 자리다)
+  if (walkMode === 'return') {
+    // ⚠ **신호 대기는 자라지 않는다.** 빨간불에 정지선 앞에 선 것은 내 반응이 아니라
+    //   세계가 세운 것이다. 여기에 값을 물리면 게임이 제 규칙을 지킨 대가를 물리는 셈이고,
+    //   그건 "게임이 벌하는 것이 아니라 플레이어의 반응이 벌한다"의 정반대다 (game.md 코어 2)
+    const waitingForGreen = theme === 4 && !isGreen(time) &&
+      player.z > STOP_LINE_Z && player.z < STOP_LINE_Z + 6;
+    if (moving) still = Math.max(0, still - dt * CONFIG.stillDrainMul);
+    else if (!waitingForGreen) still += dt;
+    if (still >= CONFIG.stillGrowSec) {
+      still -= CONFIG.stillGrowSec;   // 나머지는 남긴다 — "서 있는 만큼" 자라야 한다
+      grow();
+      if (phase !== 'walk') return;   // 깊이 한계 → softFail이 이미 화면을 가져갔다
+    }
+  }
+
   // 새벽의 깊이 — 경과 시간 + 깊이에 따라 안개가 짙어진다 (affective §2-1, 수치 없이 체감으로).
   // 첫날 퇴근길은 옅은 낮 안개 고정 (setMorning 값)
   const baseFog = walkMode === 'tutorial'
@@ -956,7 +1019,8 @@ function refreshContinueUi() {
   continueEl.style.display = show ? 'block' : 'none';
   resetBtn.style.display = show ? 'inline-block' : 'none';
   if (show) {
-    const misses = save.misses > 0 ? ` 그동안 ${save.misses}번, 골목 입구로 돌아왔다.` : '';
+    // 문구가 실제와 어긋나 있었다 — misses는 soft fail이 아니라 **늘어남** 횟수다 (v0.11.51)
+    const misses = save.misses > 0 ? ` 그동안 ${save.misses}번, 골목이 늘어났다.` : '';
     continueEl.textContent = `이어하기 — ${TEXT.nightLabel(save.night)}.${misses}`;
   }
   // 시작 지점이 다르다: 첫 방문은 퇴근길 정류장 / 이어하기는 가게 앞 (v0.11.5)
@@ -1084,6 +1148,10 @@ window.addEventListener('resize', () => {
       return t ? Math.round(t.dist * 10) / 10 : null;
     })(),
     stare: Math.round(stare * 100) / 100,
+    // ⭐ 머무름 게이지 — 화면에는 없는 값이다 (game.md: 경고도 게이지도 두지 않는다).
+    // 임계를 **실측으로** 잡으려면 하네스는 볼 수 있어야 한다
+    still: Math.round(still * 100) / 100,
+    grown: total - CONFIG.segments,   // 이 밤에 자란 구간 수
     green: isGreen(time),                                        // 보행 신호 (차도 검증용)
     carX: refs.car.visible ? Math.round(refs.car.position.x * 10) / 10 : null,
     elapsed: Math.round(elapsed * 10) / 10,
