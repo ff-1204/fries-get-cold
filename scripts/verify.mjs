@@ -20,6 +20,21 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** 케이스 필터 (v0.11.52) — `npm run verify:shots -- grow-last seg1`.
+ *  이름에 인자 중 하나라도 들어 있으면 찍는다. 인자가 없으면 전부 찍는다 */
+const FILTERS = process.argv.slice(3);
+const matched = new Set();
+const usedFilters = new Set();
+function want(name) {
+  if (!FILTERS.length) return true;
+  // ⚠ **양방향으로 본다.** 묶음 블록은 이름이 'theme'인데 산출물 태그는 'theme-seg1-front'라,
+  // 사람은 눈에 보이는 태그 이름을 친다. 한쪽만 보면 `-- theme-seg1`이 조용히 무시된다 (실제로 그랬다)
+  const hit = FILTERS.filter((f) => name.includes(f) || f.includes(name));
+  hit.forEach((f) => usedFilters.add(f));
+  if (hit.length) matched.add(name);
+  return hit.length > 0;
+}
+
 // 게임 상수는 손으로 복사하지 않는다 — __fries.config()에서 파생 (구간 길이 변경에 자동 추종)
 
 async function launch() {
@@ -159,6 +174,12 @@ async function shot(page, name) {
 
 // ---------- 모드 1: 스크린샷 (이상현상 정상/이상 비교 + 구간 테마) ----------
 // 새 이상현상을 추가하면 여기에 [파라미터, 도달 구간, 관찰 z] 케이스를 추가한다
+//
+// ⭐ **케이스를 골라 찍을 수 있다** (v0.11.52):
+//     npm run verify:shots -- grow-last        · 이름에 그 조각이 든 케이스만
+//     npm run verify:shots -- seg1 theme       · 여러 개 (OR)
+// 전체는 21케이스 + 테마 순회 + 자람/늘어남 = **20분**이다. 색 하나 고치고 그걸 다 돌리면
+// 확인이 작업보다 오래 걸리고, 도는 동안 소스를 못 고친다(dev 리로드가 주행을 죽인다).
 async function shots() {
   // v0.11.0 귀갓길 구조: 테마가 5→1 역순이므로 구간 S에 도달하려면 (5 - S)번 통과한다.
   // avert(사람 형태)는 정면으로 담으면 붙잡히므로 스크린샷용으로 `avert=off`를 붙인다
@@ -186,7 +207,14 @@ async function shots() {
     // 그림자 사람 (H-009) — 어느 구간에나. 디버그 앵커 고정(z=-17.6)
     ['a=figure&avert=off', 'seg5-figure-anomaly', 0, -12],
   ];
-  for (const [param, tag, passes, z] of cases) {
+  // 필터 — 인자가 없으면 전부. ⚠ **무엇을 건너뛰었는지 반드시 찍는다**:
+  // 조용히 줄어든 커버리지는 "다 봤다"로 읽힌다 (docs/workflow.md 배운 것)
+  const picked = cases.filter(([, tag]) => want(tag));
+  if (picked.length !== cases.length) {
+    console.log(`※ 이상현상 케이스 ${picked.length}/${cases.length}만 찍는다` +
+      ` — 건너뜀: ${cases.filter(([, t]) => !want(t)).map(([, t]) => t).join(', ')}`);
+  }
+  for (const [param, tag, passes, z] of picked) {
     const { browser, page } = await launch();
     await startGame(page, param);
     for (let i = 0; i < passes; i++) await passMain(page);
@@ -194,8 +222,23 @@ async function shots() {
     await shot(page, tag);
     await browser.close();
   }
+  // ⭐ 퇴근길(튜토리얼)의 노을 — 이 게임에서 **유일하게 따뜻한 구간**이다.
+  // ⚠ 위 케이스들은 전부 `?a=`라 튜토리얼을 건너뛴다. 여기 없으면 노을이 망가져도 아무도 못 본다
+  if (want('dusk')) {
+    const { browser, page } = await launch();
+    await startGame(page, 't=1');   // 저장 없이 퇴근길 강제
+    await walkTo(page, -11);
+    await shot(page, 'dusk-seg4-banner'); // 현수막이 눈에 들어오는 자리
+    await walkTo(page, -19);
+    await shot(page, 'dusk-seg4-read');   // 글자가 읽히는 자리 (노을이 가독성을 깎지 않았는가)
+    await passMain(page);
+    await walkTo(page, -12);
+    await shot(page, 'dusk-seg5-shop');   // 먹자골목 입구 — 가게 불빛과 노을이 만나는 곳
+    await browser.close();
+  }
+
   // 구간별 테마·구조 한 바퀴 (정상)
-  {
+  if (want('theme')) {
     const { browser, page } = await launch();
     await startGame(page, 'a=none');
     for (let i = 0; i < 5; i++) {
@@ -212,7 +255,7 @@ async function shots() {
   }
   // ⭐ **마지막 구간에서 자라면 집이 물러난다** (v0.11.51) — 이 변경의 가장 대담한 그림이고,
   // 팝으로 읽히면 버그로 보인다 (visual-polish §7). 그래서 눈으로 본다: 서기 직전 / 자란 뒤
-  {
+  if (want('grow-last')) {
     const { browser, page } = await launch();
     await startGame(page, 'a=none');
     for (let i = 0; i < 4; i++) await passMain(page); // 테마 1 = 귀갓길 마지막 구간(집)
@@ -229,7 +272,7 @@ async function shots() {
   // 늘어남 반복 구간 — 분필 자국(입구) + 깊이 2의 가로등 감광 (game.md 인지 4요소 ④·꺼져가는 빛).
   // ⚠ 늘어남을 부르는 방법이 바뀌었다 (v0.11.50): 흔적을 지나치는 것은 이제 무비용이라
   // **차도(테마 4)에서 차를 맞아** 만든다. 늘어남은 같은 테마를 반복시키므로 결과는 같다
-  {
+  if (want('stretch')) {
     const { browser, page } = await launch();
     await startGame(page, 'a=none');
     await passMain(page);      // 테마 5 → 4 (차도)
@@ -382,4 +425,10 @@ const mode = process.argv[2] ?? 'shots';
 if (mode === 'shots') await shots();
 else if (mode === 'balance') await balance();
 else { console.error(`unknown mode: ${mode} (shots | balance)`); process.exit(1); }
+// 오타난 인자는 **하나라도** 실패로 친다 — 조용히 빠진 케이스가 "다 봤다"로 읽히는 것이 가장 나쁘다
+const dead = FILTERS.filter((f) => !usedFilters.has(f));
+if (dead.length) {
+  console.error(`⚠ 맞는 케이스가 없는 인자: ${dead.join(', ')}`);
+  process.exit(1);
+}
 console.log('done');
