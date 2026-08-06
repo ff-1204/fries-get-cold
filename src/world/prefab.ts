@@ -409,6 +409,18 @@ export function createCorridor(
   fBody.position.y = 0.9;
   const fHead = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), mats.darkFigure);
   fHead.position.y = 1.66;
+  // ⭐ **늘어뜨린 두 손과 드러난 목덜미** (v0.11.57) — 실측 대비 5.1로 **19종 중 최저**였다.
+  // 이 형체는 **등을 돌리고 서 있으므로** 얼굴을 쓸 수 없다. 그래서 뒤에서 보이는 것을 쓴다:
+  // 옆으로 늘어뜨린 손과, 머리와 어깨 사이에 드러난 목덜미.
+  // ⚠ 목덜미는 작게. 크면 '흰 옷깃'으로 읽혀 사람이 아니라 마네킹이 된다
+  for (const hx of [-0.27, 0.27]) {
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.1), mats.pale);
+    hand.position.set(hx, 0.74, 0.02);
+    figure.add(hand);
+  }
+  const nape = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.1), mats.pale);
+  nape.position.set(0, 1.5, -0.02);
+  figure.add(nape);
   figure.add(fBody, fHead);
   figure.visible = false;
   group.add(figure);

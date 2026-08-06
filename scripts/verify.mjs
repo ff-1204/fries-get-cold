@@ -215,7 +215,7 @@ async function shots() {
     ['a=sign_lit', 'seg2-signlit-anomaly', 3, -14],
     ['a=none', 'seg2-normal', 3, -10],
     ['a=blood_trail', 'seg1-blood-anomaly', 4, -8],
-    ['a=skull', 'seg1-skull-anomaly', 4, -4],
+    ['a=skull', 'seg1-skull-anomaly', 4, -7],   // 배출장이 -L*0.34로 물러났다 (v0.11.57)
     ['a=shoes', 'seg1-shoes-anomaly', 4, -28],
     ['a=bike_figure', 'seg1-bikefigure-anomaly', 4, -21],
     ['a=face_window', 'seg1-face-anomaly', 4, -19],

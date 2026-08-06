@@ -45,10 +45,38 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
   streak.rotation.x = -Math.PI / 2;
   streak.rotation.z = 1.16; // 광원 쪽 웅덩이 → 왼쪽 벽 방향으로 비스듬히
   streak.position.set(-0.35, 0.015, -L * 0.437);
-  // 벽에 닿아 위로 긁힌 끝 — 세로 요소가 있어야 멀리서 읽힌다
-  const wallEnd = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.9), mats.bloodWall);
-  wallEnd.position.set(-HW + 0.06, 0.47, -L * 0.428);
-  wallEnd.rotation.y = Math.PI / 2;
+  // 벽에 닿아 위로 긁힌 끝 — 세로 요소가 있어야 멀리서 읽힌다.
+  // ⚠ **가로등(x +2.1) 쪽 벽에 붙인다** (v0.11.57): 반대쪽 벽은 빛이 없어 자국도 배경도
+  //   똑같이 검었다 (핏자국 H-001에서 부품별로 실측해 확인한 같은 실수).
+  //   웅덩이가 그 벽 밑(x 1.75)에 있으므로 자리도 맞는다 — 벽에서 끌려 나온 것이 된다
+  // ⚠ 폭(z 방향)이 0.55m면 화면에서 4px다 — 그 정도면 평균이 배경에 먹힌다 (부품별 실측)
+  const wallEnd = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.9), mats.bloodWall);
+  // ⚠⚠ x=HW−0.06은 **가게 파사드 안**이었다 (파사드가 x 2.8~3.0을 차지한다) — 자국이
+  //   구조물에 파묻혀 오히려 내려갔다. 셔터 면(2.66) 바로 앞으로 뺀다:
+  //   먹자골목에서는 "닫힌 셔터에 긁힌 자국"이 벽보다 오히려 말이 된다
+  wallEnd.position.set(HW - 0.38, 0.9, -L * 0.452);
+  wallEnd.rotation.y = -Math.PI / 2;
+  // ⭐ **긁힌 자국 — 셔터의 도장이 벗겨져 맨 금속이 드러났다** (v0.11.57).
+  //
+  // ⚠ 어두운 자국만으로는 여기서 한계였다 (부품별 실측: 자국 6.8 vs 배경 11.5 = 4.7).
+  //   벽 자국은 **가로등에 가까울수록 자기도 밝아져** 대비가 안 벌어진다 —
+  //   어두운 것으로 어둠을 이기려는 시도의 한계다.
+  //   그래서 반대로 간다: **밝은 요소 하나.** H-015(셔터 하단 레일)·H-013(손)과 같은 수법이고,
+  //   무거운 것을 끌면 금속에 흠집이 나는 것이 물리적으로도 맞다
+  const scratchMat = new THREE.MeshStandardMaterial({
+    color: 0xa8b0bd, roughness: 0.4, emissive: 0x161a20,
+  });
+  // ⚠⚠ **납작한 판으로는 안 된다.** 얇은 면(0.07m)을 벽과 나란히 두면 멀어질수록
+  //   서브픽셀로 뭉개져, 대비 11.2가 **2.1m에서야** 나왔다 (실측).
+  //   ⭐ 잘 보이는 이상현상은 전부 **부피가 있다** (신발 49 · 펜스의 손 55 · 벤치 신발 100) —
+  //   부피는 카메라 쪽으로 면을 내밀지만 벽에 붙인 판은 영원히 비스듬하다.
+  //   그래서 긁힌 자국을 **튀어나온 슬랫**으로 만든다: 끌린 것에 걸려 휘어 나온 금속 조각
+  for (const [sz, sy, out] of [[-0.34, 0.66, 0.34], [0.24, 0.98, 0.42]] as Array<[number, number, number]>) {
+    const bent = new THREE.Mesh(new THREE.BoxGeometry(0.16 + out, 0.26, 0.72), scratchMat);
+    bent.position.set(HW - 0.28 - out / 2, sy, -L * 0.452 + sz);
+    bent.rotation.z = 0.18;      // 끌린 방향으로 휘었다
+    dragMark.add(bent);
+  }
   dragMark.add(pool, streak, wallEnd);
   dragMark.visible = false;
   t5.add(dragMark);
@@ -146,7 +174,8 @@ export function createTheme5(mats: SharedMats): Build<Theme5Refs, E> {
   const railMat = new THREE.MeshStandardMaterial({
     color: 0x9aa2b0, roughness: 0.45, emissive: 0x14171d,
   });
-  const openRail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, IW), railMat);
+  // ⚠ 7.9로 목표선(8)에 0.1 모자랐다 — 레일을 두툼하게 (v0.11.57)
+  const openRail = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.17, IW), railMat);
   openRail.position.set(HW - 0.28, 1.33, OPEN_Z);
   openShutter.add(openRail);
   openShutter.visible = false;

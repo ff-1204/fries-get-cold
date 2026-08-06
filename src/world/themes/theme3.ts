@@ -44,6 +44,14 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   const sfLegs = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.52, 0.16), mats.darkFigure);
   sfLegs.position.set(0.2, 0.56, 0);
   sfLegs.rotation.z = 0.25;
+  // ⭐ **줄을 잡은 두 손** (v0.11.57) — 실측 대비 6.4. 놀이터 보안등을 세워도(v0.11.49)
+  // 검은 실루엣이 어두운 담을 배경으로 서면 거기까지가 한계였다.
+  // 흔들리지 않는 그네를 **잡고 있는** 손이라 정지의 이유까지 설명한다
+  for (const hx of [-0.19, 0.19]) {
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.1), mats.pale);
+    hand.position.set(hx, 1.3, 0.02);   // 좌판 위, 줄을 쥔 높이
+    swingFigure.add(hand);
+  }
   swingFigure.add(sfBody, sfHead, sfLegs);
   swingFigure.position.set(-HW + 0.22, 0, -L * 0.393); // 그네 좌판 위
   swingFigure.visible = false;
@@ -124,6 +132,15 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   lfB.position.y = 0.6;
   const lfH = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), mats.darkFigure);
   lfH.position.y = 1.35;
+  // ⭐ **담을 딛고 선 두 발** (v0.11.57) — 실측 대비 5.6, 실패선(4.5) 코앞이었다.
+  // 이 형체의 배경은 **밤하늘**(0x0a0e1a)이고 형체는 0x0b0e16이라 원래 휘도 차가 거의 없다.
+  // 손이 아니라 발을 창백하게 두는 이유: 담 윗면과 맞닿아 **"올라갈 수 없는 자리에 서 있다"**를
+  // 가리키는 것이 이 이상현상의 내용이기 때문이다
+  for (const fx of [-0.11, 0.11]) {
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.2), mats.pale);
+    foot.position.set(fx, 0.035, 0.03);
+    slideFigure.add(foot);
+  }
   slideFigure.add(lfB, lfH);
   slideFigure.position.set(-HW + 0.15, WALL_H, -L * 0.36);   // 왼쪽 담 위, 골목 쪽 모서리
   slideFigure.visible = false;

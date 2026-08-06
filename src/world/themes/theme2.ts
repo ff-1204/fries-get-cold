@@ -23,6 +23,14 @@ export function createTheme2(): Build<Theme2Refs, E> {
   t2.add(laundryLight);
 
   // H-004 셔터의 손자국들 — 세탁소 셔터 앞면. 안쪽에서 찍힌 방향 (reveal이 말해준다)
+  // ⚠⚠ **자국마다 메시로 쪼개 봤다가 되돌렸다** (v0.11.57): 대비 14.5 → **2.6 (FAIL)**.
+  //
+  // v0.11.49에 핏자국에서 배운 "부품마다 따로 낸다"를 그대로 적용한 것인데, 여기서는
+  // 정반대로 작동했다. 차이는 **면의 방향**이다:
+  //   · 바닥의 핏자국 — 흩어진 점들 사이의 아스팔트가 합집합 사각에 섞여 평균이 씻겼다 → 분할이 답
+  //   · 벽의 손자국 — 벽과 나란해 늘 **비스듬히** 보인다. 쪼갤수록 각 사각이 몇 픽셀로 줄고
+  //     그 안의 투명한 여백에 뒤의 셔터가 그대로 들어온다 → 한 장이 낫다
+  // ⭐ **규칙은 "쪼개라"가 아니라 "사각이 대상으로 꽉 차게 하라"였다.**
   const handprints = new THREE.Mesh(
     new THREE.PlaneGeometry(2.4, 1.7),
     new THREE.MeshStandardMaterial({ map: handprintsTexture(), transparent: true, roughness: 1 }),
@@ -123,19 +131,22 @@ export function createTheme2(): Build<Theme2Refs, E> {
   // 이 골목의 규칙 위반**이다 — 플레이어가 그걸 의식할 필요는 없다. 그냥 잘못돼 보인다.
   // 정물성 그대로: 움직이지 않는다. 늘어난 방향이 광원과 맞지 않는 것이 두 번째 단서다
   const loneShadow = new THREE.Group();
+  // ⚠ 불투명도를 1로 올린다 (v0.11.57). 0.92면 밝은 바닥이 8% 비쳐 올라와,
+  //   가장 어두워야 할 것이 배경을 향해 한 걸음 다가간다 — 대비가 딱 그만큼 준다
   const shadowMat = new THREE.MeshBasicMaterial({
-    color: 0x04060b, transparent: true, opacity: 0.92, // 빛을 안 받는다 = 언제나 검다
+    color: 0x04060b, // 빛을 안 받는다 = 언제나 검다
   });
   // ⚠ 처음에는 골목 방향(z축)으로 눕혔더니 원근에 눌려 검은 얼룩이 됐다 (실측 대비 4).
   //   **빛을 가로질러(x축) 눕힌다** — 걸어오는 내내 전신이 그대로 보이고,
   //   광원이 오른쪽 벽에 붙어 있으므로 그림자가 왼쪽으로 뻗는 것이 물리적으로도 맞다
-  const shBody = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.66), shadowMat);
+  // ⚠ 바닥 도형은 원근에 눌린다 — 크게 두지 않으면 멀리서 몇 픽셀로 뭉개져 평균이 씻긴다
+  const shBody = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 0.98), shadowMat);
   shBody.rotation.x = -Math.PI / 2;
   shBody.position.set(0.75, 0.02, -L * 0.45);
-  const shHead = new THREE.Mesh(new THREE.CircleGeometry(0.3, 16), shadowMat);
+  const shHead = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), shadowMat);
   shHead.rotation.x = -Math.PI / 2;
-  shHead.position.set(-0.5, 0.02, -L * 0.45);
-  const shArm = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.24), shadowMat);
+  shHead.position.set(-0.78, 0.02, -L * 0.45);
+  const shArm = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.34), shadowMat);
   shArm.rotation.x = -Math.PI / 2;
   shArm.rotation.z = -0.55;
   shArm.position.set(0.7, 0.02, -L * 0.417);

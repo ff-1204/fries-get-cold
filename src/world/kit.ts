@@ -82,9 +82,9 @@ export function faceTexture(): THREE.CanvasTexture {
     c.fillRect(0, 0, 256, 320);
     // 창백한 얼굴 — 흐릿한 경계 (또렷하면 사람, 뭉개지면 그것)
     const g = c.createRadialGradient(128, 150, 20, 128, 150, 95);
-    g.addColorStop(0, 'rgba(190, 186, 170, 0.92)');
-    g.addColorStop(0.75, 'rgba(160, 155, 140, 0.5)');
-    g.addColorStop(1, 'rgba(120, 116, 104, 0)');
+    g.addColorStop(0, 'rgba(214, 209, 192, 1)');
+    g.addColorStop(0.72, 'rgba(198, 192, 176, 0.95)');  // ⚠ 여기까지 불투명하게: 그라데이션이
+    g.addColorStop(1, 'rgba(150, 145, 130, 0)');       //   일찍 투명해지면 사각의 평균이 씻긴다
     c.fillStyle = g;
     c.beginPath();
     c.ellipse(128, 150, 72, 100, 0, 0, Math.PI * 2);
@@ -99,9 +99,38 @@ export function faceTexture(): THREE.CanvasTexture {
   });
 }
 
-/** 셔터의 손자국들 (H-004) — 검붉은 손바닥 자국. 안쪽에서 찍힌 방향 */
+/** 손자국 **하나** (H-004) — 캔버스를 꽉 채워 그린다.
+ *
+ *  ⚠⚠ **여러 자국을 한 장에 그려 큰 판 하나로 붙이면 안 된다** (v0.11.57 실측).
+ *  가시성은 대상이 차지한 **사각의 평균 휘도**로 재는데, 큰 판의 사각에는 자국 사이의
+ *  빈 곳(셔터)이 전부 들어가 평균이 씻긴다 — 대비 14.5가 **3.7m에서야** 나왔다.
+ *  v0.11.49에 핏자국에서 배운 것과 같은 함정이다("부품마다 따로 낸다").
+ *  ⭐ 자국 하나에 메시 하나. 그래야 사각이 자국에 딱 맞고 평균이 자국의 색이 된다 */
+export function handprintTexture(): THREE.CanvasTexture {
+  return canvasTex(128, 160, (c) => {
+    c.clearRect(0, 0, 128, 160);
+    c.save();
+    c.translate(64, 92);
+    c.fillStyle = 'rgba(90, 15, 15, 0.9)'; // 저채도 적 — 이상 시그널 전용색 (visual-polish §3)
+    c.beginPath();
+    c.ellipse(0, 0, 30, 40, 0, 0, Math.PI * 2); // 손바닥
+    c.fill();
+    for (let f = 0; f < 5; f++) {
+      const a = -0.7 + f * 0.35;
+      c.beginPath();
+      c.ellipse(Math.sin(a) * 40, -Math.cos(a) * 52, 8, 20, a, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
+  });
+}
+
+/** 셔터의 손자국들 (H-004) — 검붉은 손바닥 자국. 안쪽에서 찍힌 방향.
+ *  ⚠ 퇴역 — 한 장에 여러 자국을 그리던 옛 방식 (위 `handprintTexture` 주석 참조) */
 export function handprintsTexture(): THREE.CanvasTexture {
   return canvasTex(1024, 512, (c) => {
+    // ⚠ 손이 작아 **3.7m에서야** 목표 대비가 나왔다 (실측). 크게 찍는다 —
+    //   안쪽에서 찍힌 손자국이라 원래 크게 눌린 자국이 맞다
     c.clearRect(0, 0, 1024, 512);
     const prints: Array<[number, number, number, number]> = [
       [190, 260, 0.28, 0.85], [340, 180, -0.2, 0.7], [520, 300, 0.5, 0.9],
@@ -113,12 +142,12 @@ export function handprintsTexture(): THREE.CanvasTexture {
       c.rotate(rot);
       c.fillStyle = `rgba(90, 15, 15, ${alpha})`; // 저채도 적 — 이상 시그널 전용색 (visual-polish §3)
       c.beginPath();
-      c.ellipse(0, 0, 26, 34, 0, 0, Math.PI * 2); // 손바닥
+      c.ellipse(0, 0, 38, 50, 0, 0, Math.PI * 2); // 손바닥
       c.fill();
       for (let f = 0; f < 5; f++) {
         const a = -0.7 + f * 0.35;
         c.beginPath();
-        c.ellipse(Math.sin(a) * 34, -Math.cos(a) * 44, 7, 17, a, 0, Math.PI * 2);
+        c.ellipse(Math.sin(a) * 50, -Math.cos(a) * 64, 10, 25, a, 0, Math.PI * 2);
         c.fill();
       }
       c.restore();
@@ -484,6 +513,14 @@ export interface SharedMats {
   bloodWall: THREE.MeshStandardMaterial;
   /** 사람 형태(HUM) 공용 — 얼굴 없는 검은 실루엣 */
   darkFigure: THREE.MeshStandardMaterial;
+  /** ⭐ **창백한 부분** 공용 (v0.11.57) — 형체에 딱 하나만 붙인다 (손·목덜미).
+   *
+   *  검은 실루엣을 어둠에 세우면 배경과 함께 휘도 0으로 붕괴한다: 형체 색(0x0b0e16)과
+   *  밤하늘(0x0a0e1a)의 원래 휘도 차가 거의 없다. 그렇다고 형체를 밝히면 **정체가 사라진다.**
+   *  창백한 부분 하나만 붙이는 것이 실루엣을 지키면서 대비를 얻는 유일한 길이다 —
+   *  v0.11.49 실측에서 오토바이의 형체가 이 수법으로 2.0 → 49.3이 됐다.
+   *  그리고 "얼굴은 안 보이는데 손은 보인다"가 더 무섭다 */
+  pale: THREE.MeshStandardMaterial;
 }
 
 export function sharedMats(): SharedMats {
@@ -503,7 +540,17 @@ export function sharedMats(): SharedMats {
     }),
     // 벽에 튄 자국 — **발광 없음.** 벽은 가로등을 받으므로 어두운 얼룩이 그대로 대비가 된다.
     // 세로 요소라 거리에 강하다: 바닥 데칼은 멀어질수록 선으로 뭉개지지만 벽 자국은 서 있다
-    bloodWall: new THREE.MeshStandardMaterial({ color: 0x4a0f0f, roughness: 0.5 }),
+    // ⚠⚠ **색이 다른 것과 밝기가 다른 것은 다르다** (v0.11.57 실측 교정).
+    //   0x4a0f0f는 벽(0x232838)과 **휘도가 거의 같았다** — 붉은색이라 눈에는 달라 보여도
+    //   가시성 지표(휘도 대비)로는 5.7뿐이었다. 색상 대비는 어둠 속에서 가장 먼저 죽는다.
+    //   콘크리트에 스며든 피는 실제로 검게 마른다: **벽이 받는 가로등 빛에 대해
+    //   어두운 얼룩**이 되게 낮춘다 (밝은 바닥 위의 어두운 형상 — H-019와 같은 문법)
+    bloodWall: new THREE.MeshStandardMaterial({ color: 0x1d0709, roughness: 0.5 }),
     darkFigure: new THREE.MeshStandardMaterial({ color: 0x0b0e16, roughness: 1 }),
+    // ⚠ 발광은 **아주 약하게**. 세면 어두운 곳에서 스스로 빛나는 물건이 되어
+    //   '사람의 살'이 아니라 '광원'으로 읽힌다 (핏자국에서 두 번 틀렸던 그 실수)
+    pale: new THREE.MeshStandardMaterial({
+      color: 0xb9b2a4, roughness: 0.9, emissive: 0x15140f,
+    }),
   };
 }

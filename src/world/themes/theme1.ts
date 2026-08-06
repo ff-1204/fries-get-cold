@@ -29,17 +29,30 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
     bloodTrail.add(spot);
   }
   // 벽으로 이어지는 세로 자국 — **바닥만으로는 멀리서 안 읽힌다.** 눈높이 1.65m에서
-  // 15m 밖 바닥 데칼은 거의 선으로 뭉갠다. 벽에 선 자국은 거리와 무관하게 서 있다
-  const smear = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.15), mats.bloodWall);
-  smear.position.set(-HW + 0.06, 0.6, -L * 0.397);
-  smear.rotation.y = Math.PI / 2;
+  // 15m 밖 바닥 데칼은 거의 선으로 뭉갠다. 벽에 선 자국은 거리와 무관하게 서 있다.
+  //
+  // ⚠⚠ **가로등 반대쪽 벽에 붙어 있었다** (v0.11.57 부품별 실측). 자국 휘도 2.7인데
+  //   그 둘레 벽도 6.8 — 둘 다 검어서 대비가 4.0뿐이었다. 세로 요소를 준 것까지는 맞았는데
+  //   **빛이 없는 면에 줬다.** 가로등은 오른쪽(x +2.1)이다.
+  //   ⭐ 끌린 방향은 그대로 두고(오른쪽 밝은 데서 시작해 왼쪽 어둠으로 사라진다)
+  //   **세로 자국만 시작점 쪽 벽으로** 옮긴다 — 무언가 벽에서 끌려 나온 자리가 된다
+  // ⚠ 폭은 **z 방향**이다 (벽면이라 화면에서는 세로띠의 두께가 된다). 0.62m는 13px밖에
+  //   안 잡혀 평균이 배경에 먹혔다 — 넓게 문질러야 멀리서도 면으로 읽힌다
+  const smear = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.5), mats.bloodWall);
+  smear.position.set(HW - 0.06, 1.15, -L * 0.458);
+  smear.rotation.y = -Math.PI / 2;
   bloodTrail.add(smear);
   bloodTrail.visible = false;
   t1.add(bloodTrail);
 
   // H-002 배출장 위 백골 — 흰 두개골: 어두운 배경과의 실루엣 대비 (배치 3원칙)
   const skull = new THREE.Group();
-  const boneMat = new THREE.MeshStandardMaterial({ color: 0xc9c2b0, roughness: 0.85 });
+  // ⚠ 배출장(z −6.8, 왼쪽)은 **가로등(z −16.2, 오른쪽)에서 9m 밖**이다 — 뼈처럼 밝은 색도
+  //   비출 빛이 없으면 어둡다. 아주 옅은 발광을 준다 (mats.pale과 같은 수위):
+  //   뼈가 스스로 빛나는 것이 아니라 **어둠 속에서도 흰 것은 희게 보인다**는 쪽에 가깝다
+  const boneMat = new THREE.MeshStandardMaterial({
+    color: 0xd6cfbc, roughness: 0.85, emissive: 0x171610,
+  });
   const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), boneMat);
   cranium.position.y = 0.14;
   cranium.scale.set(1, 0.92, 1.08);
@@ -52,7 +65,10 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
     skull.add(socket);
   }
   skull.add(cranium, jaw);
-  skull.position.set(-HW + 0.8, 1.06, -L * 0.19); // 배출장 상단 박스(y0.85) 위
+  skull.position.set(-HW + 0.8, 1.06, -L * 0.33); // 배출장 상단 박스(y0.85) 위
+  // ⚠ 대비는 18.1로 넉넉한데 **6.6m에서야** 나왔다 — 밝기가 아니라 **각크기**가 문제다.
+  //   두개골은 원래 작으니 키우는 데 한계가 있어, 통째로 한 단 키우고 앞으로 내민다
+  skull.scale.setScalar(1.38);
   skull.rotation.y = Math.PI / 6; // 길 쪽을 살짝 향한다 — 눈구멍이 보이는 각
   skull.visible = false;
   t1.add(skull);
@@ -71,8 +87,12 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   t1.add(facePlane);
 
   // 재활용 배출장 — 우산 이상(A-001)의 '정상 상태' 학습 대상 (fear-cognition §1)
-  box(1.6, 0.5, 1.0, 0x2a3142, -HW + 1.0, 0.25, -L * 0.2, t1);
-  box(0.7, 0.35, 0.6, 0x252c3d, -HW + 0.8, 0.85, -L * 0.19, t1);
+  // ⚠⚠ **8m 밖에서 볼 수 없는 자리에 있었다** (v0.11.57). 배출장이 구간 입구에서 6.8m라
+  //   플레이어가 아무리 멀리 서도 6.3m가 최대였다 — 백골의 목표 미달은 밝기가 아니라
+  //   **배치**의 문제였다. 밝기만 만지며 세 번 재는 동안 이걸 못 봤다.
+  //   구간 중반으로 물린다: 걸어오는 내내 보이는 자리가 된다
+  box(1.6, 0.5, 1.0, 0x2a3142, -HW + 1.0, 0.25, -L * 0.34, t1);
+  box(0.7, 0.35, 0.6, 0x252c3d, -HW + 0.8, 0.85, -L * 0.33, t1);
 
   // 우산 (배출장 옆 — A-001, 기본 숨김)
   const umbrella = new THREE.Group();
@@ -85,7 +105,7 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   cap.position.set(-0.35, 1.35, 0);
   cap.rotation.z = 0.5;
   umbrella.add(cap);
-  umbrella.position.set(-HW + 1.8, 0, -L * 0.24);
+  umbrella.position.set(-HW + 1.8, 0, -L * 0.38);
   umbrella.visible = false;
   t1.add(umbrella);
 
@@ -195,11 +215,9 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   // 배경과 함께 0으로 붕괴한 것이다(가로등 −0.45L에서 7m 밖). 형체를 밝히면 정체가 사라지므로
   // **창백한 부분을 하나만** 붙인다: 핸들을 잡은 두 손. 펜스의 손(H-020)이 대비 55로
   // 증명한 수법이고, "얼굴은 안 보이는데 손은 보인다"가 더 무섭기도 하다
-  const paleMat = new THREE.MeshStandardMaterial({
-    color: 0xb9b2a4, roughness: 0.9, emissive: 0x15140f,
-  });
+  // (재질은 v0.11.57에 `mats.pale`로 올라갔다 — 형체 넷이 같은 살색을 쓴다)
   for (const hx of [-0.17, 0.17]) {
-    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.11, 0.15), paleMat);
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.11, 0.15), mats.pale);
     hand.position.set(hx, 1.16, 0.3);           // 핸들 뭉치(y 0.9~1.2) 위
     bikeFigure.add(hand);
   }

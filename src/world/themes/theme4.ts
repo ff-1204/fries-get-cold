@@ -54,6 +54,14 @@ export function createTheme4(mats: SharedMats): Build<Theme4Refs, E> {
   afB.position.y = 0.9;
   const afH = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), mats.darkFigure);
   afH.position.y = 1.64;
+  // ⭐ **늘어뜨린 두 손** (v0.11.57) — 실측 대비가 15.6 → 7.4로 계속 내려온 항목이다.
+  // 배경이 **길 건너 아스팔트**인데 거기 골재 텍스처가 생기면서 둘레 배경의 분산이 올라갔다
+  // (v0.11.52 표면 텍스처의 대가). 배경을 되돌릴 수는 없으니 대상 쪽에 창백한 점을 준다
+  for (const hx of [-0.26, 0.26]) {
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.1), mats.pale);
+    hand.position.set(hx, 0.72, 0.03);
+    acrossFigure.add(hand);
+  }
   acrossFigure.add(afB, afH);
   acrossFigure.position.set(-1.1, 0, ROAD_Z - ROAD_HALF - 0.6); // 건너편 인도, 통행선 밖
   acrossFigure.visible = false;
