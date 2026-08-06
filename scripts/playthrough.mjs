@@ -41,15 +41,8 @@ const msg = () => page.evaluate(() => document.getElementById('msg')?.textConten
 const visible = (sel) => page.evaluate(
   (s) => { const e = document.querySelector(s); return !!e && getComputedStyle(e).display !== 'none' && !e.classList.contains('hidden'); }, sel);
 
-/** 시점 회전 — 캔버스에 PointerEvent를 직접 쏜다 (yaw −= dx × 0.00576) */
-const turn = (rad) => page.evaluate((r) => {
-  const c = document.querySelector('canvas');
-  const dx = -r / 0.00576;
-  const mk = (t, x) => new PointerEvent(t, { pointerId: 7, pointerType: 'touch', clientX: x, clientY: 360, bubbles: true });
-  c.dispatchEvent(mk('pointerdown', 640));
-  c.dispatchEvent(mk('pointermove', 640 + dx));
-  c.dispatchEvent(mk('pointerup', 640 + dx));
-}, rad);
+// (시점 회전 헬퍼 `turn`이 여기 있었다 — 응시 판정을 흉내 내던 도구라 v0.11.56 이후
+//  쓰는 곳이 없어졌다. 시선으로 무언가를 재는 검증이 다시 필요하면 verify.mjs의 것을 가져온다)
 
 /** 무서운 것을 보면 **사람은 멈춘다** — 그 반응을 몇 초로 흉내 낼 것인가 (v0.11.51).
  *

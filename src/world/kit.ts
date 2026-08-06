@@ -99,34 +99,12 @@ export function faceTexture(): THREE.CanvasTexture {
   });
 }
 
-/** 손자국 **하나** (H-004) — 캔버스를 꽉 채워 그린다.
- *
- *  ⚠⚠ **여러 자국을 한 장에 그려 큰 판 하나로 붙이면 안 된다** (v0.11.57 실측).
- *  가시성은 대상이 차지한 **사각의 평균 휘도**로 재는데, 큰 판의 사각에는 자국 사이의
- *  빈 곳(셔터)이 전부 들어가 평균이 씻긴다 — 대비 14.5가 **3.7m에서야** 나왔다.
- *  v0.11.49에 핏자국에서 배운 것과 같은 함정이다("부품마다 따로 낸다").
- *  ⭐ 자국 하나에 메시 하나. 그래야 사각이 자국에 딱 맞고 평균이 자국의 색이 된다 */
-export function handprintTexture(): THREE.CanvasTexture {
-  return canvasTex(128, 160, (c) => {
-    c.clearRect(0, 0, 128, 160);
-    c.save();
-    c.translate(64, 92);
-    c.fillStyle = 'rgba(90, 15, 15, 0.9)'; // 저채도 적 — 이상 시그널 전용색 (visual-polish §3)
-    c.beginPath();
-    c.ellipse(0, 0, 30, 40, 0, 0, Math.PI * 2); // 손바닥
-    c.fill();
-    for (let f = 0; f < 5; f++) {
-      const a = -0.7 + f * 0.35;
-      c.beginPath();
-      c.ellipse(Math.sin(a) * 40, -Math.cos(a) * 52, 8, 20, a, 0, Math.PI * 2);
-      c.fill();
-    }
-    c.restore();
-  });
-}
-
 /** 셔터의 손자국들 (H-004) — 검붉은 손바닥 자국. 안쪽에서 찍힌 방향.
- *  ⚠ 퇴역 — 한 장에 여러 자국을 그리던 옛 방식 (위 `handprintTexture` 주석 참조) */
+ *
+ *  ⚠⚠ **자국마다 메시로 쪼개지 말 것** (v0.11.57 실측 — 14.5 → 2.6 FAIL, 되돌렸다).
+ *  벽과 나란한 데칼은 늘 비스듬히 보여, 쪼갤수록 사각이 몇 픽셀로 줄고 그 안의 투명한
+ *  여백에 뒤의 셔터가 들어온다. 바닥의 흩어진 자국(핏자국 v0.11.49)과 **반대**다 —
+ *  규칙은 "쪼개라"가 아니라 "사각이 대상으로 꽉 차게 하라" (anomalies.md §③) */
 export function handprintsTexture(): THREE.CanvasTexture {
   return canvasTex(1024, 512, (c) => {
     // ⚠ 손이 작아 **3.7m에서야** 목표 대비가 나왔다 (실측). 크게 찍는다 —

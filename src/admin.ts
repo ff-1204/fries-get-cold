@@ -310,7 +310,7 @@ export class Admin {
       <div class="row"><button id="adm-off" class="warn">관리자 모드 끄기</button></div>
       <div class="help">비행 WASD · Space 상승 · Shift 하강 · Alt 가속 · 휠 속도<br>
         C 좌표+조준 대상 복사 · Esc 이 창 · Ctrl+Space Space 모드 전환<br>
-        관리자 모드에서는 붙잡힘·치임·늘어남·구간 전환이 전부 멈춘다</div>`;
+        관리자 모드에서는 머무름·치임·늘어남·구간 전환이 전부 멈춘다</div>`;
     document.body.appendChild(el);
     this.panel = el;
 

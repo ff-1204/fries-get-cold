@@ -129,7 +129,8 @@ const EFFECTS: Record<AnomalyEffect, EffectHandler> = {
     },
   },
   // ---- 괴담의 존재 (2026-08-02 컨셉 전환) — 전부 "있어서는 안 되는 것"의 출현/소거 토글.
-  // OBJ(흔적)는 직시하면 main.ts가 재적용으로 지운다 — 똑바로 보면 걷힌다
+  // ⚠ 한 번 세우면 구간을 나갈 때까지 그대로다 — 직시하면 걷히던 재적용은
+  //    짚기와 함께 사라졌다 (v0.11.50). applyAnomalies는 구간마다 한 번만 불린다
   blood_trail: toggle((r) => r.bloodTrail),
   skull: toggle((r) => r.skull),
   face_window: toggle((r) => r.facePlane),

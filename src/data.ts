@@ -7,7 +7,7 @@ import anomaliesJson from './data/anomalies.json';
 import stagesJson from './data/stages.json';
 
 export type AnomalyEffect =
-  // ---- 괴담의 존재 (밤의 골목에만 있는 것 — OBJ는 직시, HUM은 외면) ----
+  // ---- 괴담의 존재 (밤의 골목에만 있는 것 — 흔적 OBJ / 사람 형태 HUM) ----
   | 'blood_trail' | 'skull' | 'face_window'                    // 구간 1 원룸 골목
   | 'handprints'                                               // 구간 2 상가 골목
   | 'swing_figure' | 'eyes'                                    // 구간 3 놀이터 옆길
@@ -52,7 +52,7 @@ export interface AnomalyDef {
   /** 배치 구간 1~5 — 구간 테마의 사물에만. 0 = 전 구간 (스폰 포인트 랜덤 출현형) */
   segment: number;
   category: 'OBJ' | 'LGT' | 'TXT' | 'HUM' | 'SPC' | 'SND' | 'MTA';
-  /** 통과 규칙 — 관례상 OBJ=gaze / HUM=avert 지만, 데이터가 최종 결정한다 (콘텐츠는 데이터) */
+  /** 부류 — 관례상 OBJ=gaze / HUM=avert. 판정은 없고, 증식이 번갈아 뽑는 기준이다 (위 주석) */
   rule: AnomalyRule;
   effect: AnomalyEffect;
   /** 늘어남 직후 암시 문구 (design-principles §3 — 공정성).
