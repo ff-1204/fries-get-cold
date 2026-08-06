@@ -85,6 +85,11 @@ M3에서 `systems/`(anomaly·rules·night)로 나눈다. 원칙은 그대로 —
 - **상태 모델** — `done`(걸음)·`total`(5+늘어남)·`theme`(1..5)·`depth`·`stretches`.
   늘어남 = done+1·total+1·테마 반복 — 분자·분모가 함께 늘어
   "걸었는데 남은 거리가 안 줄었다"가 표시된다
+- ⭐ **머무름 → 자람** (v0.11.51) — `still`이 서 있는 동안 쌓이고 걸으면 빠진다.
+  임계를 넘으면 `grow()`가 **걷는 도중 그 자리에서** total·depth·swarm을 올리고
+  `repeatsPending`을 +1 한다 (전환마다 하나씩 갚아 같은 테마를 되풀이).
+  ⚠ **`grow()`는 마지막 구간이면 `setShopNear`를 다시 부른다** — total이 늘어
+  `done === total-1`이 거짓이 됐으므로, 안 부르면 도착지 안으로 걸어 들어간다
 - **판정** — ⭐ **짚는 판정이 없다** (v0.11.50). 레이캐스트 히트(`hitAnomaly`)·관용 반경·
   직시 거리(4.5m)가 통째로 사라졌다. 남은 판정은 응시(각도·거리·누적 시간)와 차도 둘뿐이다.
   effect별 `hit` 맵(`world/index.ts`)은 응시 조준과 가림 검사가 계속 쓴다
@@ -116,9 +121,14 @@ npm run build:local    # 단일 파일 빌드 → play-local.html
 npm run deploy         # 빌드 후 gh-pages 브랜치로 배포
 npm run verify:sim     # 깊이 모델 시뮬레이션 (node:test, 브라우저 불요, <1초)
 npm run verify:shots   # 헤드리스 스크린샷 (dev 서버 필요)
-npm run verify:balance # E2E 밸런스 실측 6케이스 (dev 서버 필요)
+npm run verify:balance # E2E 밸런스 실측 5케이스 (dev 서버 필요)
+npm run verify:visible # 이상현상 가시성 — 휘도 대비 실측 (dev 서버 필요)
 npm run verify:play    # 끝에서 끝까지 자동 플레이 (dev 서버 필요)
+LOOK_SEC=5 npm run verify:play   # 이상현상 앞에서 5초 멈추는 사람으로 (머무름 자람 실측)
 ```
+
+⚠ **검증이 도는 중에 `src/`를 고치지 않는다.** vite dev 서버가 리로드를 브로드캐스트해
+주행 중인 페이지가 초기화되고, 20분짜리 `verify:shots`가 중간에 죽는다 (실제로 겪었다).
 
 **`verify:play`가 다른 검증과 다른 점** — `?a=` 없이 **실제 확률로** 돌고, 저장 없는
 첫 방문(타이틀 → 퇴근길 튜토리얼 → 가게 컷 → 밤 1 → 집 → 귀가 연출 → 밤 2)을 통째로 걷는다.
