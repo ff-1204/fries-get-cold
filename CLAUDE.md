@@ -15,11 +15,9 @@ Claude Code가 이 저장소에서 작업할 때 따르는 가이드입니다. �
 이상현상은 판정 대상이 아니라 **플레이어를 멈춰 세우는 풍경**이다 — 짚을 수도, 없앨 수도 없다.
 게임이 벌하는 것이 아니라 **플레이어의 반응이 벌한다.** 깊이 = 꺼져가는 가로등.
 
-⚠ **전환 중이다 — 세 단계 중 둘이 끝났다.**
-① 클릭 판정 제거 ✅ v0.11.50 / ② **머무름 → 자람** ✅ v0.11.51 / ③ 응시(외면) 판정 제거 ☐.
-남은 차이는 "사람 형태를 오래 보면 붙잡힌다" 하나뿐이다.
-설계는 [docs/game.md](docs/game.md), 라이브 실물은 [docs/spec.md](docs/spec.md).
-둘이 다르면 spec 쪽이 현재이고 game 쪽이 앞으로다.
+⭐ **M3 전환 완료** (v0.11.50 클릭 제거 · v0.11.51 머무름→자람 · v0.11.56 응시 제거).
+**판정이 하나도 없다.** [docs/game.md](docs/game.md)와 [docs/spec.md](docs/spec.md)가
+처음으로 같은 게임을 적는다 — 여전히 둘이 다르면 spec 쪽이 현재다.
 
 - 라이브: https://ff-1204.github.io/fries-get-cold/ (GitHub Pages, `gh-pages` 브랜치 서빙)
 - 원격: https://github.com/ff-1204/fries-get-cold.git
