@@ -198,18 +198,18 @@ async function shot(page, name) {
 // 확인이 작업보다 오래 걸리고, 도는 동안 소스를 못 고친다(dev 리로드가 주행을 죽인다).
 async function shots() {
   // v0.11.0 귀갓길 구조: 테마가 5→1 역순이므로 구간 S에 도달하려면 (5 - S)번 통과한다.
-  // avert(사람 형태)는 정면으로 담으면 붙잡히므로 스크린샷용으로 `avert=off`를 붙인다
+  // (`?avert=off`는 v0.11.56에 사라졌다 — 이제 형체를 정면으로 담아도 아무 일도 없다)
   const cases = [
     // [디버그 파라미터, 태그, 통과할 구간 수, 관찰 z]
     ['a=drag_mark', 'seg5-dragmark-anomaly', 0, -14],
     ['a=open_shutter', 'seg5-openshutter-anomaly', 0, -9],
     ['a=none', 'seg5-normal', 0, -14],
-    ['a=bus_figure&avert=off', 'seg4-busfigure-anomaly', 1, -7],
-    ['a=across_figure&avert=off', 'seg4-acrossfigure-anomaly', 1, -18],
+    ['a=bus_figure', 'seg4-busfigure-anomaly', 1, -7],
+    ['a=across_figure', 'seg4-acrossfigure-anomaly', 1, -18],
     ['a=bench_shoes', 'seg4-benchshoes-anomaly', 1, -8],
-    ['a=swing_figure&avert=off', 'seg3-swingfigure-anomaly', 2, -10],
-    ['a=eyes&avert=off', 'seg3-eyes-anomaly', 2, -15],
-    ['a=slide_figure&avert=off', 'seg3-slidefigure-anomaly', 2, -8],
+    ['a=swing_figure', 'seg3-swingfigure-anomaly', 2, -10],
+    ['a=eyes', 'seg3-eyes-anomaly', 2, -15],
+    ['a=slide_figure', 'seg3-slidefigure-anomaly', 2, -8],
     ['a=handprints', 'seg2-handprints-anomaly', 3, -10],
     ['a=shutter_glow', 'seg2-shutterglow-anomaly', 3, -20],
     ['a=sign_lit', 'seg2-signlit-anomaly', 3, -14],
@@ -217,11 +217,11 @@ async function shots() {
     ['a=blood_trail', 'seg1-blood-anomaly', 4, -8],
     ['a=skull', 'seg1-skull-anomaly', 4, -4],
     ['a=shoes', 'seg1-shoes-anomaly', 4, -28],
-    ['a=bike_figure&avert=off', 'seg1-bikefigure-anomaly', 4, -21],
-    ['a=face_window&avert=off', 'seg1-face-anomaly', 4, -19],
+    ['a=bike_figure', 'seg1-bikefigure-anomaly', 4, -21],
+    ['a=face_window', 'seg1-face-anomaly', 4, -19],
     ['a=none', 'seg1-normal', 4, -8],
     // 그림자 사람 (H-009) — 어느 구간에나. 디버그 앵커 고정(z=-17.6)
-    ['a=figure&avert=off', 'seg5-figure-anomaly', 0, -12],
+    ['a=figure', 'seg5-figure-anomaly', 0, -12],
   ];
   // 필터 — 인자가 없으면 전부. ⚠ **무엇을 건너뛰었는지 반드시 찍는다**:
   // 조용히 줄어든 커버리지는 "다 봤다"로 읽힌다 (docs/workflow.md 배운 것)
@@ -430,16 +430,18 @@ async function balance() {
     await browser.close();
   }
 
-  // 5) avert — 지나치는 것이 정답: 보지 않고 통과하면 무비용 (아직 남아 있는 유일한 규칙)
+  // 5) ⭐ **사람 형체를 정면으로 담고 걸어도 아무 일도 없다** (v0.11.56 — 응시 판정 제거).
+  //    예전 이 케이스는 `?avert=off`로 판정을 꺼 두고 "안 봤을 때 무비용"을 쟀다.
+  //    이제 끌 판정이 없으므로 **끄지 않고** 잰다 — 그것이 이 변경의 증거다
   {
     const { browser, page } = await launch();
-    await startGame(page, 'a=bus_figure&avert=off'); // 응시 정지 = '눈을 마주치지 않은' 상태
-    await passMain(page);
+    await startGame(page, 'a=bus_figure');
+    await passMain(page);                  // 테마 5 → 4 (형체 등장)
     const s0 = await state(page);
-    await passMain(page);
+    await passMain(page);                  // 형체를 지나 통과 — 판정이 없으므로 무비용
     const s = await state(page);
-    console.log('외면 통과:', JSON.stringify({
-      avert: s0.avert, stretches: s.stretches, total: s.total, depth: s.depth,
+    console.log('형체 정면 통과:', JSON.stringify({
+      active: s0.active, stretches: s.stretches, total: s.total, depth: s.depth,
     }));
     await browser.close();
   }

@@ -118,8 +118,6 @@ let stretchRepeat = false;     // 지금 구간이 늘어남 반복인가 (분�
 let still = 0;              // ⭐ 머무름 — 걷지 않고 서 있는 누적 시간 (config.stillGrowSec마다 자람)
 let repeatsPending = 0;     // 자라 놓고 아직 걷지 않은 구간 수 — 전환 때 하나씩 갚는다
 let swarm = 0;              // 증식 — 늘어남마다 +1, 동시 이상 = 1+swarm (balance.ts)
-let stare = 0;              // avert — 사람 형태를 화면에 담고 있는 누적 시간 (붙잡힘까지)
-let stareWarned = false;    // 경고 자막 1회 (눈을 뗄 시간을 준다 — 공정성)
 let carCycle = -1;          // 차를 보낸 신호 주기 번호 — 빨간불마다 정확히 한 대
 let tutBeat = 0;            // 튜토리얼 자막 진행 — 걸음이 지점을 지날 때마다 하나씩
 let nightBeat = 0;          // 밤별 걸음 모놀로그 진행 (stages.json beats, v0.11.45)
@@ -148,7 +146,6 @@ function anomalyChance(): number {
 const PARAMS = new URLSearchParams(location.search);
 const DEBUG_ANOMALY = PARAMS.get('a');
 const DEBUG_TUT = PARAMS.has('t');                      // ?t=1 — 튜토리얼 강제 재생
-const DEBUG_NO_AVERT = PARAMS.get('avert') === 'off';   // ?avert=off — 응시 붙잡힘 정지
 // ?anchor=0..5 — 스폰 앵커 고정 (그림자 사람의 가림 검사용. 기본 2 = 기존 스크린샷 호환)
 const DEBUG_ANCHOR = Math.max(0, Math.min(5, Number(PARAMS.get('anchor') ?? 2) || 0));
 // (스크린샷 검증 전용: 사람 형태를 정면에서 찍으려면 붙잡히지 않아야 한다)
@@ -206,10 +203,9 @@ function rollSegment(stretchStatus = false) {
 
   // 이 테마·이 밤에 가능한 풀 — 테마 사물 고정형 + 스폰 포인트 랜덤형(segment 0)
   // 같은 이상현상 연속 등장 방지 (늘어남 반복 구간에서 같은 것이 두 번 서면 김이 샌다)
-  // `untilNight`은 같은 사물을 다른 항목으로 갈아 끼울 때 옛 항목을 끊는 수단이다
+  // (`untilNight`은 밤 5의 규칙 배신 전용이었다 — 규칙이 사라지면서 v0.11.56에 함께 없어졌다)
   const pool = ANOMALIES.filter(
-    (a) => (a.segment === theme || a.segment === 0) && a.night <= night &&
-      (a.untilNight === undefined || night <= a.untilNight) && !lastIds.has(a.id),
+    (a) => (a.segment === theme || a.segment === 0) && a.night <= night && !lastIds.has(a.id),
   );
 
   // 온보딩 보장 (game-design-theory §6): 온보딩 밤의 첫 구간은 반드시 정상 —
@@ -224,15 +220,12 @@ function rollSegment(stretchStatus = false) {
   if (tutorial) {
     anomalies = []; // 첫날 아침 — 아무 일도 없다. 표지판만 말이 많다
   } else if (forcedEffect()) {
-    // 같은 effect가 밤에 따라 rule이 다를 수 있다 (규칙 배신, v0.11.46) —
     // **지금 밤에 유효한 항목을 먼저** 고른다. 없으면 아무거나: `?a=`는 해금 밤을 무시하는
     // 디버그 수단이고(verify.mjs가 밤 1에서 밤 3~4 이상을 찍는다), 그 편의를 유지한다
     const cands = ANOMALIES.filter(
       (x) => x.effect === forcedEffect() && (x.segment === theme || x.segment === 0),
     );
-    const forced = cands.find(
-      (x) => x.night <= night && (x.untilNight === undefined || night <= x.untilNight),
-    ) ?? cands[0];
+    const forced = cands.find((x) => x.night <= night) ?? cands[0];
     anomalies = forced ? [forced] : [];
   } else if (pool.length > 0 && !forceNormal && (forceAnomaly || Math.random() < anomalyChance())) {
     // 증식 — 지나칠수록 동시 이상이 늘어난다 (풀에서 서로 다른 것을 뽑는다)
@@ -352,7 +345,7 @@ function grow() {
 // **해제는 절대 좌표가 아니라 '그 지점에서 얼마나 걸었는가'로 판정한다** (v0.11.27).
 // 절대 좌표(z < -6)로 재던 시절, 퇴근길 튜토리얼은 z=-8.64에서 시작하는 탓에
 // 첫 프레임에 조건이 이미 참이라 **힌트가 뜨자마자 사라졌다** — 가르쳐야 할 구간에서만 안 보였다
-const onboard = { move: false, avert: false, hintZ: 0 };
+const onboard = { move: false, hintZ: 0 };
 const usesTouch = () => input.usesTouch || 'ontouchstart' in window;
 
 function resetTrip() {
@@ -366,8 +359,6 @@ function resetTrip() {
   elapsed = 0;
   lastIds = new Set();
   tripAnomalies = 0;
-  stare = 0;
-  stareWarned = false;
   still = 0;
   repeatsPending = 0;
   carCycle = -1;
@@ -508,8 +499,6 @@ async function hitByCar() {
 async function grabbed(reason: string) {
   if (phase !== 'walk') return;
   phase = 'transition';
-  stare = 0;
-  stareWarned = false;
   stretches += 1;
   total += 1;
   depth += CONFIG.stretchDepthCost;
@@ -570,61 +559,11 @@ async function passSegment() {
 // 여기 남은 것은 응시(외면) 판정과 온보딩 힌트, 그리고 검증 훅이 쓰는 계산뿐이다
 const projPos = new THREE.Vector3();
 
-function targetDistance(targets: THREE.Object3D[]): number {
-  let min = Infinity;
-  for (const t of targets) {
-    t.getWorldPosition(projPos);
-    min = Math.min(min, projPos.distanceTo(camera.position));
-  }
-  return min;
-}
-
-// avert 조준 판정 — 형체의 '몸통 중심'을 기준으로 한다. 그룹 원점은 발치라서
-// 원점으로 재면 얼굴을 정면으로 보고 있어도 안 걸린다 (판정이 거짓말하면 안 된다, §0)
+// ⭐ 조준 계산(`aimState`)·대상 거리(`targetDistance`)·최근접 형체(`nearestAvert`)가
+// 여기 있었다. 전부 응시 판정과 외면 힌트만 쓰던 것이라 v0.11.56에 함께 사라졌다.
+// **남은 것은 가림 검사용 바운딩박스뿐이다** — 그것도 판정이 아니라 검증 도구다
 const aimBox = new THREE.Box3();
 const aimCenter = new THREE.Vector3();
-const camFwd = new THREE.Vector3();
-const toTarget = new THREE.Vector3();
-
-/** 외면(avert) 대상 중 **가장 가까운 개별 메시**와 그 거리.
- *  그룹 원점이 아니라 메시로 잡는다 — 부품이 흩어진 대상은 그룹 원점이 빈 공간이다.
- *  검증 훅(`state().avertNear`) 전용 — 응시 임계 실측용 */
-function nearestAvert(): { obj: THREE.Object3D; dist: number } | null {
-  let best: { obj: THREE.Object3D; dist: number } | null = null;
-  for (const a of anomalies) {
-    if (a.rule !== 'avert') continue;
-    for (const t of refs.hit[a.effect]) {
-      t.traverse((o) => {
-        if (!(o as THREE.Mesh).isMesh) return;
-        o.getWorldPosition(projPos);
-        const d = projPos.distanceTo(camera.position);
-        if (!best || d < best.dist) best = { obj: o, dist: d };
-      });
-    }
-  }
-  return best;
-}
-
-/** 시선축에서 벗어난 각도(도)와 카메라와의 거리 — 둘 다 최솟값 */
-function aimState(targets: THREE.Object3D[]): { dist: number; deg: number } {
-  camera.getWorldDirection(camFwd);
-  let dist = Infinity;
-  let deg = Infinity;
-  for (const t of targets) {
-    if (!t.visible) continue;
-    aimBox.setFromObject(t);
-    if (aimBox.isEmpty()) continue;
-    aimBox.getCenter(aimCenter);
-    toTarget.subVectors(aimCenter, camera.position);
-    const d = toTarget.length();
-    if (d < 0.01) continue;
-    dist = Math.min(dist, d);
-    toTarget.divideScalar(d);
-    const dot = Math.max(-1, Math.min(1, toTarget.dot(camFwd)));
-    deg = Math.min(deg, (Math.acos(dot) * 180) / Math.PI);
-  }
-  return { dist, deg };
-}
 
 // 가림 검사 (?a= 디버그 한정 검증 훅) — 배치 3원칙 ②'관찰 시간 확보'를 숫자로 확인한다.
 // 카메라에서 대상 중심으로 레이를 쏴, 첫 충돌이 대상 자신이 아니면 무언가가 가린 것
@@ -773,8 +712,6 @@ function updateWalk(dt: number) {
     adminWasFlying = false;
     player.x = Math.max(-HW + 0.4, Math.min(HW - 0.4, camera.position.x));
     player.z = Math.max(-L + 0.6, Math.min(TUNNEL_LEN - 0.7, camera.position.z));
-    stare = 0;
-    stareWarned = false;
   }
 
   elapsed += dt;
@@ -881,59 +818,17 @@ function updateWalk(dt: number) {
     }
   }
 
-  // ---------- avert — 사람 형태를 화면에 담고 있으면 붙잡힌다 (v0.11.0 괴담 규칙) ----------
-  // 공정성: ① 가까이(15m) + 화면 중앙(NDC 0.3) 안에서만 누적 ② 경고 자막이 먼저 뜬다
-  // ③ 눈을 떼면 2배속으로 회복된다. 즉 "실수로 스쳐 본 것"으로는 걸리지 않는다
-  let meeting = false;
-  for (const a of DEBUG_NO_AVERT ? [] : anomalies) {
-    if (a.rule !== 'avert') continue;
-    const { dist, deg } = aimState(refs.hit[a.effect]);
-    if (dist <= CONFIG.avertDistance && deg <= CONFIG.avertAngleDeg) {
-      meeting = true;
-      break;
-    }
-  }
-  if (meeting) {
-    stare += dt;
-    if (!stareWarned && stare >= CONFIG.avertWarnSec) {
-      stareWarned = true;
-      hud.say(TEXT.avertWarn, 2400);
-      audio.duck(true); // 정적 — 시각 단서의 청각 병행 (fear-cognition §8)
-    }
-    applyPain(depth + (stare / CONFIG.avertGrabSec) * 3); // 시야가 조여든다 (즉각 피드백)
-    if (stare >= CONFIG.avertGrabSec) {
-      void grabbed(TEXT.avertGrab);
-      return;
-    }
-  } else if (stare > 0) {
-    stare = Math.max(0, stare - dt * CONFIG.avertRecoverMul);
-    applyPain(depth + (stare / CONFIG.avertGrabSec) * 3);
-    if (stare === 0) {
-      stareWarned = false;
-      audio.duck(anomalies.length > 0);
-    }
-  }
-  // 심박 — 응시 게이지의 청각 병행 (v0.11.47). **눈을 돌리면 화면의 비네트는 안 보인다**:
-  // 규칙이 "보지 마라"인데 위험 표시가 시각뿐이면 지키는 순간 정보가 끊긴다.
-  // 심박은 눈을 감아도 들리고, 물러나면 함께 잦아든다
-  audio.setStare(stare / CONFIG.avertGrabSec);
+  // ⭐ **응시 붙잡힘이 여기 있었다** (v0.11.0~55). 사람 형태를 2.2초 담고 있으면 붙잡혔다.
+  // M3 마지막 단계에서 걷어냈다 — 이제 **쳐다봐도 아무 일도 일어나지 않는다.**
+  // 대가는 판정이 아니라 그 자리에 서 있던 시간이 문다 (머무름 → 자람, v0.11.51).
+  // 함께 사라진 것: 경고 자막 · 응시 비네트 · 심박 · 외면 힌트 · 밤 5의 규칙 배신(H-018)
 
-  // 온보딩 힌트 — 걷기 힌트는 몇 걸음 걸으면 해제 (직시 힌트는 v0.11.50에 사라졌다:
-  // 짚는 동사가 없으므로 흔적 앞에서 가르칠 것이 없다)
+  // 온보딩 힌트 — 걷기 하나뿐이다 (직시 힌트는 v0.11.50, 외면 힌트는 v0.11.56에 사라졌다).
+  // ⭐ **가르칠 것이 없다는 것이 이 설계의 목표였다** — 규칙이 없으면 배울 것도 없다
   if (stageOf(night).onboarding) {
     if (!onboard.move && onboard.hintZ - player.z > 6) {
       onboard.move = true;   // 6m를 직접 걸어보면 조작을 익힌 것으로 본다
       hud.hideHint();
-    }
-    // 사람 형태 첫 조우 — 붙잡히기 전에(응시 누적 거리 11m보다 멀리서) 규칙을 알려준다
-    if (onboard.move && !onboard.avert) {
-      const near = anomalies.some(
-        (a) => a.rule === 'avert' && targetDistance(refs.hit[a.effect]) < 18,
-      );
-      if (near) {
-        onboard.avert = true;
-        hud.showHint(TEXT.hintAvert, 6000);
-      }
     }
   }
 
@@ -1139,15 +1034,8 @@ window.addEventListener('resize', () => {
   state: () => ({
     phase, mode: walkMode, night, done, total, theme, depth, stretches, swarm,
     active: anomalies.length,
-    avert: anomalies.filter((a) => a.rule === 'avert').length,
-    // **외면** 대상까지의 최단 거리 — 응시 임계(config.avertDistance)를 실측으로 확인하는 값.
-    // 직시 쪽 짝(`gazeNear`/`gazeAim`)은 v0.11.50에 사라졌다: 짚을 것이 없으므로
-    // 자동 플레이도 "언제 짚는가"를 알 필요가 없다
-    avertNear: (() => {
-      const t = nearestAvert();
-      return t ? Math.round(t.dist * 10) / 10 : null;
-    })(),
-    stare: Math.round(stare * 100) / 100,
+    // 판정 관련 값은 전부 사라졌다 — 짚기(v0.11.50)·응시(v0.11.56).
+    // 남은 것은 **머무름**뿐이고, 그것이 이제 이 게임의 유일한 인과다
     // ⭐ 머무름 게이지 — 화면에는 없는 값이다 (game.md: 경고도 게이지도 두지 않는다).
     // 임계를 **실측으로** 잡으려면 하네스는 볼 수 있어야 한다
     still: Math.round(still * 100) / 100,

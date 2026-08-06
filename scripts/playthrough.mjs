@@ -1,7 +1,8 @@
 // 처음부터 끝까지 자동 플레이 — 저장 없는 첫 방문에서 밤 2 진입까지.
 //
 // verify:balance와 다른 점: **?a= 없이 실제 확률로** 돌고, 튜토리얼부터 시작하며,
-// 이상현상에 사람처럼 반응한다 (응시가 쌓이면 눈을 돌린다 — 짚는 반응은 v0.11.50에 사라졌다).
+// 이상현상에 사람처럼 반응한다 — 무서운 것 앞에서 **한 번 멈춰 선다**.
+// (짚기는 v0.11.50, 눈 돌리기는 v0.11.56에 사라졌다: 이제 대응할 판정이 없다)
 // "동작하는가"를 끝에서 끝까지 확인하는 유일한 검증이다 — 재미 판단은 사람이 해야 한다.
 //
 // 사용: node scripts/playthrough.mjs [출력폴더]   (dev 서버가 5199에 떠 있어야 한다)
@@ -61,7 +62,6 @@ const LOOK_SEC = Number(process.env.LOOK_SEC ?? 2.5);
 
 /**
  * 사람처럼 한 구간을 걷는다.
- *  - 응시(stare)가 쌓이면 **눈을 돌린다** — 붙잡히지 않는 것이 avert의 정답
  *  - 차도(테마 4)에서는 초록불이 아니면 정지선 앞에서 기다린다
  *  - **흔적에는 아무것도 하지 않는다** (v0.11.50): 짚는 동사가 없다
  *  - ⭐ 다만 **이상현상이 있는 구간에서는 한 번 멈춰 선다** (v0.11.51) —
@@ -70,7 +70,6 @@ const LOOK_SEC = Number(process.env.LOOK_SEC ?? 2.5);
  */
 async function walkSegment(maxSec = 90) {
   const start = await st();
-  let looked = 0;         // 눈을 돌린 횟수
   let waited = 0;
   let stopped = false;    // 이 구간에서 이상현상을 보고 멈춘 적이 있는가
   const t0 = Date.now();
@@ -81,7 +80,7 @@ async function walkSegment(maxSec = 90) {
     const s = await st();
     if (s.phase !== 'walk') {            // 전환·도착 컷
       await page.keyboard.up('KeyW');
-      return { r: 'ended', s, looked, waited, stopped };
+      return { r: 'ended', s, waited, stopped };
     }
     // ⚠ **`total` 변화를 통과로 읽으면 안 된다** (v0.11.51): 머무름으로 자라면 걷는 도중에도
     //    total이 오른다. 구간을 넘어간 것은 `done`뿐이 말해 준다 —
@@ -89,18 +88,7 @@ async function walkSegment(maxSec = 90) {
     //    하네스가 "통과했다"고 착각해 매 구간을 반쯤만 걷는다
     if (s.done !== start.done) {
       await page.keyboard.up('KeyW');
-      return { r: 'passed', s, looked, waited, stopped };
-    }
-
-    // ① 사람 형태를 보고 있다 → 눈을 돌린다 (경고 0.4초보다 먼저 반응)
-    if (s.stare > 0.3) {
-      await page.keyboard.up('KeyW');
-      await turn(looked % 2 === 0 ? 0.9 : -0.9);
-      looked += 1;
-      await wait(500);
-      await turn(looked % 2 === 0 ? -0.45 : 0.45); // 통행 방향으로 반쯤 되돌린다
-      await page.keyboard.down('KeyW');
-      continue;
+      return { r: 'passed', s, waited, stopped };
     }
 
     // ② 차도 — 초록이 아니면 정지선 앞에서 선다
@@ -121,7 +109,7 @@ async function walkSegment(maxSec = 90) {
     }
   }
   await page.keyboard.up('KeyW');
-  return { r: 'stuck', s: await st(), looked, waited, stopped };
+  return { r: 'stuck', s: await st(), waited, stopped };
 }
 
 // ============================================================
@@ -189,7 +177,7 @@ while (guard++ < 24) {
   const r = await walkSegment(150);
   say(`      밤1 구간 ${before.done + 1}/${before.total} (테마 ${before.theme}) → ${r.r}` +
       ` · 이상 ${before.active}종 · 멈춰봄 ${r.stopped ? 'O' : '—'}` +
-      ` · 자람 ${before.grown}→${r.s.grown} · 눈돌림 ${r.looked} · 신호대기 ${r.waited}`);
+      ` · 자람 ${before.grown}→${r.s.grown} · 신호대기 ${r.waited}`);
   if (r.r === 'stuck') { ok(false, `구간 ${before.done + 1}에서 전진하지 못함`, `z=${r.s.z}`); await shot('XX-stuck'); break; }
   if (r.r === 'ended') {
     // 도착인가 soft fail인가 — soft fail은 깊이 한계로 같은 밤을 다시 시작하는 정상 경로다.

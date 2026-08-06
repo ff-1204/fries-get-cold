@@ -10,8 +10,6 @@ export class AudioEngine {
   private ambGain: GainNode | null = null;
   private stepTimer = 0;
   private muted = false;
-  private stare = 0;        // 응시 진행도 0~1 — 심박의 속도·크기를 정한다 (v0.11.47)
-  private beatTimer = 0;
 
   start() {
     if (this.ctx) {
@@ -70,30 +68,9 @@ export class AudioEngine {
     this.ambGain.gain.linearRampToValueAtTime(quiet ? 0.006 : 0.05, t + 2.2);
   }
 
-  /** 응시 진행도 0~1 (v0.11.47) — 붙잡히기까지의 비율. 심박이 이 값을 따라간다.
-   *
-   *  여태 응시에는 **청각 피드백이 없었다**: 경고 자막·정적·비네트뿐이라, 화면을 안 보는
-   *  순간(눈을 돌리는 바로 그 순간!)에 위험이 얼마나 남았는지 알 방법이 없었다.
-   *  규칙이 "눈을 돌려라"인데 눈을 돌리면 게이지가 안 보이는 모순이다 —
-   *  **심박은 눈을 감아도 들린다.** (fear-cognition §8 시각 단서의 청각 병행) */
-  setStare(v: number) {
-    this.stare = Math.max(0, Math.min(1, v || 0));
-    if (this.stare <= 0) this.beatTimer = 0;
-  }
-
   /** 이동 중 호출 — 걸음 간격으로 발소리 (즉각 피드백, design-principles §0) */
   update(dt: number, moving: boolean) {
     if (!this.ctx) return;
-
-    // 심박 — 응시가 차오를수록 빨라지고 커진다. 0이면 완전히 침묵한다
-    if (this.stare > 0.06) {
-      this.beatTimer -= dt;
-      if (this.beatTimer <= 0) {
-        this.heartbeat(this.stare);
-        // 1.15초(느긋) → 0.42초(다급). 걸음(0.6초)과 어긋나게 잡아 둘이 뭉치지 않는다
-        this.beatTimer = 1.15 - this.stare * 0.73;
-      }
-    }
 
     if (!moving) {
       this.stepTimer = 0.12;
@@ -106,27 +83,6 @@ export class AudioEngine {
     }
   }
 
-  /** 두 번 치는 심장 (lub-dub). 저역 사인 버스트라 작은 폰 스피커에서도 '느껴진다' */
-  private heartbeat(intensity: number) {
-    const ctx = this.ctx;
-    if (!ctx || !this.master) return;
-    const t0 = ctx.currentTime;
-    const amp = 0.035 + intensity * 0.085;
-    for (const [delay, mul] of [[0, 1], [0.16, 0.62]] as Array<[number, number]>) {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      const t = t0 + delay;
-      osc.frequency.setValueAtTime(64, t);
-      osc.frequency.exponentialRampToValueAtTime(38, t + 0.13); // 떨어지는 음정 = 두근
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(amp * mul, t + 0.022);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-      osc.connect(g).connect(this.master);
-      osc.start(t);
-      osc.stop(t + 0.2);
-    }
-  }
 
   /** 늘어남의 순간 — 골목이 늘어난다 (v0.11.47).
    *  여태 이 순간의 청각은 '정적(duck)'뿐이라 **아무 일도 안 일어난 것처럼** 들렸다.

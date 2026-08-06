@@ -42,8 +42,7 @@
     "category": "HUM",
     "rule": "avert",
     "effect": "swing_figure",
-    "reveal": "…그네에 앉아 있던 것은, 아이가 아니었다.",
-    "untilNight": 4
+    "reveal": "…그네에 앉아 있던 것은, 아이가 아니었다."
   },
   {
     "id": "H-006",
@@ -152,15 +151,6 @@
     "rule": "avert",
     "effect": "across_figure",
     "reveal": "…길 건너에 서 있던 것은, 신호가 바뀌어도 건너지 않았다."
-  },
-  {
-    "id": "H-018",
-    "night": 5,
-    "segment": 3,
-    "category": "HUM",
-    "rule": "gaze",
-    "effect": "swing_figure",
-    "reveal": "…오늘의 그것은, 눈을 돌리면 안 되는 것이었다."
   },
   {
     "id": "H-019",

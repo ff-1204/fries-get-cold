@@ -112,7 +112,7 @@ for (const [id, effect, seg, night] of cases) {
     await page.setViewport({ width: W, height: H });
     await page.evaluateOnNewDocument((s) => localStorage.setItem('fries.save.v1', s),
       JSON.stringify({ night: 5, tut: true, misses: 0, results: [], brightness: 1, muted: true }));
-    await page.goto(`${BASE}?a=${effect}&avert=off`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(`${BASE}?a=${effect}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForFunction(() => !!globalThis.__fries, { timeout: 20000 });
     await page.evaluate(() => [...document.querySelectorAll('button')]
       .find((e) => /나선다|퇴근/.test(e.textContent))?.click());
