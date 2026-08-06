@@ -23,6 +23,8 @@ export interface CorridorRefs {
   ambient: THREE.AmbientLight;   // 깊이 사다리 대상 (applyDepth)
   stretchMark: THREE.Mesh;          // 늘어남 반복 구간의 바닥 분필 자국 (인지 보장 4요소 ④)
   lampLight: THREE.PointLight;
+  /** 가로등 등기구의 발광부 — 퇴근길에는 노을빛으로, 밤에는 원래 값으로 (setMorning) */
+  lampHeadMat: THREE.MeshStandardMaterial;
   shopGlow: THREE.PointLight;
   shopSign: THREE.Mesh;
   shopSignMat: THREE.MeshStandardMaterial;

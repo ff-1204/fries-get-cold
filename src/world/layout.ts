@@ -65,6 +65,34 @@ export const TUNNEL_LAMP_EMISSIVE = 0x7c869c;
 /** 터널 등의 기준 광량 — setTunnelDark가 (1-dark)를 곱한다 */
 export const TUNNEL_LAMP_INTENSITY = 3.2;
 
+// ---------- ⭐ 퇴근길에 **막 켜지는 등들** (v0.11.53) ----------
+// 가을 저녁의 골목을 만드는 것은 노을만이 아니다. **해가 남아 있는데 등이 먼저 들어오는**
+// 그 짧은 시간이 퇴근길의 정서다. 여태 퇴근길에는 가로등·부스등·터널등이 전부 꺼져 있었다.
+//
+// ⚠ 밤보다 **한참 약하게** 건다. 하늘이 아직 밝아서 등이 세면 밤처럼 보이고,
+//   그러면 튜토리얼이 만들어야 할 낙차가 사라진다. 등은 '켜졌다'는 사실만 말하면 된다.
+// ⚠ 밤의 값은 건드리지 않는다 — 웜=안전·목표라는 팔레트 규칙은 밤의 것이다 (visual-polish §3)
+
+// ⚠ **전부 주황으로 칠하면 온기가 오히려 줄어든다** (실측 교정). 웜은 한색과 나란히 놓일 때
+//    가장 웜하게 읽힌다 — 화면이 한 톤이면 그건 노을이 아니라 세피아 필터다.
+//    그래서 등 셋을 **웜 둘 + 한색 하나**로 나눈다.
+
+/** 가로등 — 웜. 다만 주황이 아니라 **웜화이트**다 (요즘 가로등은 대개 이쪽이다) */
+export const DUSK_LAMP_COLOR = 0xffcf9d;
+export const DUSK_LAMP_INTENSITY = 7.5;
+export const DUSK_LAMP_EMISSIVE = 0x5f4726;
+/** 다리 밑 터널 — 나트륨등. 여기만 주황을 남긴다: 좁고 어두운 자리라 한 점의 색으로 읽히고,
+ *  넓은 면을 물들이지 않는다. 채도는 한 단 낮췄다 */
+export const DUSK_TUNNEL_COLOR = 0xffab6e;
+export const DUSK_TUNNEL_EMISSIVE = 0x7d5330;
+/** ⭐ **정류장 부스는 한색으로 되돌린다** — 형광등은 원래 차갑고, 노을 속의 그 창백함이
+ *  한국 저녁 정류장의 얼굴이다. 밤보다 약하게 걸어 '막 들어왔다'만 말하게 한다 */
+export const DUSK_BOOTH_COLOR = 0xd4e2f2;
+export const DUSK_BOOTH_EMISSIVE = 0x6d8098;
+export const DUSK_BOOTH_INTENSITY = 4;
+/** 전조등 — 해가 남아 있으니 밤(26)만큼 셀 이유가 없다 */
+export const DUSK_CAR_INTENSITY = 11;
+
 // 입간판 방향 — 정상은 벽과 평행(옆면), 이상은 플레이어 정면 (실루엣 차이 = 명확성)
 export const SIGN_REST_Y = Math.PI / 2;
 export const SIGN_TURNED_Y = 0;
@@ -98,6 +126,6 @@ export const FOG_NIGHT = 0x0a0e1a;
 // 하늘과 안개를 **다른 색으로** 둔 것이 노을의 핵심이다. 하나로 칠하면 '주황 안개'가 되고,
 // 위는 호박색인데 먼 곳이 옅은 장밋빛 회색으로 가라앉아야 '해가 낮다'로 읽힌다
 /** 머리 위 하늘 — 늦가을 호박색 */
-export const SKY_DUSK = 0xdfa163;
+export const SKY_DUSK = 0xefc3c6;
 /** 대기(안개) — 하늘보다 옅고 탁한 장밋빛. 먼 곳이 이 색으로 물러난다 */
-export const FOG_DUSK = 0xc59782;
+export const FOG_DUSK = 0xd9bcbd;

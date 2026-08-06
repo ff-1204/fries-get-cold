@@ -141,6 +141,22 @@ async function takeCarHit(page) {
   );
 }
 
+/** 그 자리에서 시점만 돌린다 (스크린샷용) — 캔버스에 PointerEvent를 직접 쏜다.
+ *  터치 드래그 감도: yaw −= dx × 0.0024 × 2.4 (input.ts TOUCH_LOOK) */
+async function turn(page, rad) {
+  await page.evaluate((r) => {
+    const c = document.querySelector('canvas');
+    const dx = -r / (0.0024 * 2.4);
+    const mk = (t, x) => new PointerEvent(t, {
+      pointerId: 7, pointerType: 'touch', clientX: x, clientY: 360, bubbles: true,
+    });
+    c.dispatchEvent(mk('pointerdown', 640));
+    c.dispatchEvent(mk('pointermove', 640 + dx));
+    c.dispatchEvent(mk('pointerup', 640 + dx));
+  }, rad);
+  await sleep(350);
+}
+
 /** z 목표 지점까지만 전진 (스크린샷용) */
 async function walkTo(page, z) {
   await page.keyboard.down('KeyW');
@@ -227,11 +243,19 @@ async function shots() {
   if (want('dusk')) {
     const { browser, page } = await launch();
     await startGame(page, 't=1');   // 저장 없이 퇴근길 강제
+    await shot(page, 'dusk-seg4-booth');  // 출발 지점 — 정류장 부스가 곁에 있다 (막 켜진 등)
     await walkTo(page, -11);
     await shot(page, 'dusk-seg4-banner'); // 현수막이 눈에 들어오는 자리
     await walkTo(page, -19);
     await shot(page, 'dusk-seg4-read');   // 글자가 읽히는 자리 (노을이 가독성을 깎지 않았는가)
     await passMain(page);
+    // 뒤돌아본다 — **방금 지나온 터널의 갱구**.
+    // ⚠ 전환 직후 위치는 터널 **한가운데**(z=+4.5)라 그 자리에서 돌아보면 그냥 암흑이다
+    //   (어둠 곡선의 꼭대기 — 그게 설계다). 골목으로 나온 뒤에 봐야 갱구가 보인다
+    await walkTo(page, -4);
+    await turn(page, Math.PI);
+    await shot(page, 'dusk-seg5-tunnel-back');
+    await turn(page, Math.PI);
     await walkTo(page, -12);
     await shot(page, 'dusk-seg5-shop');   // 먹자골목 입구 — 가게 불빛과 노을이 만나는 곳
     await browser.close();

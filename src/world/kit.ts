@@ -377,23 +377,52 @@ export function wallTexture(): THREE.CanvasTexture {
  *  놓일 때 가장 웜하게 읽힌다. 전부 주황으로 칠하면 오히려 세피아 사진이 된다 */
 export function duskSkyTexture(): THREE.CanvasTexture {
   const h = 256;
+  const w = 512;
   const cv = document.createElement('canvas');
-  cv.width = 4;
+  cv.width = w;
   cv.height = h;
   const ctx = cv.getContext('2d')!;
   // 캔버스 y=0 이 v=1(천정), y=h 가 v=0(발밑)
+  // ⭐ **주황이 아니라 분홍이다.** 해가 막 넘어간 뒤의 골목 하늘은 호박색이 아니라
+  // 연한 장밋빛·라벤더다 — 그 파스텔이 '힐링'의 색이고, 주황은 오히려 무겁게 읽힌다.
+  // 채도를 전부 낮게 유지한다: 이 하늘은 화면에서 가장 넓은 면이라 조금만 진해도 압도한다
   const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0.00, '#414369'); // 천정 — 식어 가는 보랏빛 남색
-  g.addColorStop(0.15, '#6b5a80');
-  g.addColorStop(0.28, '#b07f78'); // 보라 → 장밋빛으로 넘어가는 자리
-  g.addColorStop(0.38, '#dc9a62');
-  g.addColorStop(0.47, '#f2b264'); // 해가 걸린 높이 — 가장 밝고 따뜻하다
-  g.addColorStop(0.52, '#e8a45c');
-  g.addColorStop(1.00, '#6d4526'); // 지평선 아래 — 바닥에 가려 거의 안 보인다
+  g.addColorStop(0.00, '#8d92bd'); // 천정 — 옅은 라벤더 블루
+  g.addColorStop(0.16, '#a89cc0');
+  g.addColorStop(0.30, '#c9a8bd'); // 라벤더 → 장밋빛
+  g.addColorStop(0.40, '#e8bcc2');
+  g.addColorStop(0.47, '#f5cdc6'); // 해가 넘어간 자리 — 가장 밝은 띠 (분홍)
+  g.addColorStop(0.52, '#eec4b4');
+  g.addColorStop(1.00, '#b08b7a'); // 지평선 아래 — 바닥에 가려 거의 안 보인다
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 4, h);
+  ctx.fillRect(0, 0, w, h);
+
+  // ⭐ **골목 끝에 해를 건다.** 레퍼런스 셋의 공통점이 '소실점에 빛이 있다'였고,
+  // 그중 하나는 제목부터 「집으로 가는 길」이다 — 노을을 향해 걸어 들어가는 그림.
+  // 여태 내 골목의 소실점은 검은 터널뿐이었다.
+  //
+  // 구면 UV에서 u=0.75가 −Z(전진 방향)다: x = −r·cos(2πu)·sinθ, z = r·sin(2πu)·sinθ.
+  // v=0.5가 지평선 — 해를 그 **살짝 위**에 둬서 건물 사이로 걸리게 한다.
+  // ⚠ 방향광은 여전히 옆(11,6,3)에서 온다. 해와 빛의 방향이 어긋나지만, 정면에서 넣으면
+  //   골목 전체가 역광 실루엣이 되어 현수막 글자가 뭉개진다 (v0.11.27 가독성 실측).
+  //   **보이는 해는 그림이고, 형태를 만드는 빛은 따로 둔다** — 양식화된 조명의 정석이다
+  const sunX = w * 0.75;
+  // ⚠ **지평선 바로 위(v 0.525)에 뒀더니 건물이 가렸다.** 벽 7m·거리 20m면 시선에 들어오는
+  //   하늘은 고도각 15° 위부터다 — 해는 그보다 높이 걸어야 지붕선 너머로 보인다 (실측)
+  const sunY = h * 0.40;
+  const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, w * 0.34);
+  halo.addColorStop(0.00, 'rgba(255, 244, 214, 0.95)'); // 해 — 흰빛에 가깝게 (눈이 부신 쪽)
+  halo.addColorStop(0.06, 'rgba(255, 226, 172, 0.80)');
+  halo.addColorStop(0.20, 'rgba(250, 196, 158, 0.45)'); // 빛무리
+  halo.addColorStop(0.55, 'rgba(238, 180, 168, 0.16)');
+  halo.addColorStop(1.00, 'rgba(230, 175, 175, 0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, w, h);
+
   const tex = new THREE.CanvasTexture(cv);
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  // u는 구를 한 바퀴 감으므로 **반복**이어야 이음매(u=0/1)가 튀지 않는다
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }

@@ -148,6 +148,135 @@ function buildTunnel(
   return { group: t, light };
 }
 
+// ---------- ⭐ 전신주와 전선 (v0.11.54) ----------
+// 한국 골목 사진을 '한국 골목'으로 만드는 것은 **하늘을 가르는 전선**이다.
+// 여태 이 골목의 하늘은 텅 빈 면이었다 — 화면에서 가장 넓은데 아무것도 없었다.
+//
+// ⭐ **전선은 메시가 아니라 `LineSegments` 하나로 만든다.** 드로우콜 1개면 전선 전부를
+// 그린다(성능 예산: 구간당 100). WebGL의 선 굵기는 항상 1px인데, 전선은 원래 그렇게 보인다.
+// ⚠ 선은 `LineBasicMaterial`이라 노을 보정(MeshStandard만 물들인다)을 타지 않는다 —
+//   그게 맞다: 전선은 낮에도 밤에도 **검은 실루엣**이어야 한다.
+// ⚠ 밤에도 그대로 둔다. 퇴근길 정서로 넣었지만 밤에는 밤대로 값을 한다
+//   (하늘을 가르는 선은 그 자체로 불안하다 — fear-cognition §2 실루엣 우위)
+function buildPolesAndWires(group: THREE.Group, mats: { pole: THREE.Material; arm: THREE.Material }) {
+  // 전신주 — 벽에 붙여 세운다. 플레이어 x 한계(±2.6) 밖이라 걸리적거리지 않는다
+  const POLE_H = 9.4;                       // 벽(7m)보다 높아야 하늘에 걸린다
+  const poles: Array<[number, number]> = [  // [x, z]
+    [2.85, -L * 0.16], [-2.85, -L * 0.42], [2.85, -L * 0.63], [2.85, -L * 0.93],
+  ];
+  for (const [px, pz] of poles) {
+    boxOf(mats.pole, 0.26, POLE_H, 0.26, px, POLE_H / 2, pz, group);
+    // 완철(crossarm) — 전선을 받는 가로대. 이게 없으면 전봇대가 그냥 기둥이다
+    const s = Math.sign(px);
+    boxOf(mats.arm, 1.5, 0.1, 0.1, px - s * 0.7, POLE_H - 0.75, pz, group);
+    boxOf(mats.arm, 1.1, 0.09, 0.09, px - s * 0.5, POLE_H - 1.5, pz, group);
+  }
+  // 변압기 — 하나만. 전봇대 실루엣의 특징적인 덩어리
+  boxOf(mats.arm, 0.46, 0.72, 0.46, 2.85 - 0.5, POLE_H - 2.7, -L * 0.63, group);
+
+  // ---------- 전선 ----------
+  // 처짐(현수선)을 넣는 것이 전부다. 곧은 직선은 전선이 아니라 철사로 보인다.
+  // 한 스팬을 6조각으로 쪼개 포물선으로 근사한다 (선분이라 조각이 적어도 티가 안 난다)
+  const pts: number[] = [];
+  const span = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, sag: number) => {
+    const N = 6;
+    let px = x1, py = y1, pz = z1;
+    for (let i = 1; i <= N; i++) {
+      const t = i / N;
+      const x = x1 + (x2 - x1) * t;
+      const z = z1 + (z2 - z1) * t;
+      // 4t(1−t) = 가운데서 최대, 양 끝에서 0 — 포물선 처짐
+      const y = y1 + (y2 - y1) * t - sag * 4 * t * (1 - t);
+      pts.push(px, py, pz, x, y, z);
+      px = x; py = y; pz = z;
+    }
+  };
+  const TOP = POLE_H - 0.75;
+  // ① 오른쪽 전봇대들을 잇는 세로 방향 다발 — 골목을 따라 흐른다 (높이를 조금씩 달리해 다발로)
+  for (const [dx, dy] of [[-1.3, 0], [-0.7, -0.06], [-0.1, 0.02], [-0.95, -0.72]] as Array<[number, number]>) {
+    span(2.85 + dx, TOP + dy, -L * 0.16, 2.85 + dx, TOP + dy, -L * 0.63, 0.55);
+    span(2.85 + dx, TOP + dy, -L * 0.63, 2.85 + dx, TOP + dy, -L * 0.93, 0.36);
+    // 구간 입구·출구 밖으로도 이어 보낸다 — 골목이 여기서 시작되고 끝나는 것이 아니게
+    span(2.85 + dx, TOP + dy, -L * 0.16, 2.85 + dx, TOP + dy + 0.3, 1.5, 0.3);
+    span(2.85 + dx, TOP + dy, -L * 0.93, 2.85 + dx, TOP + dy + 0.3, -L - 1.5, 0.3);
+  }
+  // ② 골목을 **가로지르는** 선 — 이게 있어야 하늘이 갈린다 (레퍼런스의 그 그림)
+  span(2.85 - 0.7, TOP, -L * 0.16, -2.85 + 0.7, TOP - 0.9, -L * 0.42, 0.7);
+  span(2.85 - 0.7, TOP - 0.75, -L * 0.63, -2.85 + 0.7, TOP - 1.5, -L * 0.42, 0.6);
+  span(-2.85 + 0.7, TOP - 0.9, -L * 0.42, 2.85 - 0.7, TOP - 0.4, -L * 0.93, 0.8);
+  // ③ 벽으로 들어가는 인입선 — 전선이 어디로 가는지가 보여야 배경이 아니라 동네가 된다
+  span(2.85 - 0.7, TOP - 1.5, -L * 0.63, 3.0, 4.6, -L * 0.52, 0.15);
+  span(-2.85 + 0.7, TOP - 1.5, -L * 0.42, -3.0, 4.2, -L * 0.34, 0.15);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const wires = new THREE.LineSegments(
+    geo,
+    new THREE.LineBasicMaterial({ color: 0x14161d, transparent: true, opacity: 0.92 }),
+  );
+  group.add(wires);
+}
+
+// ---------- ⭐ 초록 (v0.11.55) — 골목의 유일한 채도 ----------
+// 레퍼런스 셋이 전부 가지고 있던 것. 화분과 담쟁이는 **사람이 사는 동네**의 표시다 —
+// 누군가 물을 주고 있다는 뜻이라 그것만으로 골목이 덜 무섭고 더 따뜻해진다.
+//
+// ⚠ **잎 재질은 노을 보정에서 제외한다** (`keepColor`) — 안 그러면 초록이 호박색이 되어
+//   화면에서 유일하게 채도 높은 덩어리가 사라진다.
+// ⚠ 배치는 **벽 밑·낮게**. 이상현상은 벽면(창·셔터)과 통행선 바닥에 있으므로 그 둘을 피한다.
+//   차도(z −21.3~−27.7)에는 벽이 없어 화분이 허공에 뜬다 — 그 구간도 비운다
+function buildGreenery(group: THREE.Group) {
+  const leaf = (hex: number) => {
+    const m = concrete(hex);
+    m.userData.keepColor = true;  // 낮에도 밤에도 초록
+    return m;
+  };
+  const leafA = leaf(0x37502f);
+  const leafB = leaf(0x415c38);
+  const leafC = leaf(0x2c4327);
+  const pot = concrete(0x5c463a);   // 화분은 사람이 만든 것 — 노을에 함께 물든다
+
+  // 화분 — 벽 밑에 놓인 스티로폼 상자·고무 대야의 그 실루엣
+  const spots: Array<[number, number, number]> = [ // [x, z, 크기]
+    [2.62, -3.6, 1.0], [-2.66, -9.4, 0.86], [2.58, -16.2, 1.12],
+    [-2.62, -30.4, 0.94], [2.64, -34.2, 0.8],
+  ];
+  for (const [px, pz, s] of spots) {
+    boxOf(pot, 0.62 * s, 0.34 * s, 0.62 * s, px, 0.17 * s, pz, group);
+    // 잎 덩어리 셋 — 크기와 높이를 어긋나게 두면 다듬지 않은 화분이 된다
+    boxOf(leafA, 0.54 * s, 0.46 * s, 0.5 * s, px, (0.34 + 0.23) * s, pz, group);
+    boxOf(leafB, 0.38 * s, 0.34 * s, 0.42 * s, px - 0.12 * s, (0.34 + 0.6) * s, pz + 0.1 * s, group);
+    boxOf(leafC, 0.3 * s, 0.26 * s, 0.32 * s, px + 0.14 * s, (0.34 + 0.82) * s, pz - 0.08 * s, group);
+  }
+
+  // 담쟁이 — 벽을 타고 오르는 덩어리.
+  // ⚠ **큰 판 몇 장으로 만들면 벽에 붙인 초록 사각형이 된다** (실측 스크린샷 — 첫 시도가 그랬다).
+  //   잎으로 읽히는 것은 색이 아니라 **너덜너덜한 실루엣**이다: 작은 조각을 흩어 덩어리를 만들고
+  //   가장자리를 성기게 둔다. 깊이(x)도 조금씩 달리해 납작함을 깬다
+  const rand = (() => { let s = 20817; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 0x100000000); })();
+  const patch = (cx: number, cy: number, cz: number, rz: number, ry: number, n: number) => {
+    for (let i = 0; i < n; i++) {
+      // 중심이 촘촘하고 가장자리가 성기게 — 제곱근을 쓰면 균일 원반, 그냥 쓰면 중심 집중
+      const a = rand() * Math.PI * 2;
+      const r = rand() * rand();                  // 중심 집중
+      const dz = Math.cos(a) * r * rz;
+      const dy = Math.sin(a) * r * ry;
+      const s = 0.26 + (1 - r) * 0.42;            // 중심 조각이 크다
+      const mat = [leafA, leafB, leafC][i % 3];
+      boxOf(mat, 0.09 + rand() * 0.11, s * (0.8 + rand() * 0.5), s * (0.8 + rand() * 0.5),
+        cx, cy + dy, cz + dz, group);
+    }
+  };
+  // ⭐ **담 위로 넘어온 나무** — 벽면 담쟁이는 두 번 시도했지만 로우폴리 박스로는 끝내
+  //   '벽에 붙인 초록 상자'였다 (실측 스크린샷 2장). 붙는 면이 평평하면 붙은 것으로 안 읽힌다.
+  //   대신 **담 위에 얹는다**: 밝은 하늘을 배경으로 한 실루엣은 이 스타일에서 가장 확실하게
+  //   식물로 읽히고, 덤으로 비어 있던 하늘 면을 채운다.
+  //   ⚠ 통행부(|x| ≤ 2.6) 위로는 넘기지 않는다 — 머리 위에 뜬 덩어리는 답답하다
+  patch(-3.05, WALL_H + 0.5, -12.8, 1.9, 0.95, 16);
+  patch(3.05, WALL_H + 0.35, -31.8, 1.5, 0.8, 13);
+  patch(3.02, WALL_H + 0.45, -6.2, 1.3, 0.75, 11);
+}
+
 /** 복도가 담당하는 지적 대상 — 가로등·간판·그림자 사람은 테마와 무관하게 늘 있다 */
 type CorridorEffect = 'lamp_flicker' | 'shop_typo' | 'figure';
 
@@ -217,6 +346,11 @@ export function createCorridor(
     boxOf(wallMat(color, farLen), 1, WALL_H, farLen, wx, WALL_H / 2, ROAD_Z - ROAD_HALF - farLen / 2, group);
   }
 
+  // 전신주와 전선 — 하늘을 가른다 (v0.11.54). 벽과 같은 콘크리트 계열로 두어 동네가 이어지게
+  buildPolesAndWires(group, { pole: concrete(0x2b3040), arm: concrete(0x232838) });
+  // 초록 — 사람이 사는 동네의 표시 (v0.11.55)
+  buildGreenery(group);
+
   // 끝 벽 — 개구부(중앙)를 남기고 2조각. **골목 양 끝에 같은 것이 하나씩** (v0.11.22):
   // 뒤에는 이게 없어서 골목 벽이 z=0에서 그냥 끊겼고, 돌아보면 터널 옆구리 너머로
   // 바깥(빈 공간)이 그대로 보였다. 터널이 대칭이면 그것을 감싸는 벽도 대칭이어야 한다
@@ -257,7 +391,8 @@ export function createCorridor(
   const lampPole = box(0.15, 5, 0.15, 0x3a4157, HW - 0.4, 2.5, lampZ, group);
   box(0.62, 0.1, 0.1, 0x3a4157, HW - 0.7, 4.95, lampZ, group);        // 등을 내미는 암
   const lampHead = box(0.5, 0.14, 0.26, 0x2a3142, HW - 0.9, 4.86, lampZ, group); // 등기구 갓
-  (lampHead.material as THREE.MeshStandardMaterial).emissive.setHex(0x3a2a12);
+  const lampHeadMat = lampHead.material as THREE.MeshStandardMaterial;
+  lampHeadMat.emissive.setHex(0x3a2a12);
   const lampLight = new THREE.PointLight(0xffc687, 22, 18, 1.8);
   lampLight.position.set(HW - 0.9, 4.8, lampZ);
   group.add(lampLight);
@@ -353,7 +488,7 @@ export function createCorridor(
   return {
     refs: {
       group, scene, moon, skyDome, tunnel, backTunnel, tunnelLights, tunnelLampMat,
-      car, carLight, ambient, stretchMark, lampLight, shopGlow, shopSign, shopSignMat,
+      car, carLight, ambient, stretchMark, lampLight, lampHeadMat, shopGlow, shopSign, shopSignMat,
       shopTex, shopFront, homeFront, shopBack, figure,
     },
     hit: {

@@ -6,7 +6,10 @@ import { type AnomalyEffect } from '../data';
 import { type SegmentRefs } from './refs';
 import {
   L, HW, ROAD_Z, CAR_SPAN, CAR_SEC, LAMP_LADDER, FOG_NIGHT, SKY_DUSK, FOG_DUSK, isGreen, isFlashing,
-  TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY,
+  TUNNEL_LAMP_COLOR, TUNNEL_LAMP_EMISSIVE, TUNNEL_LAMP_INTENSITY,
+  DUSK_LAMP_COLOR, DUSK_LAMP_INTENSITY, DUSK_LAMP_EMISSIVE,
+  DUSK_TUNNEL_COLOR, DUSK_TUNNEL_EMISSIVE,
+  DUSK_BOOTH_COLOR, DUSK_BOOTH_EMISSIVE, DUSK_BOOTH_INTENSITY, DUSK_CAR_INTENSITY,
 } from './layout';
 
 /** 터널 안개가 낮에 향하는 색 — 다리 밑의 어둠 (하늘색이 아니다) */
@@ -24,14 +27,32 @@ const NIGHT_TINT = new THREE.Color(FOG_NIGHT);
 // ⚠ **밝기는 건드리지 않는다** (lift 0 · gain 1). 첫 시도에서 재질을 1.22배 들어 올렸더니
 //   앰비언트(6.4)와 겹쳐 화면 전체가 같은 겨자색으로 화이트아웃됐다 — 벽도 바닥도 프롭도
 //   구분되지 않았다. **따뜻함은 색상에서 오고, 구조는 밝기에서 온다.** 둘을 같이 만지면 둘 다 잃는다
+// ⚠ **채도를 한 번 더 낮췄다** (실측 교정 2회차). 0.22/0.5로는 벽·바닥·프롭이 전부
+//   같은 주황 한 톤이 되어 "노을"이 아니라 **세피아 필터**로 읽혔다.
+//   웜은 한색과 나란히 놓일 때 가장 웜하다 — 넓은 면일수록 물들이는 정도를 아껴야 한다.
+//   색상을 덜 끌어오는 것(hueMix)도 같은 이유다: 프롭마다 원래 색이 조금씩 남아야 구분된다
+// ⚠⚠ **hueMix를 낮추면 색이 초록을 지나간다.** 색상환을 선형 보간하기 때문이다:
+//    벽의 원래 색상은 0.62(파랑)이고 목표는 0.075(주황)인데, 그 사이에는 0.33(초록)이 있다.
+//    0.72로 낮췄더니 h = 0.62 − 0.39 = **0.23, 올리브색**이 나왔다 (실측 스크린샷).
+//    ⭐ **'덜 주황'을 원하면 색상이 아니라 채도를 낮춘다.** hueMix는 0.9 아래로 내리지 않는다
+// ⭐ **밤의 색을 물들이는 것이 아니라, 다른 시간대의 벽을 칠하는 것이다** (3회차 교정).
+//   레퍼런스(해 넘어간 뒤의 골목)의 벽은 크림·미색이고 화면 전체가 하이키·저대비다.
+//   밤의 어두운 재질을 색상만 돌리면 아무리 손봐도 '어두운 주황 골목'에서 못 벗어난다.
+//   그래서 **밝기를 실제로 끌어올린다** — 대신 조명을 그만큼 내려 화이트아웃을 막는다
+//   (1회차 실패는 밝기와 조명을 함께 올린 것이었지, 밝기를 올린 것 자체가 아니었다).
 const DUSK = {
-  hue: 0.075,      // 목표 색상 — 호박/구운 오렌지
-  hueMix: 0.9,     // 원래 색상을 얼마나 끌어올 것인가 (1이면 전부 같은 색상이 된다)
-  satBase: 0.22,   // 무채색이던 것도 이만큼은 물든다
-  satMix: 0.5,     // 원래 채도를 얼마나 남길 것인가
-  satMax: 0.5,     // 원색이 되지 않게 (visual-polish: 고채도 남발 금지)
-  lift: 0,
-  gain: 1,
+  hue: 0.075,      // 목표 색상 — 미색(따뜻한 회색)으로 수렴시킨다
+  // ⚠⚠ hueMix를 낮추면 색이 **초록을 지나간다** — 색상환을 선형 보간하기 때문이다.
+  //    벽의 원래 색상 0.62(파랑)에서 목표 0.075(주황) 사이에는 0.33(초록)이 있다.
+  //    0.72로 낮췄더니 h = 0.23, **올리브색**이 나왔다 (실측 스크린샷).
+  //    '덜 주황'을 원하면 색상이 아니라 **채도**를 낮춘다. 0.9 아래로 내리지 않는다
+  hueMix: 0.92,
+  satBase: 0.07,   // 무채색이던 것도 이만큼은 물든다 — 아주 옅게
+  satMix: 0.3,     // 원래 채도를 얼마나 남길 것인가
+  satMax: 0.24,    // 파스텔 상한. 이 위로 가면 '힐링'이 아니라 '세피아'가 된다
+  // 밝기 — 어두운 것을 많이, 밝은 것을 조금 올린다 (범위를 위로 압축해 저대비 하이키)
+  lift: 0.11,
+  gain: 0.95,
 };
 
 const _hsl = { h: 0, s: 0, l: 0 };
@@ -62,6 +83,15 @@ function setDuskMaterials(scene: THREE.Scene, on: boolean) {
     for (const m of list) {
       const mat = m as THREE.MeshStandardMaterial;
       if (!mat?.color) continue;
+      // ⚠⚠ **조명을 안 받는 재질(MeshBasic)은 절대 건드리지 않는다.** 그것들은 색이 곧 기능이다:
+      //    터널 속을 가리는 **검은 안개 판**과 그라데이션 하늘이 여기 해당한다.
+      //    lift를 올리기 전에는 near-black이 조금 밝아지는 정도라 티가 안 났는데,
+      //    하이키로 가자 **터널 입구가 흰 문짝**이 됐다 (실측 스크린샷). 전환 장치가 죽은 것이다
+      if (!(mat as THREE.Material & { isMeshStandardMaterial?: boolean }).isMeshStandardMaterial) continue;
+      // ⭐ **잎은 물들이지 않는다** (v0.11.55). 노을 보정은 색상을 호박으로 끌어당기는데,
+      //    그러면 화면에서 **유일하게 채도 높은 초록**이 사라진다 — 레퍼런스 셋이 전부
+      //    가지고 있던 그 한 덩어리다. 식물은 낮에도 밤에도 초록인 것이 맞다
+      if (mat.userData.keepColor) continue;
       const decal = mat.map && !mat.userData.surface;
       if (decal || (mat.emissive && mat.emissive.getHex() !== 0)) continue;
       if (mat.userData.nightColor === undefined) mat.userData.nightColor = mat.color.getHex();
@@ -89,10 +119,14 @@ export function applyDepth(refs: SegmentRefs, depth: number) {
   setBoothLight(refs, 9 - depth * 0.7);
 }
 
-/** 부스 형광등 — 빛과 발광부를 함께 움직인다 (빛만 끄면 어둠 속에 뜬 관이 남는다) */
-function setBoothLight(refs: SegmentRefs, intensity: number) {
+/** 부스 형광등 — 빛과 발광부를 함께 움직인다 (빛만 끄면 어둠 속에 뜬 관이 남는다).
+ *  `dusk`면 한색 형광이 아니라 **막 들어온 미지근한 등**으로 켠다 (v0.11.53) */
+function setBoothLight(refs: SegmentRefs, intensity: number, dusk = false) {
   refs.boothLight.intensity = Math.max(0, intensity);
-  refs.boothTubeMat.emissive.setHex(intensity > 0.1 ? 0x8fa6c4 : 0x000000);
+  refs.boothLight.color.setHex(dusk ? DUSK_BOOTH_COLOR : 0xbcd0ea);
+  refs.boothTubeMat.emissive.setHex(
+    intensity > 0.1 ? (dusk ? DUSK_BOOTH_EMISSIVE : 0x8fa6c4) : 0x000000,
+  );
 }
 
 // ---------- 퇴근길/밤 전환 — 첫날 퇴근길 튜토리얼이 유일한 '밝은' 구간이다 ----------
@@ -109,14 +143,14 @@ export function setMorning(refs: SegmentRefs, on: boolean) {
   fog.color.setHex(on ? FOG_DUSK : FOG_NIGHT);
   // 노을은 **대기가 보이는** 시간이다 — 밤보다는 한참 옅게, 대낮보다는 짙게.
   // 20m 앞 현수막의 글자는 그대로 읽혀야 한다 (v0.11.27 실측 거리)
-  fog.density = on ? 0.022 : 0.044;
-  refs.ambient.color.setHex(on ? 0xffd9ae : 0x39415e); // 노을이 벽에 반사돼 돌아오는 빛
+  fog.density = on ? 0.012 : 0.044;   // ⚠ 0.022는 옅은 재질과 겹쳐 화면 전체를 같은 베이지로 뭉갰다
+  refs.ambient.color.setHex(on ? 0xeee4e6 : 0x39415e); // 노을이 벽에 반사돼 돌아오는 빛
   // ⚠ 벽 기본색이 한색(0x232838)이라 **웜 광량이 모자라면 곧장 진흙빛이 된다.**
   // 첫 시도에서 5.0으로 낮췄더니 노을이 아니라 '이미 저문 어두운 골목'이 됐다 (실측 스크린샷)
-  refs.ambient.intensity = on ? 4.6 : 2.2; // 어두운 재질도 또렷이 보이는 수준
+  refs.ambient.intensity = on ? 1.8 : 2.2; // 어두운 재질도 또렷이 보이는 수준
   refs.group.userData.ambientBase = refs.ambient.intensity; // 터널 어둠이 곱해 쓸 기준값
-  refs.moon.color.setHex(on ? 0xffa64a : 0x8090c0); // 낮 = 낮게 걸린 해
-  refs.moon.intensity = on ? 5.4 : 0.75;
+  refs.moon.color.setHex(on ? 0xffd9c0 : 0x8090c0); // 낮 = 낮게 걸린 해
+  refs.moon.intensity = on ? 4.6 : 0.75;
   // ⭐ **해의 각도가 노을의 전부다.** 밤의 달은 머리 위(4,10,2)에서 고르게 떨어지지만,
   // 노을은 크게 기울어 든다: 한쪽 벽만 호박색으로 물들고 반대쪽은 그늘에 남는다.
   // 그림자 렌더링이 없어도(castShadow 0) 면의 법선만으로 이 대비가 생긴다.
@@ -128,8 +162,15 @@ export function setMorning(refs: SegmentRefs, on: boolean) {
   // 그라데이션 하늘 — 퇴근길에만. 밤은 배경색(FOG_NIGHT) 한 겹이면 충분하다
   refs.skyDome.visible = on;
   (refs.skyDome.material as THREE.MeshBasicMaterial).color.setScalar(1);
-  refs.lampLight.intensity = on ? 0 : LAMP_LADDER[0]; // 해가 남아 있는 동안 가로등은 소등
-  setBoothLight(refs, on ? 0 : 9);                    // 부스 형광등도 아직 꺼져 있다
+  // ---------- ⭐ 등이 **먼저** 들어온다 (v0.11.53) ----------
+  // 가을 저녁의 골목을 만드는 것은 노을만이 아니다. **해가 남아 있는데 등이 먼저 켜지는**
+  // 그 짧은 시간이 퇴근길의 정서다. 여태 여기 등은 전부 꺼져 있었다 —
+  // 밝으니 필요 없다는 판단이었는데, 필요해서 켜는 것이 아니라 시간을 말하려고 켜는 것이다.
+  // ⚠ 밤의 1/3도 안 되게 건다. 세면 밤처럼 보이고, 그러면 튜토리얼의 낙차가 사라진다
+  refs.lampLight.color.setHex(on ? DUSK_LAMP_COLOR : 0xffc687);
+  refs.lampLight.intensity = on ? DUSK_LAMP_INTENSITY : LAMP_LADDER[0];
+  refs.lampHeadMat.emissive.setHex(on ? DUSK_LAMP_EMISSIVE : 0x3a2a12);
+  setBoothLight(refs, on ? DUSK_BOOTH_INTENSITY : 9, on);
 }
 
 /** 터널 어둠 — **화면 페이드가 아니라 안개를 검게 올린다** (v0.11.15).
@@ -162,9 +203,17 @@ export function setTunnelDark(refs: SegmentRefs, dark: number, baseDensity: numb
   // 이걸 빼면 터널 한가운데의 암흑 속에서 갱구 너머로 노을이 훤히 남는다
   if (morning) (refs.skyDome.material as THREE.MeshBasicMaterial).color.setScalar(k);
   // 터널 등도 함께 잦아든다 — **발광부(emissive)까지** 꺼야 한다.
-  // 빛만 끄면 등기구가 어둠 속에 떠 있는 점으로 남아 이음매를 드러낸다
-  for (const l of refs.tunnelLights) l.intensity = TUNNEL_LAMP_INTENSITY * (1 - d);
-  refs.tunnelLampMat.emissive.setHex(TUNNEL_LAMP_EMISSIVE).multiplyScalar(1 - d);
+  // 빛만 끄면 등기구가 어둠 속에 떠 있는 점으로 남아 이음매를 드러낸다.
+  // ⭐ 퇴근길에는 **나트륨등의 주황**을 쓴다 (v0.11.53) — 다리 밑 등은 원래 그 색이라
+  // 사실에 가깝고, 갱구 안쪽이 따뜻하게 물들어 터널이 '검은 구멍'에서 '지나갈 곳'이 된다.
+  // 밤에는 한색 그대로다: 그때 이 등은 안심이 아니라 불안의 편이어야 한다 (visual-polish §3)
+  for (const l of refs.tunnelLights) {
+    l.color.setHex(morning ? DUSK_TUNNEL_COLOR : TUNNEL_LAMP_COLOR);
+    l.intensity = TUNNEL_LAMP_INTENSITY * (1 - d);
+  }
+  refs.tunnelLampMat.emissive
+    .setHex(morning ? DUSK_TUNNEL_EMISSIVE : TUNNEL_LAMP_EMISSIVE)
+    .multiplyScalar(1 - d);
   const ab = (refs.group.userData.ambientBase as number) ?? 2.2;
   refs.ambient.intensity = ab * (1 - d * 0.92);
 }
@@ -294,7 +343,8 @@ export function updateWorld(refs: SegmentRefs, t: number) {
       refs.car.position.x = dir * (-CAR_SPAN / 2 + CAR_SPAN * p);
       refs.car.rotation.y = dir > 0 ? 0 : Math.PI;
       refs.car.visible = true;
-      refs.carLight.intensity = 26;
+      // 전조등 — 퇴근길에는 약하게. 해가 남아 있는데 밤과 같은 세기면 화면이 탄다 (v0.11.53)
+      refs.carLight.intensity = refs.group.userData.morning ? DUSK_CAR_INTENSITY : 26;
     }
   }
 }
