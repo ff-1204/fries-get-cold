@@ -5,7 +5,11 @@
 import * as THREE from 'three';
 import { MAIN_GAP_HALF } from '../config';
 import { type CorridorRefs } from './refs';
-import { box, boxOf, concrete, shopSignTexture, type SharedMats } from './kit';
+import {
+  box, boxOf, concrete, shopSignTexture, asphaltTexture, wallTexture, surfaceMat,
+  duskSkyTexture,
+  type SharedMats,
+} from './kit';
 import { buildShopFront } from './shop';
 import { buildHomeFront } from './home';
 import {
@@ -165,18 +169,52 @@ export function createCorridor(
   const group = new THREE.Group();
   scene.add(group);
 
+  // ---------- ⭐ 퇴근길 하늘 (v0.11.52) — 그라데이션 스카이 돔 ----------
+  // `scene.background`는 **터널 암전 로직이 색으로 다루고 있어서**(setTunnelDark) 텍스처로
+  // 바꿀 수 없다. 대신 돔을 하나 띄우고 퇴근길에만 켠다 — 배경색은 그대로 뒤에 남는다.
+  //
+  // ⚠ **안개를 끈다.** 90m 밖이라 안개를 켜면 98%가 안개색으로 덮여 그라데이션이 사라진다.
+  //    하늘은 무한히 멀고 그 색 자체가 대기이므로 이게 물리적으로도 맞다.
+  //    대신 터널 암전은 setTunnelDark가 **재질 색을 직접 곱해** 따로 처리한다.
+  // ⚠ `depthWrite: false` + `renderOrder: -1` — 가장 먼저 그리고 아무것도 가리지 않는다.
+  //    반지름 80, 골목 중앙에 두면 어느 지점에서도 카메라 far(120) 안에 들어온다
+  const skyDome = new THREE.Mesh(
+    new THREE.SphereGeometry(80, 24, 16),
+    new THREE.MeshBasicMaterial({
+      map: duskSkyTexture(), side: THREE.BackSide, fog: false, depthWrite: false,
+    }),
+  );
+  skyDome.position.set(0, 0, -L / 2);
+  skyDome.renderOrder = -1;
+  skyDome.visible = false; // 밤에는 없다 — setMorning이 켠다
+  scene.add(skyDome);
+
   // ---------- 복도 골격 ----------
+  // ⭐ **표면 텍스처** (v0.11.52) — 벽과 바닥이 민짜라 빛이 걸릴 데가 없었다.
+  // 타일 한 변을 실측 미터로 잡아 두고(아스팔트 2.5m · 벽 3m) 면 길이로 반복 수를 나눈다:
+  // 조각마다 길이가 다르므로 **반복 수를 손으로 적으면 반드시 어긋난다**
+  const ASPHALT_M = 2.5;
+  const WALL_M = 3;
+  const asphalt = asphaltTexture();
+  const wallTex = wallTexture();
+
   // 바닥 (아스팔트)
-  box(HW * 2 + 14, 0.2, L + 14, 0x181c28, 0, -0.1, -L / 2, group);
+  const floorW = HW * 2 + 14;
+  const floorD = L + 14;
+  boxOf(surfaceMat(0x181c28, asphalt, floorW / ASPHALT_M, floorD / ASPHALT_M),
+    floorW, 0.2, floorD, 0, -0.1, -L / 2, group);
 
   // 양쪽 벽 — 통짜였으나 **차도 구간만 뚫는다** (v0.11.7). 벽은 공용이므로 여기서 갈라 두고,
   // 테마 1·2·3·5는 구멍을 메우는 패치를 각자 붙인다 — 테마 4만 실제로 열린 교차로가 된다.
   // (벽으로 막힌 골목 한가운데 횡단보도가 그려져 있던 기존 모순도 함께 해소)
   const nearLen = -(ROAD_Z + ROAD_HALF);      // 구간 입구 ~ 도로 앞
   const farLen = L + (ROAD_Z - ROAD_HALF);    // 도로 뒤 ~ 구간 끝
+  // 벽면(±X)의 UV는 u=깊이 · v=높이다 — 반복 수를 그 축에 맞춘다
+  const wallMat = (color: number, len: number) =>
+    surfaceMat(color, wallTex, len / WALL_M, WALL_H / WALL_M);
   for (const [wx, color] of [[HW + 0.5, 0x232838], [-HW - 0.5, 0x20263a]] as Array<[number, number]>) {
-    box(1, WALL_H, nearLen, color, wx, WALL_H / 2, -nearLen / 2, group);
-    box(1, WALL_H, farLen, color, wx, WALL_H / 2, ROAD_Z - ROAD_HALF - farLen / 2, group);
+    boxOf(wallMat(color, nearLen), 1, WALL_H, nearLen, wx, WALL_H / 2, -nearLen / 2, group);
+    boxOf(wallMat(color, farLen), 1, WALL_H, farLen, wx, WALL_H / 2, ROAD_Z - ROAD_HALF - farLen / 2, group);
   }
 
   // 끝 벽 — 개구부(중앙)를 남기고 2조각. **골목 양 끝에 같은 것이 하나씩** (v0.11.22):
@@ -314,7 +352,7 @@ export function createCorridor(
 
   return {
     refs: {
-      group, scene, moon, tunnel, backTunnel, tunnelLights, tunnelLampMat,
+      group, scene, moon, skyDome, tunnel, backTunnel, tunnelLights, tunnelLampMat,
       car, carLight, ambient, stretchMark, lampLight, shopGlow, shopSign, shopSignMat,
       shopTex, shopFront, homeFront, shopBack, figure,
     },

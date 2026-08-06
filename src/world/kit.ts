@@ -267,6 +267,152 @@ function tagSrc(m: THREE.Object3D): void {
   }
 }
 
+// ---------- ⭐ 표면 텍스처 — 타일링 (v0.11.52) ----------
+// 여태 `kit.ts`의 텍스처는 전부 **데칼**(간판·전단지·현수막)이었고, 벽과 바닥은 민짜 색이었다.
+// 그래서 노을을 아무리 잘 깔아도 빛을 받아 낼 디테일이 없어 세피아에서 멈췄다.
+//
+// ⭐ **텍스처는 밝기만 만들고, 색은 재질이 만든다.** 회색조 1.0 근처로만 흔들고
+// `material.color`가 팔레트를 담당한다 — 그래야 밤/노을 색 전환(setDuskMaterials)이
+// 텍스처와 싸우지 않는다. 텍스처에 색을 넣으면 두 개의 팔레트가 생긴다
+//
+// ⚠ **노멀맵을 쓰지 않는다** — 이 게임은 그림자 렌더링이 0이고 면의 법선만으로 음영을 낸다.
+// 가짜 요철을 얹는 순간 로우폴리의 평평한 음영이 깨진다 (visual-polish §5 '하나의 아트 디렉션')
+
+/** 결정적 난수 — 새로고침마다 벽의 얼룩이 바뀌면 '같은 골목'이 아니게 된다 (titleArt와 같은 규약) */
+function texRng(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0x100000000;
+  };
+}
+
+/** **주기적** 값 노이즈 — 격자를 모듈로로 감아 이음매가 없다.
+ *  일반 노이즈를 쓰면 타일 경계에 선이 생기고, 36m 벽에 그 선이 여섯 번 나타난다 */
+function periodicNoise(size: number, cells: number, seed: number): Float32Array {
+  const rand = texRng(seed);
+  const lat = new Float32Array(cells * cells);
+  for (let i = 0; i < lat.length; i++) lat[i] = rand();
+  const out = new Float32Array(size * size);
+  const step = size / cells;
+  const smooth = (t: number) => t * t * (3 - 2 * t); // 스무스스텝 — 격자 티가 안 나게
+  for (let y = 0; y < size; y++) {
+    const gy = y / step, y0 = Math.floor(gy) % cells, y1 = (y0 + 1) % cells;
+    const fy = smooth(gy - Math.floor(gy));
+    for (let x = 0; x < size; x++) {
+      const gx = x / step, x0 = Math.floor(gx) % cells, x1 = (x0 + 1) % cells;
+      const fx = smooth(gx - Math.floor(gx));
+      const a = lat[y0 * cells + x0] + (lat[y0 * cells + x1] - lat[y0 * cells + x0]) * fx;
+      const b = lat[y1 * cells + x0] + (lat[y1 * cells + x1] - lat[y1 * cells + x0]) * fx;
+      out[y * size + x] = a + (b - a) * fy;
+    }
+  }
+  return out;
+}
+
+const TEX_SIZE = 256; // 로우폴리 + 안개에 이 이상은 보이지도 않는다 (그리고 단일 파일 빌드가 커진다)
+
+function grayTexture(fill: (px: Float32Array, size: number) => void): THREE.CanvasTexture {
+  const size = TEX_SIZE;
+  const px = new Float32Array(size * size).fill(1);
+  fill(px, size);
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d')!;
+  const img = ctx.createImageData(size, size);
+  for (let i = 0; i < px.length; i++) {
+    const v = Math.max(0, Math.min(1, px[i])) * 255;
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** 아스팔트 — 굵은 골재 얼룩 + 잔알갱이. 바닥은 늘 비스듬히 보이므로 대비를 약하게 둔다 */
+export function asphaltTexture(): THREE.CanvasTexture {
+  return grayTexture((px, size) => {
+    const coarse = periodicNoise(size, 8, 7311);
+    const grain = periodicNoise(size, 64, 4409);
+    for (let i = 0; i < px.length; i++) {
+      px[i] = 1 - (coarse[i] - 0.5) * 0.15 - (grain[i] - 0.5) * 0.14;
+    }
+  });
+}
+
+/** 콘크리트 벽 — 물때가 **세로로** 흐른다. 세로 결이 있어야 벽이 서 있는 것으로 읽힌다 */
+export function wallTexture(): THREE.CanvasTexture {
+  return grayTexture((px, size) => {
+    const blotch = periodicNoise(size, 6, 1187);
+    const streak = periodicNoise(size, 24, 9041);
+    const grain = periodicNoise(size, 48, 2273);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        // 세로 얼룩 — x 방향 노이즈만 읽어 위아래로 길게 늘인다 (물때가 흘러내린 자국)
+        const vertical = streak[(y % 8) * size + x];
+        // ⚠ 진폭은 낮게 잡는다 (실측 교정) — 0.18/0.13으로는 **큰 검은 번짐**으로 읽혔다.
+        // 로우폴리 + 평평한 음영에서는 텍스처가 조금만 세도 곧바로 '더러운 얼룩'이 된다
+        px[i] = 1
+          - (blotch[i] - 0.5) * 0.12
+          - (vertical - 0.5) * 0.09
+          - (grain[i] - 0.5) * 0.06;
+      }
+    }
+  });
+}
+
+/** ⭐ 퇴근길 하늘 — 세로 그라데이션 (v0.11.52).
+ *
+ *  **평면 한 색으로는 '주황'이지 '노을'이 아니다.** 화면에서 가장 큰 밝은 면인데 가장 심심했다.
+ *
+ *  ⚠ 색 배치는 **실제로 보이는 띠**에 맞춰 잡는다. 골목에서 보이는 하늘은 건물 사이의
+ *  좁은 사다리꼴이고, 그 방향은 고도각 20~60°다 — 구면 UV로 v 0.6~0.85 구간.
+ *  천정(v=1)에 무슨 색을 두든 거의 안 보이므로, **그 띠 안에서 색이 바뀌어야** 한다.
+ *
+ *  ⭐ 위쪽에 식은 보랏빛을 두는 것이 따뜻함을 **깎지 않고 키운다** — 웜은 한색과 나란히
+ *  놓일 때 가장 웜하게 읽힌다. 전부 주황으로 칠하면 오히려 세피아 사진이 된다 */
+export function duskSkyTexture(): THREE.CanvasTexture {
+  const h = 256;
+  const cv = document.createElement('canvas');
+  cv.width = 4;
+  cv.height = h;
+  const ctx = cv.getContext('2d')!;
+  // 캔버스 y=0 이 v=1(천정), y=h 가 v=0(발밑)
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0.00, '#414369'); // 천정 — 식어 가는 보랏빛 남색
+  g.addColorStop(0.15, '#6b5a80');
+  g.addColorStop(0.28, '#b07f78'); // 보라 → 장밋빛으로 넘어가는 자리
+  g.addColorStop(0.38, '#dc9a62');
+  g.addColorStop(0.47, '#f2b264'); // 해가 걸린 높이 — 가장 밝고 따뜻하다
+  g.addColorStop(0.52, '#e8a45c');
+  g.addColorStop(1.00, '#6d4526'); // 지평선 아래 — 바닥에 가려 거의 안 보인다
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 4, h);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** 표면 텍스처를 입힌 재질. **면마다 반복 수가 달라야** 하므로 텍스처를 복제해 쓴다
+ *  (BoxGeometry는 모든 면이 0~1 UV라, 50m 바닥에 repeat 1이면 한 장이 늘어난다).
+ *  `userData.surface`는 노을 전환이 **이 재질은 물들여도 된다**고 알아보는 표시다 —
+ *  간판·현수막 같은 데칼과 달리 텍스처가 밝기만 담당하므로 색을 갈아도 의미가 상하지 않는다 */
+export function surfaceMat(
+  color: number, tex: THREE.CanvasTexture, repeatX: number, repeatY: number,
+): THREE.MeshStandardMaterial {
+  const map = tex.clone();
+  map.needsUpdate = true;
+  map.repeat.set(repeatX, repeatY);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, map });
+  mat.userData.surface = true;
+  return mat;
+}
+
 export function box(
   w: number, h: number, d: number,
   color: number, x: number, y: number, z: number,

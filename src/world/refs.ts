@@ -8,7 +8,10 @@ import { type AnomalyEffect } from '../data';
 export interface CorridorRefs {
   group: THREE.Group;
   scene: THREE.Scene;            // 아침/밤 전환 대상 (setMorning — 배경·안개)
-  moon: THREE.DirectionalLight;  // 밤: 달빛 / 아침: 해 (setMorning이 색·강도 전환)
+  moon: THREE.DirectionalLight;  // 밤: 달빛 / 퇴근길: 낮게 걸린 해 (setMorning이 색·각도 전환)
+  /** 퇴근길 하늘 — 그라데이션 돔. 밤에는 숨는다 (setMorning). 안개를 안 받으므로
+   *  터널 암전은 setTunnelDark가 재질 색을 곱해 따로 처리한다 */
+  skyDome: THREE.Mesh;
   tunnel: THREE.Group;           // 다리 밑 터널(앞) — 구간 사이를 잇는다 (마지막 구간엔 숨김)
   backTunnel: THREE.Group;       // 뒤 — 지나온 터널 (끝은 막혀 있다: 돌아가는 길은 없다)
   /** 터널 등 (앞·뒤 하나씩) — setTunnelDark가 어둠 곡선대로 함께 잦아들게 한다 */
