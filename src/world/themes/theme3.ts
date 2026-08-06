@@ -30,7 +30,7 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   // 공 (A-009 — 정상: 펜스 안쪽 / 이상: 길 한가운데)
   const ball = new THREE.Mesh(
     new THREE.SphereGeometry(0.28, 12, 10),
-    new THREE.MeshStandardMaterial({ color: 0x6d7488, roughness: 0.85 }),
+    new THREE.MeshStandardMaterial({ color: 0x6d7488, roughness: 0.85, flatShading: true }),
   );
   ball.position.copy(BALL_HOME);
   t3.add(ball);
@@ -61,7 +61,7 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   // 스스로 어렴풋이 빛난다 (배치 3원칙: 자체 발광이 가장 확실)
   const eyes = new THREE.Group();
   const eyeMat = new THREE.MeshStandardMaterial({
-    color: 0x0b0e16, emissive: 0x8f96ac, emissiveIntensity: 0.9,
+    color: 0x0b0e16, emissive: 0x8f96ac, emissiveIntensity: 0.9, flatShading: true,
   });
   for (const exOff of [-0.09, 0.09]) {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), eyeMat);
@@ -73,7 +73,8 @@ export function createTheme3(mats: SharedMats): Build<Theme3Refs, E> {
   t3.add(eyes);
 
   // 구조 차별화 — 담 너머 수목 실루엣 (이 구간만 하늘 쪽이 술렁인다)
-  const treeMat = new THREE.MeshStandardMaterial({ color: 0x131a28, roughness: 1 });
+  // 담 너머 수목은 구를 눌러 만든다 — flatShading이 각진 잎덩어리 실루엣을 준다
+  const treeMat = new THREE.MeshStandardMaterial({ color: 0x131a28, roughness: 1, flatShading: true });
   for (const [tz, s] of [[-L * 0.25, 1.6], [-L * 0.42, 2.0], [-L * 0.58, 1.5],
     [-L * 0.78, 1.8]] as Array<[number, number]>) {
     const tree = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), treeMat);

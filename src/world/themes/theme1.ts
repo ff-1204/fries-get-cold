@@ -51,14 +51,14 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   //   비출 빛이 없으면 어둡다. 아주 옅은 발광을 준다 (mats.pale과 같은 수위):
   //   뼈가 스스로 빛나는 것이 아니라 **어둠 속에서도 흰 것은 희게 보인다**는 쪽에 가깝다
   const boneMat = new THREE.MeshStandardMaterial({
-    color: 0xd6cfbc, roughness: 0.85, emissive: 0x171610,
+    color: 0xd6cfbc, roughness: 0.85, emissive: 0x171610, flatShading: true,
   });
   const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), boneMat);
   cranium.position.y = 0.14;
   cranium.scale.set(1, 0.92, 1.08);
   const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.16), boneMat);
   jaw.position.set(0, -0.02, 0.04);
-  const socketMat = new THREE.MeshStandardMaterial({ color: 0x0a0c12, roughness: 1 });
+  const socketMat = new THREE.MeshStandardMaterial({ color: 0x0a0c12, roughness: 1, flatShading: true });
   for (const sx of [-0.062, 0.062]) {
     const socket = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), socketMat);
     socket.position.set(sx, 0.15, 0.145);
@@ -100,7 +100,7 @@ export function createTheme1(mats: SharedMats): Build<Theme1Refs, E> {
   stick.rotation.z = 0.5;
   const cap = new THREE.Mesh(
     new THREE.ConeGeometry(0.55, 0.5, 8),
-    new THREE.MeshStandardMaterial({ color: 0x6b1520, roughness: 0.8 }),
+    new THREE.MeshStandardMaterial({ color: 0x6b1520, roughness: 0.8, flatShading: true }),
   );
   cap.position.set(-0.35, 1.35, 0);
   cap.rotation.z = 0.5;

@@ -546,7 +546,12 @@ export function sharedMats(): SharedMats {
     //   콘크리트에 스며든 피는 실제로 검게 마른다: **벽이 받는 가로등 빛에 대해
     //   어두운 얼룩**이 되게 낮춘다 (밝은 바닥 위의 어두운 형상 — H-019와 같은 문법)
     bloodWall: new THREE.MeshStandardMaterial({ color: 0x1d0709, roughness: 0.5 }),
-    darkFigure: new THREE.MeshStandardMaterial({ color: 0x0b0e16, roughness: 1 }),
+    // ⭐ flatShading — 로우폴리의 각진 면을 살린다 (v0.11.59).
+    // ⚠ BoxGeometry에는 무의미하다(면마다 법선이 이미 갈라져 있다). 값이 나오는 것은
+    //   **구·원뿔 계열**이고, 이 재질은 형체의 머리(Sphere)가 쓴다
+    darkFigure: new THREE.MeshStandardMaterial({
+      color: 0x0b0e16, roughness: 1, flatShading: true,
+    }),
     // ⚠ 발광은 **아주 약하게**. 세면 어두운 곳에서 스스로 빛나는 물건이 되어
     //   '사람의 살'이 아니라 '광원'으로 읽힌다 (핏자국에서 두 번 틀렸던 그 실수)
     pale: new THREE.MeshStandardMaterial({
