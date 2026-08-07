@@ -3,7 +3,6 @@
 // 컴파일 에러 — 리셋 누락(이상 상태가 다음 구간으로 새는 것)이 타입으로 막힌다.
 //
 // **콘텐츠 추가는 데이터(anomalies.json)로, 새 '시각 효과'가 필요할 때만 이 파일**
-// (design-principles: 이상현상 추가에 코드 수정이 필요하면 설계 실패)
 
 import { type AnomalyEffect } from '../data';
 import { type SegmentRefs } from './refs';

@@ -93,7 +93,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number) {
       ctx.fillStyle = side < 0 ? WALL_L : WALL_R;
       ctx.fillRect(Math.min(x0, x1), top, Math.abs(x1 - x0) + 1, h - top);
 
-      // 창문 — **거의 다 꺼져 있다.** 부재가 이 게임의 공포 수단이다 (design-principles §1-1)
+      // 창문 — **거의 다 꺼져 있다.** 부재가 이 게임의 공포 수단이다
       const cols = Math.max(1, Math.round(2 * (1 - t0) + 1));
       const bw = Math.max(1.5, (x1 - x0) * side * 0.16);
       for (let c = 0; c < cols; c++) {
@@ -111,7 +111,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number) {
     }
   }
 
-  // ---------- 전봇대와 전선 — 한국 밤골목의 가장 싼 실루엣 (design-principles §7) ----------
+  // ---------- 전봇대와 전선 — 한국 밤골목의 가장 싼 실루엣 ----------
   // 하늘을 가로지르는 검은 선 몇 개가 '어느 나라 골목인지'를 즉시 말한다.
   // 순수 검정으로 그린다: 하늘 광공해와의 대비가 곧 이 그림의 원근이다
   ctx.strokeStyle = 'rgba(2,3,7,0.92)';

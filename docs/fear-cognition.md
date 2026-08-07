@@ -3,8 +3,7 @@
 "왜 이것이 무서운가"의 과학적 근거와, 각 원리의 우리식 적용 규칙.
 이상현상·연출·사운드를 설계할 때 이 문서로 "이게 실제로 무서운 이유"를 검증한다.
 
-> 상위 원칙: [design-principles.md](./design-principles.md) §0(동사는 걷기 하나)·§1-1(표현 수위)이 우선한다.
-> 페이싱·색의 실무 규칙은 [affective-design.md](./affective-design.md), 마감은 [visual-polish.md](./visual-polish.md).
+> 페이싱·색은 [affective-design.md](./affective-design.md), 마감은 [visual-polish.md](./visual-polish.md).
 
 ---
 

@@ -68,7 +68,7 @@ export class AudioEngine {
     this.ambGain.gain.linearRampToValueAtTime(quiet ? 0.006 : 0.05, t + 2.2);
   }
 
-  /** 이동 중 호출 — 걸음 간격으로 발소리 (즉각 피드백, design-principles §0) */
+  /** 이동 중 호출 — 걸음 간격으로 발소리 (즉각 피드백) */
   update(dt: number, moving: boolean) {
     if (!this.ctx) return;
 

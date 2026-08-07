@@ -510,7 +510,7 @@ export function createCorridor(
   group.add(shopGlow);
 
   // 그림자 사람 (A-010 HUM — 스폰 앵커 랜덤 출현. 등을 돌리고 서 있다 — 얼굴은 보여주지 않는다)
-  // 위협 동작 없음 — 심리 호러 정체성(design-principles §1). 그냥 서 있는 것이 가장 무섭다 (fear-cognition §1 부재/이질)
+  // 위협 동작 없음 — 심리 호러 정체성. 그냥 서 있는 것이 가장 무섭다 (fear-cognition §1 부재/이질)
   const figure = new THREE.Group();
   const fBody = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.22, 0.28), mats.darkFigure);
   fBody.position.y = 0.9;

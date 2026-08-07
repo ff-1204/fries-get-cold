@@ -468,7 +468,7 @@ async function startDay() {
   else await startNight();
 }
 
-/** 깊이 한계 — 죽음이 아니라 골목 입구 리셋 (soft fail 설계: 실패조차 암전, design-principles §1) */
+/** 깊이 한계 — 죽음이 아니라 골목 입구 리셋 (soft fail 설계: 실패조차 암전) */
 async function softFail() {
   phase = 'transition';
   await hud.fadeOut(1400);

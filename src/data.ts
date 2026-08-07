@@ -55,7 +55,7 @@ export interface AnomalyDef {
   /** 부류 — 관례상 OBJ=gaze / HUM=avert. 판정은 없고, 증식이 번갈아 뽑는 기준이다 (위 주석) */
   rule: AnomalyRule;
   effect: AnomalyEffect;
-  /** 늘어남 직후 암시 문구 (design-principles §3 — 공정성).
+  /** 늘어남 직후 암시 문구 (공정성).
    *  ⚠ **지금은 쓰이는 곳이 없다** (v0.11.50): 놓침 판정이 사라져 띄울 자리가 없어졌다.
    *  지우지 않고 둔다 — 문장 자체는 그 이상현상이 무엇인지의 기록이고,
    *  머무름 → 자람이 들어오면 늘어난 구간의 자막으로 되살릴 자리가 있다 */
@@ -75,7 +75,7 @@ export interface StageDef {
   night: number;
   /** 온보딩 보장 — 퇴근길 튜토리얼 · 첫 구간 강제 정상 · 무이상 방지 · 조작 힌트를
    *  한 묶음으로 켠다. 규칙을 텍스트로 설명하지 않는 대신 첫 밤의 **구조**가 가르친다
-   *  (design-principles '무설명 학습', game-design-theory §6) */
+   *  (무설명 학습 — game-design-theory §6) */
   onboarding: boolean;
   /** 가게를 나서며 — 그 밤의 목적을 한 번 말한다 */
   intro: string;

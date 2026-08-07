@@ -52,11 +52,10 @@
 | [docs/stages.md](./docs/stages.md) | 스테이지(=밤) — 공통/밤별 경계, 방향, 현황판, 데이터 스키마 |
 | [docs/anomalies.md](./docs/anomalies.md) | 이상현상 — 설계 원칙, 배치 3원칙, 목록, 스키마, 추가 절차 |
 
-**설계 원칙** — 왜 그렇게 만드는가
+**설계 근거** — 왜 그렇게 만들었는가
 
 | 문서 | 내용 |
 |---|---|
-| [docs/design-principles.md](./docs/design-principles.md) | 최상위 원칙 — 어포던스·정직한 판정, 표현 수위, 깜놀·템포·오리지널리티 |
 | [docs/game-design-theory.md](./docs/game-design-theory.md) | 게임 디자인 이론 — MDA, 의미 있는 선택, Flow, 정보 에이전시, 자원 경제 |
 | [docs/fear-cognition.md](./docs/fear-cognition.md) | 공포의 인지과학 — 예측 오류, 위협 탐지, 스위트 스팟, 습관화, 안전 신호 |
 | [docs/affective-design.md](./docs/affective-design.md) | 감성 설계 — 순간별 감정 좌표, 긴장-이완 곡선, Peak-End, 사운드 심리 |
@@ -67,7 +66,7 @@
 | 문서 | 내용 |
 |---|---|
 | [docs/development.md](./docs/development.md) | 스택, 구조, 구현 노트, 관리자 모드, 검증, 배포, 성능 예산 |
-| [docs/workflow.md](./docs/workflow.md) | 작업 절차, 릴리즈, 협업 방식, **배운 것(실수 → 규칙)** |
+| [docs/workflow.md](./docs/workflow.md) | 작업 절차, 릴리즈, **배운 것(실수 → 기록)** |
 | [docs/responsive-design.md](./docs/responsive-design.md) | PC·모바일 대응 — 입력 분기, 뷰포트, 성능 티어, 테스트 매트릭스 |
 
 **전략·기록**

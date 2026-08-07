@@ -57,7 +57,7 @@ test('시식 서사 등급 경계값', () => {
   assert.equal(tasteFromStretches(3), 'soggy');
 });
 
-// 템포 (design-principles §4): 늘어남 없는 완주 편도 7~8분 이내
+// 템포: 늘어남 없는 완주 편도 7~8분 이내
 test('무결점 완주 시간이 템포 예산 안에 있다', () => {
   const r = simulateNight({});
   assert.ok(r.seconds < 8 * 60, `완주 ${r.seconds.toFixed(0)}s ≥ 8분`);
