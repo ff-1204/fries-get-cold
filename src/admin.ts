@@ -50,9 +50,13 @@ export interface AdminHost {
 const CSS = `
 #adm-hud, #adm-panel { position: fixed; z-index: 60; color: #cfe3ff;
   font: 12px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+/* ⚠ body가 user-select: none이라(index.html) 상속을 끊지 않으면 좌표를 드래그로 못 집는다.
+   HUD는 **읽어서 가져가라고** 있는 것이므로 여기서만 되돌린다 — pointer-events도 함께다
+   (none이면 애초에 선택이 시작되지 않는다). 게임 화면 쪽 금지는 그대로 둔다. */
 #adm-hud { left: 10px; top: 44px; max-width: 46ch; white-space: pre-wrap;
   background: #05070ccc; border: 1px solid #2b6cb055; border-radius: 6px;
-  padding: 7px 9px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  padding: 7px 9px; text-shadow: 0 1px 2px #000;
+  pointer-events: auto; user-select: text; -webkit-user-select: text; cursor: text; }
 #adm-hud .k { color: #7f9bbd; }
 #adm-hud .v { color: #ffd48a; }
 #adm-hud .o { color: #8ef0b4; }
@@ -76,7 +80,8 @@ const CSS = `
   font: 700 11px/1.4 ui-monospace, Consolas, monospace; pointer-events: none; }
 #adm-panel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(92vw, 430px);
   background: #070a12f2; border: 1px solid #2b6cb0aa; border-radius: 10px; padding: 14px 16px;
-  box-shadow: 0 18px 60px #000c; }
+  box-shadow: 0 18px 60px #000c;
+  user-select: text; -webkit-user-select: text; }
 #adm-panel h3 { margin: 0 0 10px; font-size: 13px; color: #ffd48a; letter-spacing: .06em; }
 #adm-panel label { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
 #adm-panel label > span:first-child { flex: 0 0 6.5em; color: #7f9bbd; }
@@ -159,10 +164,32 @@ export class Admin {
       else this.openPanel();
       return;
     }
-    if (e.code === 'KeyC' && !this.panel) {
+    // ⚠ Ctrl/⌘를 뺀다 — 빼지 않으면 **브라우저의 Ctrl+C를 이 분기가 가로채** preventDefault로
+    //   죽인다. 관리자 모드를 켠 채로는 무엇을 선택해도 복사가 안 되던 원인이었다
+    if (e.code === 'KeyC' && !this.panel && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
-      void navigator.clipboard?.writeText(this.line);
+      void this.copyLine();
+    }
+  }
+
+  /** 조준 줄을 클립보드로. ⚠ 성공을 가정하지 않는다 — writeText는 문서가 포커스를 잃었거나
+   *  비보안 컨텍스트(http)면 조용히 거절한다. 예전에는 실패해도 '복사됨'이 떴다 */
+  private async copyLine() {
+    try {
+      if (!navigator.clipboard) throw new Error('no clipboard api');
+      await navigator.clipboard.writeText(this.line);
       this.flash('좌표 복사됨');
+    } catch {
+      // 포인터락 중 포커스 문제·비보안 컨텍스트 대비 — 화면 밖 textarea + execCommand
+      const ta = document.createElement('textarea');
+      ta.value = this.line;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      this.flash(ok ? '좌표 복사됨' : '복사 실패 — HUD에서 직접 선택');
     }
   }
 
