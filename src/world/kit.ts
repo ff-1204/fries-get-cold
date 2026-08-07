@@ -488,6 +488,76 @@ export function stampBoardTexture(): THREE.CanvasTexture {
   });
 }
 
+// ---------- 한옥 (v0.11.65) — FF-1204의 기와지붕과 창호 ----------
+// ⭐ **이 게임에서 유일하게 한옥인 것은 FF-1204뿐이다.** 골목은 콘크리트 빌라촌이고,
+//   그 끝에 목조 기와집이 하나 서 있다 — 목적지를 '건물의 종류'로 구분하는 것이
+//   간판을 크게 하는 것보다 멀리서 잘 읽힌다 (실루엣이 다르다).
+
+/** 기와 — 지붕면에 반복해 까는 텍스처.
+ *
+ *  ⭐ 기와를 기와로 만드는 것은 색이 아니라 **세로 골의 반복**이다. 암키와(오목)와
+ *  수키와(볼록)가 번갈아 가고, 볼록한 쪽에 하이라이트가 한 줄 선다. 그 명암만 있으면
+ *  로우폴리 박스도 지붕으로 읽힌다 — 곡면을 만들 필요가 없다.
+ *
+ *  ⚠ **한 장에 한 주기만 그리고 반복 수로 늘린다** (`surfaceMat`). 폭 11m 지붕에
+ *  0.35m 기와면 서른 골이고, 그것을 텍스처에 다 그리면 512px에서 골 하나가 17px이라 뭉갠다.
+ *  ⚠ 채도를 넣지 않는다 — 넓은 면이다 (visual-polish: 넓은 면은 무채색, 색은 작은 면이 낸다).
+ *    한국 기와의 그 푸른빛은 **한색 쪽으로 살짝만** 민다 (0x2a2f3a 계열 몸체색과 곱해진다) */
+export function giwaTexture(): THREE.CanvasTexture {
+  const w = 96;
+  const h = 128;
+  return canvasTex(w, h, (c) => {
+    c.fillStyle = '#6b7080';                  // 암키와 — 골의 바닥 (가장 어둡다)
+    c.fillRect(0, 0, w, h);
+    // 수키와 — 골 사이에 얹히는 볼록한 마디. 좌→우 그라데이션이 곡면을 만든다
+    const g = c.createLinearGradient(w * 0.34, 0, w * 0.86, 0);
+    g.addColorStop(0, '#8f95a6');
+    g.addColorStop(0.34, '#c3c8d4');          // 하이라이트 — 볼록의 정점
+    g.addColorStop(1, '#5b606e');
+    c.fillStyle = g;
+    c.fillRect(w * 0.34, 0, w * 0.52, h);
+    // 켜 이음 — 기와가 세로로 겹쳐 내려오는 단. 이 가로선이 없으면 '골판지'가 된다
+    c.fillStyle = '#3f434e';
+    c.fillRect(0, h - 9, w, 9);
+    c.fillStyle = '#9aa0ae';                  // 겹친 기와의 앞턱이 빛을 받는다
+    c.fillRect(w * 0.34, h - 9, w * 0.52, 4);
+  });
+}
+
+/** 창호(한지 문살) — 살창에 한지를 바른 문. **안에서 불이 새어 나오는 면**이다.
+ *
+ *  ⭐ 이것이 이 가게의 웜을 담당한다 (visual-polish §3: 웜 = 안전·목표 전용).
+ *  기름 표면과 같은 계열이되 더 넓고 고르게 — 기름은 점광이고 창호는 면광으로 읽힌다.
+ *  `emissiveMap`으로 걸면 **한지 부분만** 빛나고 살(나무)은 검게 남아 격자가 실루엣이 된다.
+ *
+ *  ⚠ 살은 **세로가 촘촘하고 가로가 성글다**(띠살문). 정사각 격자로 그리면 한옥이 아니라
+ *    창틀이 된다 — 이 비율 하나가 '한국의 문'과 '격자창'을 가른다.
+ *  ⚠ 한지는 흰색이 아니라 **누런 미색**이다. 흰 종이로 두면 형광등이 되고 온기가 사라진다 */
+export function hanjiTexture(): THREE.CanvasTexture {
+  const w = 256;
+  const h = 256;
+  return canvasTex(w, h, (c) => {
+    c.fillStyle = '#f0d49a';                  // 한지 — 누런 미색 (흰색이면 형광등이 된다)
+    c.fillRect(0, 0, w, h);
+    // 종이의 얼룩 — 고르게 칠하면 플라스틱이 된다. 큰 원 몇 개로 농담만 준다
+    for (let i = 0; i < 7; i++) {
+      c.fillStyle = i % 2 ? '#f7e2b8' : '#e3c184';
+      c.beginPath();
+      c.arc((i * 79) % w, (i * 113) % h, 46, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = '#3a2a1a';                  // 살 — 어두운 나무
+    for (let i = 1; i < 9; i++) c.fillRect(i * (w / 9) - 4, 0, 8, h);   // 세로살 여덟 (촘촘)
+    for (let i = 1; i < 4; i++) c.fillRect(0, i * (h / 4) - 5, w, 10);  // 가로살 셋 (성글)
+    c.fillStyle = '#2b1f13';                  // 문틀
+    c.lineWidth = 0;
+    c.fillRect(0, 0, w, 11);
+    c.fillRect(0, h - 11, w, 11);
+    c.fillRect(0, 0, 11, h);
+    c.fillRect(w - 11, 0, 11, h);
+  });
+}
+
 /**
  * 이 오브젝트를 만든 **소스 위치**를 `userData.src`에 붙인다 (`theme4.ts:99` 꼴).
  * 관리자 모드 조준 표시가 그대로 보여주므로 **화면에서 본 것을 그 자리에서 grep**할 수 있다.
