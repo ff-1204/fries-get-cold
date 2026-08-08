@@ -119,7 +119,7 @@ export type { SegmentRefs };
 export { applyAnomalies } from './effects';
 export {
   setSegmentTheme, applyDepth, setMorning, setTunnelDark, setStretchMark, setShopNear, setMarketLight,
-  setBackScene, setBannerSide, setThemeMirror, updateWorld, startCar, stopCar, carInCorridor,
+  setBackScene, setBannerSide, updateWorld, startCar, stopCar, carInCorridor,
 } from './runtime';
 export type { TimeOfDay } from './runtime';
 export {

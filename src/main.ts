@@ -14,7 +14,6 @@ import { mountTitleArt } from './titleArt';
 import { AudioEngine } from './audio';
 import {
   createWorld, applyAnomalies, applyDepth, setStretchMark, setShopNear, setBackScene, setBannerSide,
-  setThemeMirror,
   setSegmentTheme,
   setMorning, type TimeOfDay, setMarketLight, updateWorld, startCar, carInCorridor, isGreen, TRAFFIC_CYCLE,
   setTunnelDark, stopCar, TUNNEL_LEN, TUNNEL_SWAP_Z, TUNNEL_IN_HALF,
@@ -338,8 +337,8 @@ function rollSegment(stretchStatus = false, spawnZ = -0.5) {
   // 현수막은 **가게가 있는 쪽**에 건다 — 퇴근길은 가게로 가고, 귀갓길은 가게에서 나온다.
   // 테마 순서는 진작 뒤집혀 있었는데 세계가 안 뒤집혀서, 밤에도 가게 광고가 정면에 있었다
   setBannerSide(refs, walkMode !== 'return');
-  // 같은 거리를 반대로 걸으면 좌우가 바뀐다 — 테마마다 저작된 방향이 있고, 반대일 때만 뒤집는다
-  setThemeMirror(refs, walkMode === 'return');
+  // ⚠ 좌우 반전(`setThemeMirror`)은 걷어냈다 — 맵은 하나의 고정된 장소이고, 여정에 따라
+  //   달라지는 것은 테마 순서뿐이다 (runtime.ts의 폐기 주석)
 
   // ---------- ④ 어둠을 **한 번 더** 깐다 (v0.11.61) ----------
   // ⚠⚠ 위에서 부른 `setMorning`이 `fog.density`를 시간대 값(맑음 0.007 / 노을 0.012)으로
